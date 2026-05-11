@@ -277,7 +277,7 @@ export function UserStatsPage({ userId }: Props) {
                             <div style={styles.topRow}>
                                 <div style={styles.meta}>
                                     <div style={styles.country}>
-                                        {supportsEmoji && country.flag_emoji} {item.CountryName}
+                                        {supportsEmoji && country?.flag_emoji} {item.CountryName}
                                     </div>
 
                                     <div style={styles.contest}>
