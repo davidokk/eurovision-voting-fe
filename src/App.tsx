@@ -84,33 +84,3 @@ const styles: Record<string, React.CSSProperties> = {
     height: "calc(100vh - 72px)",
   },
 };
-
-// 💥 СТИЛИ АДМИНКИ
-const adminStyles: Record<string, React.CSSProperties> = {
-  wrapper: {
-    height: "100vh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "#0b1220",
-    color: "#e6edf7",
-    gap: 16,
-  },
-
-  title: {
-    fontSize: 32,
-    fontWeight: 800,
-  },
-
-  text: {
-    color: "#9fb0d0",
-  },
-
-  card: {
-    padding: 20,
-    border: "1px solid #24324f",
-    borderRadius: 12,
-    background: "#111a2e",
-  },
-};
