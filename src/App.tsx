@@ -1,10 +1,8 @@
 import { useEffect, useState } from "react";
 import { AdminPage } from "./components/AdminPage";
+import { UserStatsPage } from "./components/UserStatsPage";
 
-import {
-  getContest,
-  getContests,
-} from "./api/contest";
+import { getContest, getContests } from "./api/contest";
 
 import type {
   ContestView,
@@ -24,16 +22,33 @@ export default function App() {
 
   const isAdmin = window.location.pathname === "/admin";
 
+  // -----------------------------
+  // USER PAGE (/user/:id)
+  // -----------------------------
+  const isUserPage = window.location.pathname.startsWith("/user/");
+
+  const userId = isUserPage
+    ? window.location.pathname.split("/user/")[1]
+    : null;
+
   if (isAdmin) {
     return <AdminPage initialContest={selectedContest} />;
   }
 
-  // загружаем список конкурсов
+  if (isUserPage && userId) {
+    return <UserStatsPage userId={userId} />;
+  }
+
+  // -----------------------------
+  // LOAD CONTESTS
+  // -----------------------------
   useEffect(() => {
     getContests().then(setContests);
   }, []);
 
-  // восстанавливаем выбранный contest после обновления страницы
+  // -----------------------------
+  // RESTORE SELECTED CONTEST
+  // -----------------------------
   useEffect(() => {
     const savedId = localStorage.getItem("selectedContestId");
 

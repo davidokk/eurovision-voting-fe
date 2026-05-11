@@ -240,7 +240,26 @@ export function PerformanceCard({
               {/* LEFT SIDE */}
               <div style={styles.scoreLeft}>
                 <div style={styles.user}>
-                  {s.username}
+                  <a
+                    href={`/user/${s.user_id}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={styles.usernameLink}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLAnchorElement).style.borderBottom =
+                        "1px solid #4f7cff";
+                      (e.currentTarget as HTMLAnchorElement).style.color =
+                        "#4f7cff";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLAnchorElement).style.borderBottom =
+                        "1px solid transparent";
+                      (e.currentTarget as HTMLAnchorElement).style.color =
+                        "#e6edf7";
+                    }}
+                  >
+                    ⧉ {s.username}
+                  </a>
                   <span style={styles.score}>
                     {getScoreEmoji(s.score)} {s.score}
                   </span>
@@ -311,60 +330,60 @@ export function PerformanceCard({
             {/* GIF SEARCH */}
             {ENABLE_GIFS &&
               <div style={styles.gifSection}>
-              <div style={styles.gifTitle}>GIF</div>
+                <div style={styles.gifTitle}>GIF</div>
 
-              <div style={styles.gifSearchRow}>
-                <input
-                  placeholder="Поиск GIF..."
-                  value={gifSearch}
-                  onChange={(e) => setGifSearch(e.target.value)}
-                  style={styles.gifInput}
-                />
-
-                <button
-                  onClick={() => searchGifs(gifSearch)}
-                  style={styles.gifBtn}
-                >
-                  Найти
-                </button>
-              </div>
-
-              {loadingGifs && (
-                <div style={styles.loading}>Загрузка...</div>
-              )}
-
-              <div style={styles.gifGrid}>
-                {gifs.map((gif) => (
-                  <img
-                    key={gif.id}
-                    src={gif.url}
-                    onClick={() => setSelectedGif(gif.url)}
-                    style={{
-                      ...styles.gifImage,
-                      border:
-                        selectedGif === gif.url
-                          ? "2px solid #4f7cff"
-                          : "2px solid transparent",
-                    }}
+                <div style={styles.gifSearchRow}>
+                  <input
+                    placeholder="Поиск GIF..."
+                    value={gifSearch}
+                    onChange={(e) => setGifSearch(e.target.value)}
+                    style={styles.gifInput}
                   />
-                ))}
-              </div>
 
-              {selectedGif && (
-                <img
-                  src={selectedGif}
-                  style={styles.selectedGif}
-                />
-              )}
-            </div> 
+                  <button
+                    onClick={() => searchGifs(gifSearch)}
+                    style={styles.gifBtn}
+                  >
+                    Найти
+                  </button>
+                </div>
+
+                {loadingGifs && (
+                  <div style={styles.loading}>Загрузка...</div>
+                )}
+
+                <div style={styles.gifGrid}>
+                  {gifs.map((gif) => (
+                    <img
+                      key={gif.id}
+                      src={gif.url}
+                      onClick={() => setSelectedGif(gif.url)}
+                      style={{
+                        ...styles.gifImage,
+                        border:
+                          selectedGif === gif.url
+                            ? "2px solid #4f7cff"
+                            : "2px solid transparent",
+                      }}
+                    />
+                  ))}
+                </div>
+
+                {selectedGif && (
+                  <img
+                    src={selectedGif}
+                    style={styles.selectedGif}
+                  />
+                )}
+              </div>
             }
 
             {/* ACTIONS */}
             <div style={styles.actions}>
               <button
                 onClick={() => {
-                    setOpen(false);
-                    setShowErrorAnimation(false);
+                  setOpen(false);
+                  setShowErrorAnimation(false);
                 }}
                 style={styles.cancel}
               >
@@ -671,5 +690,15 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#ff6b6b",
     marginBottom: 10,
     fontSize: 14,
+  },
+
+  usernameLink: {
+    color: "#e6edf7",
+    fontWeight: 600,
+    textDecoration: "none",
+    padding: "2px 0",
+    borderBottom: "1px solid transparent",
+    transition: "all 0.15s ease",
+    cursor: "pointer",
   },
 };
