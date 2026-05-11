@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type ScoreFiltered = {
     Username: string;
@@ -78,6 +79,8 @@ export function UserStatsPage({ userId }: Props) {
     const [contests, setContests] = useState<ContestMap>({});
     const [selectedYear, setSelectedYear] = useState<string>("");
 
+    const supportsEmoji = getDoesBrowserSupportFlagEmojis();
+
     // ✔️ DEFAULT SORT = SCORE
     const [sort, setSort] = useState<SortType>("score");
 
@@ -133,7 +136,7 @@ export function UserStatsPage({ userId }: Props) {
     const avgScore =
         data.length > 0
             ? data.reduce((sum, i) => sum + (i.Score || 0), 0) /
-              data.length
+            data.length
             : 0;
 
     return (
@@ -168,7 +171,7 @@ export function UserStatsPage({ userId }: Props) {
                                             : "#111a2e",
                                     }}
                                 >
-                                    {c.flag_emoji} {c.name_ru}
+                                    {supportsEmoji && c.flag_emoji} {c.name_ru}
                                 </button>
                             );
                         })}
@@ -265,13 +268,16 @@ export function UserStatsPage({ userId }: Props) {
                     const youtubeId = item.YoutubeLink
                         ? getYouTubeId(item.YoutubeLink)
                         : null;
+                    const country = countries.find(
+                        (c) => c.name_ru === item.CountryName
+                    );
 
                     return (
                         <div key={i} style={styles.card}>
                             <div style={styles.topRow}>
                                 <div style={styles.meta}>
                                     <div style={styles.country}>
-                                        {item.CountryName}
+                                        {supportsEmoji && country.flag_emoji} {item.CountryName}
                                     </div>
 
                                     <div style={styles.contest}>
