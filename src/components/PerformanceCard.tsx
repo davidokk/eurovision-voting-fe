@@ -8,6 +8,12 @@ type Props = {
   votingEnded: boolean;
 };
 
+type GifItem = {
+  id: string;
+  title?: string;
+  url: string;
+};
+
 function getYouTubeId(url: string) {
   const match = url.match(
     /(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i
@@ -20,12 +26,26 @@ export function PerformanceCard({
   votingStarted,
   votingEnded,
 }: Props) {
+  const ENABLE_GIFS = true;
   const token = localStorage.getItem("token");
 
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
+
   const [score, setScore] = useState<number | null>(null);
   const [comment, setComment] = useState("");
+  const [showErrorAnimation, setShowErrorAnimation] = useState(false);
+
+  // GIF STATE
+  const [gifSearch, setGifSearch] = useState("");
+  const [gifs, setGifs] = useState<GifItem[]>([]);
+  const [selectedGif, setSelectedGif] = useState<string | null>(null);
+  const [loadingGifs, setLoadingGifs] = useState(false);
+
+  const API_URL = import.meta.env.VITE_API_URL;
+  const GIPHY_KEY = import.meta.env.VITE_GIPHY_KEY;
+
+  const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
   function getScoreEmoji(score: number) {
     if (score <= 3) return "💩";
@@ -35,11 +55,69 @@ export function PerformanceCard({
     return "😍";
   }
 
-  const API_URL = import.meta.env.VITE_API_URL;
-  const supportsEmoji = getDoesBrowserSupportFlagEmojis();
+  // -----------------------------
+  // LOAD LOCAL GIFS (from /public/gifs.json)
+  // -----------------------------
+  async function loadLocalGifs() {
+    try {
+      setLoadingGifs(true);
+
+      const res = await fetch("/gifs.json");
+      const data = await res.json();
+
+      const normalized: GifItem[] = (data || []).map((g: any) => ({
+        id: g.id,
+        title: g.title,
+        url: g.image, // 👈 ВАЖНО: твой формат
+      }));
+
+      setGifs(normalized);
+    } catch (e) {
+      console.error("Failed to load local gifs", e);
+    } finally {
+      setLoadingGifs(false);
+    }
+  }
+
+  // -----------------------------
+  // SEARCH GIPHY
+  // -----------------------------
+  async function searchGifs(query: string) {
+    if (!query.trim()) return;
+
+    setLoadingGifs(true);
+
+    try {
+      const res = await fetch(
+        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(
+          query
+        )}&limit=20&rating=pg`
+      );
+
+      const data = await res.json();
+
+      const normalized: GifItem[] = (data.data || []).map((g: any) => ({
+        id: g.id,
+        title: g.title,
+        url: g.images?.fixed_height_small?.url || g.images?.original?.url,
+      }));
+
+      setGifs(normalized);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingGifs(false);
+    }
+  }
 
   async function submit() {
-    if (!token || score === null) return;
+    if (!token) return;
+
+    if (score === null) {
+      setShowErrorAnimation(true);
+      setTimeout(() => setShowErrorAnimation(false), 1000);
+      return;
+    }
 
     setError(null);
 
@@ -55,6 +133,7 @@ export function PerformanceCard({
           body: JSON.stringify({
             score: Number(score),
             comment: comment || "",
+            gif_url: selectedGif,
           }),
         }
       );
@@ -67,6 +146,9 @@ export function PerformanceCard({
       setOpen(false);
       setScore(null);
       setComment("");
+      setGifSearch("");
+      setGifs([]);
+      setSelectedGif(null);
       setError(null);
 
       window.location.reload();
@@ -96,19 +178,20 @@ export function PerformanceCard({
           </span>
         </div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {token && votingStarted && !votingEnded && (
-            <button
-              style={styles.rateBtn}
-              onClick={() => setOpen(true)}
-            >
-              Оценить
-            </button>
-          )}
-        </div>
+        {token && votingStarted && !votingEnded && (
+          <button
+            style={styles.rateBtn}
+            onClick={() => {
+              setOpen(true);
+              loadLocalGifs(); // 👈 вместо trending
+            }}
+          >
+            Оценить
+          </button>
+        )}
       </div>
 
-      {/* YOUTUBE PREVIEW */}
+      {/* YOUTUBE */}
       {youtubeId && (
         <div style={styles.thumbnailWrapper}>
           <a
@@ -123,7 +206,6 @@ export function PerformanceCard({
             />
           </a>
 
-          {/* BUTTON OVER IMAGE */}
           <a
             href={performance.youtube_link}
             target="_blank"
@@ -146,20 +228,42 @@ export function PerformanceCard({
           <div style={styles.noScores}>Пока нет оценок</div>
         )}
 
-        {performance.scores.map((s, i) => (
-          <div key={i} style={styles.scoreRow}>
-            <div style={styles.user}>
-              {s.username}
-              <span style={styles.score}>
-                {getScoreEmoji(s.score)} {s.score}
-              </span>
-            </div>
+        {performance.scores.map((s, i) => {
+          const gif =
+            s.gif_url;
 
-            {s.comment && (
-              <div style={styles.comment}>"{s.comment}"</div>
-            )}
-          </div>
-        ))}
+          return (
+            <div
+              key={i}
+              style={styles.scoreRow}
+            >
+              {/* LEFT SIDE */}
+              <div style={styles.scoreLeft}>
+                <div style={styles.user}>
+                  {s.username}
+                  <span style={styles.score}>
+                    {getScoreEmoji(s.score)} {s.score}
+                  </span>
+                </div>
+
+                {s.comment && (
+                  <div style={styles.comment}>
+                    "{s.comment}"
+                  </div>
+                )}
+              </div>
+
+              {/* RIGHT SIDE (GIF) */}
+              {gif && (
+                <img
+                  src={gif}
+                  style={styles.commentGif}
+                  alt="reaction gif"
+                />
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* MODAL */}
@@ -170,15 +274,25 @@ export function PerformanceCard({
 
             {error && <div style={styles.error}>{error}</div>}
 
-            <div style={styles.grid}>
+            {/* SCORE */}
+            <div style={{
+              ...styles.grid,
+              transition: "outline 0.3s ease",
+              outline: showErrorAnimation ? "2px solid #ff6b6b" : "none",
+              borderRadius: 10,
+              padding: showErrorAnimation ? "4px" : "0"
+            }}>
               {Array.from({ length: 10 }).map((_, i) => (
                 <button
                   key={i}
-                  onClick={() => setScore(i + 1)}
+                  onClick={() => {
+                    setScore(i + 1);
+                    setShowErrorAnimation(false);
+                  }}
                   style={{
                     ...styles.box,
-                    background:
-                      score === i + 1 ? "#4f7cff" : "#16213a",
+                    background: score === i + 1 ? "#4f7cff" : "#16213a",
+                    borderColor: showErrorAnimation ? "#ff6b6b" : "#24324f"
                   }}
                 >
                   {i + 1}
@@ -186,6 +300,7 @@ export function PerformanceCard({
               ))}
             </div>
 
+            {/* COMMENT */}
             <textarea
               placeholder="Комментарий"
               value={comment}
@@ -193,9 +308,64 @@ export function PerformanceCard({
               style={styles.textarea}
             />
 
+            {/* GIF SEARCH */}
+            {ENABLE_GIFS &&
+              <div style={styles.gifSection}>
+              <div style={styles.gifTitle}>GIF</div>
+
+              <div style={styles.gifSearchRow}>
+                <input
+                  placeholder="Поиск GIF..."
+                  value={gifSearch}
+                  onChange={(e) => setGifSearch(e.target.value)}
+                  style={styles.gifInput}
+                />
+
+                <button
+                  onClick={() => searchGifs(gifSearch)}
+                  style={styles.gifBtn}
+                >
+                  Найти
+                </button>
+              </div>
+
+              {loadingGifs && (
+                <div style={styles.loading}>Загрузка...</div>
+              )}
+
+              <div style={styles.gifGrid}>
+                {gifs.map((gif) => (
+                  <img
+                    key={gif.id}
+                    src={gif.url}
+                    onClick={() => setSelectedGif(gif.url)}
+                    style={{
+                      ...styles.gifImage,
+                      border:
+                        selectedGif === gif.url
+                          ? "2px solid #4f7cff"
+                          : "2px solid transparent",
+                    }}
+                  />
+                ))}
+              </div>
+
+              {selectedGif && (
+                <img
+                  src={selectedGif}
+                  style={styles.selectedGif}
+                />
+              )}
+            </div> 
+            }
+
+            {/* ACTIONS */}
             <div style={styles.actions}>
               <button
-                onClick={() => setOpen(false)}
+                onClick={() => {
+                    setOpen(false);
+                    setShowErrorAnimation(false);
+                }}
                 style={styles.cancel}
               >
                 Отмена
@@ -261,7 +431,6 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 600,
   },
 
-  /* WRAPPER IMPORTANT */
   thumbnailWrapper: {
     position: "relative",
     marginTop: 10,
@@ -284,18 +453,18 @@ const styles: Record<string, React.CSSProperties> = {
   },
 
   youtubeOverlay: {
-  position: "absolute",
-  right: 6,
-  bottom: 6,
-  padding: "4px 8px",
-  background: "rgba(255, 0, 51, 0.9)",
-  color: "white",
-  borderRadius: 8,
-  fontSize: 9,
-  fontWeight: 700,
-  textDecoration: "none",
-  transform: "translate(30%, 60%)",
-},
+    position: "absolute",
+    right: 6,
+    bottom: 6,
+    padding: "4px 8px",
+    background: "rgba(255,0,51,0.9)",
+    color: "white",
+    borderRadius: 8,
+    fontSize: 9,
+    fontWeight: 700,
+    textDecoration: "none",
+    transform: "translate(30%, 60%)",
+  },
 
   artist: {
     marginTop: 10,
@@ -316,8 +485,8 @@ const styles: Record<string, React.CSSProperties> = {
 
   scoreRow: {
     display: "flex",
-    flexDirection: "column",
-    gap: 6,
+    alignItems: "center",
+    gap: 12,
     padding: 10,
     background: "#111a2e",
     borderRadius: 12,
@@ -340,7 +509,14 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#94a3b8",
     fontStyle: "italic",
     fontSize: 13,
-    whiteSpace: "nowrap",
+  },
+
+  commentGif: {
+    width: 90,
+    height: 60,
+    objectFit: "contain",
+    borderRadius: 8,
+    marginLeft: 12,
   },
 
   modal: {
@@ -350,14 +526,24 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    zIndex: 1000,
   },
 
   modalContent: {
     background: "#0f172a",
     padding: 22,
     borderRadius: 16,
-    width: 380,
+    width: 420,
     border: "1px solid #1f2a44",
+    maxHeight: "90vh",
+    overflowY: "auto",
+  },
+
+  scoreLeft: {
+    display: "flex",
+    flexDirection: "column",
+    flex: 1,
+    gap: 4,
   },
 
   modalTitle: {
@@ -381,6 +567,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontWeight: 700,
     fontSize: 16,
+    transition: "border-color 0.3s ease",
   },
 
   textarea: {
@@ -392,12 +579,75 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #24324f",
     color: "#fff",
     fontSize: 14,
+    resize: "vertical",
+  },
+
+  gifSection: {
+    marginTop: 16,
+  },
+
+  gifTitle: {
+    marginBottom: 8,
+    fontWeight: 700,
+    color: "#fff",
+  },
+
+  gifSearchRow: {
+    display: "flex",
+    gap: 8,
+  },
+
+  gifInput: {
+    flex: 1,
+    background: "#111a2e",
+    border: "1px solid #24324f",
+    borderRadius: 10,
+    padding: "10px 12px",
+    color: "#fff",
+  },
+
+  gifBtn: {
+    background: "#4f7cff",
+    color: "#fff",
+    border: "none",
+    borderRadius: 10,
+    padding: "10px 14px",
+    cursor: "pointer",
+    fontWeight: 600,
+  },
+
+  gifGrid: {
+    marginTop: 12,
+    display: "grid",
+    gridTemplateColumns: "repeat(3, 1fr)",
+    gap: 8,
+    maxHeight: 220,
+    overflowY: "auto",
+  },
+
+  gifImage: {
+    width: "100%",
+    height: 90,
+    objectFit: "cover",
+    borderRadius: 10,
+    cursor: "pointer",
+  },
+
+  selectedGif: {
+    marginTop: 12,
+    width: "100%",
+    borderRadius: 12,
+  },
+
+  loading: {
+    marginTop: 10,
+    color: "#94a3b8",
   },
 
   actions: {
     display: "flex",
     justifyContent: "space-between",
-    marginTop: 14,
+    marginTop: 16,
   },
 
   cancel: {

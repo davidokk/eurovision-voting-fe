@@ -11,6 +11,7 @@ export type ScoreView = {
   username: string;
   score: number;
   comment?: string;
+  gif_url?: string;
 };
 
 export type PerformanceWithScores = {
