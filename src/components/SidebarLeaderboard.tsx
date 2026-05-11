@@ -107,7 +107,17 @@ export function SidebarLeaderboard({ performances }: Props) {
                 return (
                     <div
                         key={p.performance_id}
-                        style={styles.row}
+                        style={{
+                            ...styles.row,
+                            ...(p.qualified
+                                ? {
+                                      border:
+                                          "1px solid #22c55e",
+                                      background:
+                                          "#0f2a1c",
+                                  }
+                                : {}),
+                        }}
                     >
                         <div style={{ flex: 1 }}>
                             <div>
@@ -117,7 +127,7 @@ export function SidebarLeaderboard({ performances }: Props) {
                                 {p.country.name_ru}
                             </div>
 
-                            {/* 🔥 комментарий в МОЁМ ТОПЕ */}
+                            {/* комментарий */}
                             {mode === "mine" &&
                                 myComment && (
                                     <div

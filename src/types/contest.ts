@@ -15,7 +15,7 @@ export type ScoreView = {
 
 export type PerformanceWithScores = {
   performance_id: string;
-
+  qualified: boolean;
   country: {
     id: string;
     name_ru: string;

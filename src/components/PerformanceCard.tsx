@@ -8,6 +8,13 @@ type Props = {
   votingEnded: boolean;
 };
 
+function getYouTubeId(url: string) {
+  const match = url.match(
+    /(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i
+  );
+  return match?.[1] || null;
+}
+
 export function PerformanceCard({
   performance,
   votingStarted,
@@ -28,8 +35,7 @@ export function PerformanceCard({
     return "😍";
   }
 
-  const API_URL = import.meta.env.VITE_API_URL
-
+  const API_URL = import.meta.env.VITE_API_URL;
   const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
   async function submit() {
@@ -55,10 +61,7 @@ export function PerformanceCard({
 
       if (!res.ok) {
         const data = await res.json().catch(() => null);
-
-        throw new Error(
-          data?.message || "Ошибка при отправке оценки"
-        );
+        throw new Error(data?.message || "Ошибка при отправке оценки");
       }
 
       setOpen(false);
@@ -72,41 +75,75 @@ export function PerformanceCard({
     }
   }
 
+  const youtubeId = performance.youtube_link
+    ? getYouTubeId(performance.youtube_link)
+    : null;
+
   return (
     <div style={styles.card}>
-      {/* ЗАГОЛОВОК */}
+      {/* HEADER */}
       <div style={styles.header}>
         <div style={styles.title}>
           <span style={styles.number}>#{performance.number}</span>
 
           <span style={styles.country}>
-            {supportsEmoji ? performance.country.flag_emoji : ""} {performance.country.name_ru}
+            {supportsEmoji ? performance.country.flag_emoji : ""}{" "}
+            {performance.country.name_ru}
           </span>
 
-          <span style={styles.total}>⭐ {Number(performance.total_score.toFixed(2))}</span>
+          <span style={styles.total}>
+            ⭐ {Number(performance.total_score.toFixed(2))}
+          </span>
         </div>
 
-        {token && votingStarted && !votingEnded && (
-          <button
-            style={styles.rateBtn}
-            onClick={() => setOpen(true)}
-          >
-            Оценить
-          </button>
-        )}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {token && votingStarted && !votingEnded && (
+            <button
+              style={styles.rateBtn}
+              onClick={() => setOpen(true)}
+            >
+              Оценить
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* ИСПОЛНИТЕЛЬ */}
+      {/* YOUTUBE PREVIEW */}
+      {youtubeId && (
+        <div style={styles.thumbnailWrapper}>
+          <a
+            href={performance.youtube_link}
+            target="_blank"
+            rel="noreferrer"
+            style={styles.thumbnail}
+          >
+            <img
+              src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
+              style={styles.thumbnailImg}
+            />
+          </a>
+
+          {/* BUTTON OVER IMAGE */}
+          <a
+            href={performance.youtube_link}
+            target="_blank"
+            rel="noreferrer"
+            style={styles.youtubeOverlay}
+          >
+            ▶ YouTube
+          </a>
+        </div>
+      )}
+
+      {/* ARTIST */}
       <div style={styles.artist}>
         {performance.artist} — {performance.song}
       </div>
 
-      {/* ОЦЕНКИ */}
+      {/* SCORES */}
       <div style={styles.scores}>
         {performance.scores.length === 0 && (
-          <div style={styles.noScores}>
-            Пока нет оценок
-          </div>
+          <div style={styles.noScores}>Пока нет оценок</div>
         )}
 
         {performance.scores.map((s, i) => (
@@ -119,25 +156,19 @@ export function PerformanceCard({
             </div>
 
             {s.comment && (
-              <div style={styles.comment}>
-                "{s.comment}"
-              </div>
+              <div style={styles.comment}>"{s.comment}"</div>
             )}
           </div>
         ))}
       </div>
 
-      {/* МОДАЛКА */}
+      {/* MODAL */}
       {open && (
         <div style={styles.modal}>
           <div style={styles.modalContent}>
             <h3 style={styles.modalTitle}>Ваша оценка</h3>
 
-            {error && (
-              <div style={styles.error}>
-                {error}
-              </div>
-            )}
+            {error && <div style={styles.error}>{error}</div>}
 
             <div style={styles.grid}>
               {Array.from({ length: 10 }).map((_, i) => (
@@ -163,7 +194,10 @@ export function PerformanceCard({
             />
 
             <div style={styles.actions}>
-              <button onClick={() => setOpen(false)} style={styles.cancel}>
+              <button
+                onClick={() => setOpen(false)}
+                style={styles.cancel}
+              >
                 Отмена
               </button>
 
@@ -226,6 +260,42 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     fontWeight: 600,
   },
+
+  /* WRAPPER IMPORTANT */
+  thumbnailWrapper: {
+    position: "relative",
+    marginTop: 10,
+    width: "fit-content",
+  },
+
+  thumbnail: {
+    display: "block",
+    borderRadius: 12,
+    overflow: "hidden",
+    border: "1px solid #24324f",
+  },
+
+  thumbnailImg: {
+    width: 120,
+    height: 68,
+    objectFit: "cover",
+    borderRadius: 10,
+    display: "block",
+  },
+
+  youtubeOverlay: {
+  position: "absolute",
+  right: 6,
+  bottom: 6,
+  padding: "4px 8px",
+  background: "rgba(255, 0, 51, 0.9)",
+  color: "white",
+  borderRadius: 8,
+  fontSize: 9,
+  fontWeight: 700,
+  textDecoration: "none",
+  transform: "translate(30%, 60%)",
+},
 
   artist: {
     marginTop: 10,
@@ -345,5 +415,11 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: 10,
     cursor: "pointer",
     fontWeight: 600,
+  },
+
+  error: {
+    color: "#ff6b6b",
+    marginBottom: 10,
+    fontSize: 14,
   },
 };
