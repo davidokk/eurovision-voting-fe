@@ -15,10 +15,14 @@ type GifItem = {
 };
 
 function getYouTubeId(url: string) {
-  const match = url.match(
-    /(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i
-  );
+  const match = url.match(/(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i);
   return match?.[1] || null;
+}
+
+// Хелпер для получения цвета от 1 (красный) до 10 (зеленый)
+function getScoreColor(score: number) {
+  const hue = ((score - 1) * 120) / 9; // 0 = красный, 120 = зеленый
+  return `hsl(${hue}, 80%, 45%)`;
 }
 
 export function PerformanceCard({
@@ -36,7 +40,6 @@ export function PerformanceCard({
   const [comment, setComment] = useState("");
   const [showErrorAnimation, setShowErrorAnimation] = useState(false);
 
-  // GIF STATE
   const [gifSearch, setGifSearch] = useState("");
   const [gifs, setGifs] = useState<GifItem[]>([]);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
@@ -55,22 +58,16 @@ export function PerformanceCard({
     return "😍";
   }
 
-  // -----------------------------
-  // LOAD LOCAL GIFS (from /public/gifs.json)
-  // -----------------------------
   async function loadLocalGifs() {
     try {
       setLoadingGifs(true);
-
       const res = await fetch("/gifs.json");
       const data = await res.json();
-
       const normalized: GifItem[] = (data || []).map((g: any) => ({
         id: g.id,
         title: g.title,
-        url: g.image, // 👈 ВАЖНО: твой формат
+        url: g.image,
       }));
-
       setGifs(normalized);
     } catch (e) {
       console.error("Failed to load local gifs", e);
@@ -79,29 +76,21 @@ export function PerformanceCard({
     }
   }
 
-  // -----------------------------
-  // SEARCH GIPHY
-  // -----------------------------
   async function searchGifs(query: string) {
     if (!query.trim()) return;
-
     setLoadingGifs(true);
-
     try {
       const res = await fetch(
         `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(
           query
         )}&limit=50&rating=pg`
       );
-
       const data = await res.json();
-
       const normalized: GifItem[] = (data.data || []).map((g: any) => ({
         id: g.id,
         title: g.title,
         url: g.images?.fixed_height_small?.url || g.images?.original?.url,
       }));
-
       setGifs(normalized);
     } catch (e) {
       console.error(e);
@@ -112,15 +101,12 @@ export function PerformanceCard({
 
   async function submit() {
     if (!token) return;
-
     if (score === null) {
       setShowErrorAnimation(true);
       setTimeout(() => setShowErrorAnimation(false), 1000);
       return;
     }
-
     setError(null);
-
     try {
       const res = await fetch(
         `${API_URL}/v1/performance/${performance.performance_id}/rate`,
@@ -137,12 +123,10 @@ export function PerformanceCard({
           }),
         }
       );
-
       if (!res.ok) {
         const data = await res.json().catch(() => null);
         throw new Error(data?.message || "Ошибка при отправке оценки");
       }
-
       setOpen(false);
       setScore(null);
       setComment("");
@@ -150,32 +134,35 @@ export function PerformanceCard({
       setGifs([]);
       setSelectedGif(null);
       setError(null);
-
       window.location.reload();
     } catch (err) {
       setError((err as Error).message);
     }
   }
 
-  const youtubeId = performance.youtube_link
-    ? getYouTubeId(performance.youtube_link)
-    : null;
+  const youtubeId = performance.youtube_link ? getYouTubeId(performance.youtube_link) : null;
+  const avgColor = getScoreColor(performance.total_score);
 
   return (
     <div style={styles.card}>
-      {/* HEADER */}
-      <div style={styles.header}>
-        <div style={styles.title}>
-          <span style={styles.number}>#{performance.number}</span>
-
-          <span style={styles.country}>
-            {supportsEmoji ? performance.country.flag_emoji : ""}{" "}
-            {performance.country.name_ru}
-          </span>
-
-          <span style={styles.total}>
-            ⭐ {Number(performance.total_score.toFixed(2))}
-          </span>
+      {/* 1. TOP ROW: Country Stack (Left Aligned) & Dynamic Score */}
+      <div style={styles.topRow}>
+        <div style={{
+            ...styles.mainScoreBox,
+            background: `linear-gradient(135deg, ${avgColor} 0%, #0f172a 150%)`
+        }}>
+          <div style={styles.mainScoreLabel}>БАЛЛ</div>
+          <div style={styles.mainScoreValue}>{performance.total_score.toFixed(2)}</div>
+        </div>
+        
+        <div style={styles.countryInfo}>
+          <div style={styles.countryStack}>
+            <span style={styles.number}>#{performance.number}</span>
+            <div style={styles.countryNameRow}>
+                {supportsEmoji && <span style={styles.flag}>{performance.country.flag_emoji}</span>}
+                <span style={styles.countryName}>{performance.country.name_ru}</span>
+            </div>
+          </div>
         </div>
 
         {token && votingStarted && !votingEnded && (
@@ -183,216 +170,132 @@ export function PerformanceCard({
             style={styles.rateBtn}
             onClick={() => {
               setOpen(true);
-              loadLocalGifs(); // 👈 вместо trending
+              loadLocalGifs();
             }}
           >
-            Оценить
+            ОЦЕНИТЬ
           </button>
         )}
       </div>
 
-      {/* YOUTUBE */}
-      {youtubeId && (
-        <div style={styles.thumbnailWrapper}>
-          <a
-            href={performance.youtube_link}
-            target="_blank"
-            rel="noreferrer"
-            style={styles.thumbnail}
-          >
-            <img
-              src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
-              style={styles.thumbnailImg}
-            />
-          </a>
-
-          <a
-            href={performance.youtube_link}
-            target="_blank"
-            rel="noreferrer"
-            style={styles.youtubeOverlay}
-          >
-            ▶ YouTube
-          </a>
-        </div>
-      )}
-
-      {/* ARTIST */}
-      <div style={styles.artist}>
-        {performance.artist} — {performance.song}
-      </div>
-
-      {/* SCORES */}
-      <div style={styles.scores}>
-        {performance.scores.length === 0 && (
-          <div style={styles.noScores}>Пока нет оценок</div>
+      {/* 2. HERO SECTION: Video & Left-Aligned Track Info (Vertically Centered) */}
+      <div style={styles.heroSection}>
+        {youtubeId && (
+          <div style={styles.videoBox}>
+            <a href={performance.youtube_link} target="_blank" rel="noreferrer" style={styles.videoLink}>
+              <img
+                src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
+                style={styles.videoImg}
+                alt="yt"
+              />
+              <div style={styles.videoOverlay}>
+                <div style={styles.playIconSmall}>▶</div>
+              </div>
+            </a>
+          </div>
         )}
 
-        {performance.scores.map((s, i) => {
-          const gif =
-            s.gif_url;
+        <div style={styles.trackDetails}>
+          <div style={styles.artistName}>{performance.artist}</div>
+          <div style={styles.songTitle}>{performance.song}</div>
+        </div>
+      </div>
 
-          return (
-            <div
-              key={i}
-              style={styles.scoreRow}
-            >
-              {/* LEFT SIDE */}
-              <div style={styles.scoreLeft}>
-                <div style={styles.user}>
-                  <a
-                    href={`/user/${s.user_id}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    style={styles.usernameLink}
-                    onMouseEnter={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.borderBottom =
-                        "1px solid #4f7cff";
-                      (e.currentTarget as HTMLAnchorElement).style.color =
-                        "#4f7cff";
-                    }}
-                    onMouseLeave={(e) => {
-                      (e.currentTarget as HTMLAnchorElement).style.borderBottom =
-                        "1px solid transparent";
-                      (e.currentTarget as HTMLAnchorElement).style.color =
-                        "#e6edf7";
-                    }}
-                  >
-                    ⧉ {s.username}
-                  </a>
-                  <span style={styles.score}>
-                    {getScoreEmoji(s.score)} {s.score}
+      {/* 3. FEED OF SCORES */}
+      <div style={styles.feed}>
+        {performance.scores.length === 0 ? (
+          <div style={styles.emptyFeed}>Пока никто не проголосовал</div>
+        ) : (
+          <div style={styles.feedList}>
+            {performance.scores.map((s, i) => (
+              <div key={i} style={styles.feedItem}>
+                <div style={styles.feedScoreBadge}>
+                  <span style={{...styles.feedScoreNum, color: getScoreColor(s.score)}}>
+                    {s.score}
                   </span>
+                  <span style={styles.feedEmojiSmall}>{getScoreEmoji(s.score)}</span>
+                </div>
+                
+                <div style={styles.feedContent}>
+                  <div style={styles.feedUser}>{s.username}</div>
+                  {s.comment && <div style={styles.feedComment}>«{s.comment}»</div>}
                 </div>
 
-                {s.comment && (
-                  <div style={styles.comment}>
-                    "{s.comment}"
+                {s.gif_url && (
+                  <div style={styles.feedGifContainer}>
+                    <img src={s.gif_url} style={styles.feedGif} alt="reaction" />
                   </div>
                 )}
               </div>
-
-              {/* RIGHT SIDE (GIF) */}
-              {gif && (
-                <img
-                  src={gif}
-                  style={styles.commentGif}
-                  alt="reaction gif"
-                />
-              )}
-            </div>
-          );
-        })}
+            ))}
+          </div>
+        )}
       </div>
 
       {/* MODAL */}
       {open && (
         <div style={styles.modal}>
-          <div style={styles.modalContent}>
-            <h3 style={styles.modalTitle}>Ваша оценка</h3>
-
-            {error && <div style={styles.error}>{error}</div>}
-
-            {/* SCORE */}
+          <div style={styles.modalPaper}>
+            <h2 style={styles.modalHeading}>Выстави свой балл</h2>
+            {error && <div style={styles.errorBanner}>{error}</div>}
             <div style={{
-              ...styles.grid,
-              transition: "outline 0.3s ease",
-              outline: showErrorAnimation ? "2px solid #ff6b6b" : "none",
-              borderRadius: 10,
-              padding: showErrorAnimation ? "4px" : "0"
+                ...styles.ratingGrid,
+                outline: showErrorAnimation ? "3px solid #ff6b6b" : "none"
             }}>
-              {Array.from({ length: 10 }).map((_, i) => (
+              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <button
-                  key={i}
+                  key={n}
                   onClick={() => {
-                    setScore(i + 1);
+                    setScore(n);
                     setShowErrorAnimation(false);
                   }}
                   style={{
-                    ...styles.box,
-                    background: score === i + 1 ? "#4f7cff" : "#16213a",
-                    borderColor: showErrorAnimation ? "#ff6b6b" : "#24324f"
+                    ...styles.ratingButton,
+                    background: score === n ? getScoreColor(n) : "#1e293b",
+                    transform: score === n ? "scale(1.1)" : "scale(1)",
+                    borderColor: score === n ? "#fff" : "#334155"
                   }}
                 >
-                  {i + 1}
+                  {n}
                 </button>
               ))}
             </div>
-
-            {/* COMMENT */}
             <textarea
-              placeholder="Комментарий"
+              placeholder="Твой комментарий (необязательно)..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              style={styles.textarea}
+              style={styles.modalTextarea}
             />
-
-            {/* GIF SEARCH */}
-            {ENABLE_GIFS &&
-              <div style={styles.gifSection}>
-                <div style={styles.gifTitle}>GIF</div>
-
-                <div style={styles.gifSearchRow}>
+            {ENABLE_GIFS && (
+              <div style={styles.gifPicker}>
+                <div style={styles.gifSearchBox}>
                   <input
-                    placeholder="Поиск GIF..."
+                    placeholder="Найди гифку для реакции..."
                     value={gifSearch}
                     onChange={(e) => setGifSearch(e.target.value)}
-                    style={styles.gifInput}
+                    style={styles.gifSearchInput}
                   />
-
-                  <button
-                    onClick={() => searchGifs(gifSearch)}
-                    style={styles.gifBtn}
-                  >
-                    Найти
-                  </button>
+                  <button onClick={() => searchGifs(gifSearch)} style={styles.gifSearchBtn}>🔍</button>
                 </div>
-
-                {loadingGifs && (
-                  <div style={styles.loading}>Загрузка...</div>
-                )}
-
-                <div style={styles.gifGrid}>
+                <div style={styles.gifScroll}>
+                  {loadingGifs && <div style={{textAlign: 'center', padding: 10}}>Ищем...</div>}
                   {gifs.map((gif) => (
                     <img
                       key={gif.id}
                       src={gif.url}
                       onClick={() => setSelectedGif(gif.url)}
                       style={{
-                        ...styles.gifImage,
-                        border:
-                          selectedGif === gif.url
-                            ? "2px solid #4f7cff"
-                            : "2px solid transparent",
+                        ...styles.gifThumb,
+                        border: selectedGif === gif.url ? "3px solid #4f7cff" : "none"
                       }}
                     />
                   ))}
                 </div>
-
-                {selectedGif && (
-                  <img
-                    src={selectedGif}
-                    style={styles.selectedGif}
-                  />
-                )}
               </div>
-            }
-
-            {/* ACTIONS */}
-            <div style={styles.actions}>
-              <button
-                onClick={() => {
-                  setOpen(false);
-                  setShowErrorAnimation(false);
-                }}
-                style={styles.cancel}
-              >
-                Отмена
-              </button>
-
-              <button onClick={submit} style={styles.submit}>
-                Отправить
-              </button>
+            )}
+            <div style={styles.modalFooter}>
+              <button onClick={() => setOpen(false)} style={styles.btnSecondary}>ЗАКРЫТЬ</button>
+              <button onClick={submit} style={styles.btnPrimary}>ПОДТВЕРДИТЬ</button>
             </div>
           </div>
         </div>
@@ -404,301 +307,208 @@ export function PerformanceCard({
 const styles: Record<string, React.CSSProperties> = {
   card: {
     background: "#0f172a",
-    padding: 18,
-    borderRadius: 16,
-    color: "#e6edf7",
-    border: "1px solid #1f2a44",
+    padding: "20px",
+    borderRadius: "28px",
+    color: "#e2e8f0",
+    border: "1px solid #1e293b",
+    fontFamily: "'Inter', sans-serif",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
   },
-
-  header: {
+  topRow: {
     display: "flex",
+    alignItems: "center",
     justifyContent: "space-between",
-    alignItems: "center",
+    marginBottom: "20px",
+    gap: "12px",
   },
-
-  title: {
+  mainScoreBox: {
+    padding: "8px 16px",
+    borderRadius: "16px",
+    textAlign: "center",
+    minWidth: "75px",
+    transition: "background 0.3s ease",
+  },
+  mainScoreLabel: {
+    fontSize: "9px",
+    fontWeight: 900,
+    letterSpacing: "1px",
+    color: "rgba(255,255,255,0.7)",
+  },
+  mainScoreValue: {
+    fontSize: "30px",
+    fontWeight: 950,
+    color: "#fff",
+    lineHeight: "1",
+  },
+  countryInfo: {
+    flex: "1 1 auto",
+  },
+  countryStack: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "flex-start",
+    gap: "4px",
+  },
+  countryNameRow: {
     display: "flex",
     alignItems: "center",
-    gap: 10,
-    fontSize: 18,
-    fontWeight: 600,
+    gap: "6px",
   },
-
   number: {
-    color: "#94a3b8",
-    fontWeight: 700,
-  },
-
-  country: {
-    fontSize: 18,
-    fontWeight: 700,
-  },
-
-  total: {
-    marginLeft: 10,
-    fontWeight: 700,
-    color: "#ffd166",
-  },
-
-  rateBtn: {
-    padding: "8px 14px",
-    background: "#4f7cff",
-    color: "white",
-    border: "none",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-
-  thumbnailWrapper: {
-    position: "relative",
-    marginTop: 10,
-    width: "fit-content",
-  },
-
-  thumbnail: {
-    display: "block",
-    borderRadius: 12,
-    overflow: "hidden",
-    border: "1px solid #24324f",
-  },
-
-  thumbnailImg: {
-    width: 120,
-    height: 68,
-    objectFit: "cover",
-    borderRadius: 10,
-    display: "block",
-  },
-
-  youtubeOverlay: {
-    position: "absolute",
-    right: 6,
-    bottom: 6,
-    padding: "4px 8px",
-    background: "rgba(255,0,51,0.9)",
-    color: "white",
-    borderRadius: 8,
-    fontSize: 9,
-    fontWeight: 700,
-    textDecoration: "none",
-    transform: "translate(30%, 60%)",
-  },
-
-  artist: {
-    marginTop: 10,
-    color: "#9fb0d0",
-    fontSize: 15,
-  },
-
-  scores: {
-    marginTop: 14,
-    display: "grid",
-    gap: 10,
-  },
-
-  noScores: {
-    color: "#64748b",
-    fontSize: 13,
-  },
-
-  scoreRow: {
-    display: "flex",
-    alignItems: "center",
-    gap: 12,
-    padding: 10,
-    background: "#111a2e",
-    borderRadius: 12,
-    border: "1px solid #1f2a44",
-  },
-
-  user: {
-    fontWeight: 600,
-    color: "#e6edf7",
-  },
-
-  score: {
+    fontSize: "12px",
     fontWeight: 800,
     color: "#4f7cff",
-    fontSize: 16,
-    marginLeft: 6,
+    background: "rgba(79, 124, 255, 0.1)",
+    padding: "2px 8px",
+    borderRadius: "6px",
+    textTransform: "uppercase",
   },
-
-  comment: {
-    color: "#94a3b8",
-    fontStyle: "italic",
-    fontSize: 13,
+  flag: { fontSize: "24px" },
+  countryName: {
+    fontSize: "20px",
+    fontWeight: 900,
+    color: "#fff",
+    letterSpacing: "-0.3px",
   },
-
-  commentGif: {
-    width: 90,
-    height: 60,
-    objectFit: "contain",
-    borderRadius: 8,
-    marginLeft: 12,
+  rateBtn: {
+    background: "#fff",
+    color: "#0f172a",
+    border: "none",
+    padding: "10px 18px",
+    borderRadius: "14px",
+    fontWeight: 900,
+    fontSize: "12px",
+    cursor: "pointer",
   },
-
-  modal: {
-    position: "fixed",
+  heroSection: {
+    display: "flex",
+    alignItems: "stretch", 
+    gap: "16px",
+    marginBottom: "20px",
+    background: "rgba(30, 41, 59, 0.3)",
+    padding: "12px",
+    borderRadius: "20px",
+    border: "1px solid rgba(255,255,255,0.05)",
+  },
+  videoBox: {
+    width: "160px",
+    aspectRatio: "16 / 9",
+    borderRadius: "12px",
+    overflow: "hidden",
+    position: "relative",
+    border: "1px solid #334155",
+    flexShrink: 0,
+  },
+  videoLink: { display: "block", height: "100%" },
+  videoImg: { width: "100%", height: "100%", objectFit: "cover" },
+  videoOverlay: {
+    position: "absolute",
     inset: 0,
-    background: "rgba(0,0,0,0.6)",
+    background: "rgba(15, 23, 42, 0.1)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    zIndex: 1000,
   },
-
-  modalContent: {
-    background: "#0f172a",
-    padding: 22,
-    borderRadius: 16,
-    width: 420,
-    border: "1px solid #1f2a44",
-    maxHeight: "90vh",
-    overflowY: "auto",
+  playIconSmall: {
+    background: "rgba(255,255,255,0.9)",
+    color: "#0f172a",
+    width: "24px",
+    height: "24px",
+    borderRadius: "50%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: "11px",
+    paddingLeft: "2px",
   },
-
-  scoreLeft: {
+  trackDetails: {
+    flex: 1,
     display: "flex",
     flexDirection: "column",
-    flex: 1,
-    gap: 4,
+    justifyContent: "center", 
+    textAlign: "left",
   },
-
-  modalTitle: {
+  artistName: {
+    fontSize: "18px",
+    fontWeight: 800,
     color: "#fff",
-    fontSize: 20,
-    marginBottom: 10,
+    lineHeight: "1.2",
+    marginBottom: "4px",
   },
-
-  grid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(5, 1fr)",
-    gap: 10,
-    marginTop: 12,
-  },
-
-  box: {
-    padding: 14,
-    borderRadius: 10,
-    border: "1px solid #24324f",
-    color: "#fff",
-    cursor: "pointer",
-    fontWeight: 700,
-    fontSize: 16,
-    transition: "border-color 0.3s ease",
-  },
-
-  textarea: {
-    width: "100%",
-    marginTop: 14,
-    padding: 12,
-    borderRadius: 10,
-    background: "#111a2e",
-    border: "1px solid #24324f",
-    color: "#fff",
-    fontSize: 14,
-    resize: "vertical",
-  },
-
-  gifSection: {
-    marginTop: 16,
-  },
-
-  gifTitle: {
-    marginBottom: 8,
-    fontWeight: 700,
-    color: "#fff",
-  },
-
-  gifSearchRow: {
-    display: "flex",
-    gap: 8,
-  },
-
-  gifInput: {
-    flex: 1,
-    background: "#111a2e",
-    border: "1px solid #24324f",
-    borderRadius: 10,
-    padding: "10px 12px",
-    color: "#fff",
-  },
-
-  gifBtn: {
-    background: "#4f7cff",
-    color: "#fff",
-    border: "none",
-    borderRadius: 10,
-    padding: "10px 14px",
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-
-  gifGrid: {
-    marginTop: 12,
-    display: "grid",
-    gridTemplateColumns: "repeat(3, 1fr)",
-    gap: 8,
-    maxHeight: 220,
-    overflowY: "auto",
-  },
-
-  gifImage: {
-    width: "100%",
-    height: 90,
-    objectFit: "cover",
-    borderRadius: 10,
-    cursor: "pointer",
-  },
-
-  selectedGif: {
-    marginTop: 12,
-    width: "100%",
-    borderRadius: 12,
-  },
-
-  loading: {
-    marginTop: 10,
+  songTitle: {
+    fontSize: "14px",
     color: "#94a3b8",
+    lineHeight: "1.4",
   },
-
-  actions: {
+  feed: {
+    background: "rgba(15, 23, 42, 0.4)",
+    borderRadius: "20px",
+    padding: "16px",
+    border: "1px solid #1e293b",
+  },
+  feedList: {
     display: "flex",
-    justifyContent: "space-between",
-    marginTop: 16,
+    flexDirection: "column",
+    gap: "10px",
   },
+  feedItem: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+    padding: "6px 0",
+    borderBottom: "1px solid #1e293b",
+  },
+  feedScoreBadge: {
+    display: "flex",
+    alignItems: "center",
+    gap: "5px",
+    background: "#1e293b",
+    padding: "5px 10px",
+    borderRadius: "12px",
+    minWidth: "55px",
+    justifyContent: "center",
+    border: "1px solid #334155",
+  },
+  feedScoreNum: { 
+    fontSize: "17px", 
+    fontWeight: 900, 
+  },
+  feedEmojiSmall: { fontSize: "14px" },
+  feedContent: { flex: 1 },
+  feedUser: { 
+    fontSize: "15px", 
+    fontWeight: 700, 
+    color: "#f1f5f9" 
+  },
+  feedComment: { 
+    fontSize: "14px", 
+    color: "#94a3b8", 
+    fontStyle: "italic",
+    marginTop: "2px"
+  },
+  feedGifContainer: {
+    width: "55px",
+    height: "40px",
+    borderRadius: "6px",
+    overflow: "hidden",
+  },
+  feedGif: { width: "100%", height: "100%", objectFit: "cover" },
+  emptyFeed: { textAlign: "center", padding: "10px", color: "#475569", fontSize: "12px" },
 
-  cancel: {
-    background: "transparent",
-    color: "#9fb0d0",
-    border: "none",
-    cursor: "pointer",
-  },
-
-  submit: {
-    background: "#4f7cff",
-    color: "white",
-    border: "none",
-    padding: "10px 16px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 600,
-  },
-
-  error: {
-    color: "#ff6b6b",
-    marginBottom: 10,
-    fontSize: 14,
-  },
-
-  usernameLink: {
-    color: "#e6edf7",
-    fontWeight: 600,
-    textDecoration: "none",
-    padding: "2px 0",
-    borderBottom: "1px solid transparent",
-    transition: "all 0.15s ease",
-    cursor: "pointer",
-  },
+  modal: { position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" },
+  modalPaper: { background: "#0f172a", width: "100%", maxWidth: "480px", borderRadius: "32px", padding: "32px", border: "1px solid #334155" },
+  modalHeading: { fontSize: "24px", fontWeight: 900, textAlign: "center", marginBottom: "24px" },
+  ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" },
+  ratingButton: { aspectRatio: "1/1", borderRadius: "16px", border: "2px solid transparent", color: "#fff", fontSize: "20px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
+  modalTextarea: { width: "100%", background: "#1e293b", border: "1px solid #334155", borderRadius: "16px", padding: "16px", color: "#fff", minHeight: "100px", marginBottom: "20px" },
+  gifPicker: { background: "#1e293b", borderRadius: "16px", padding: "12px", marginBottom: "24px" },
+  gifSearchBox: { display: "flex", gap: "8px", marginBottom: "12px" },
+  gifSearchInput: { flex: 1, background: "transparent", border: "none", borderBottom: "2px solid #334155", color: "#fff", padding: "8px", outline: "none" },
+  gifSearchBtn: { background: "none", border: "none", cursor: "pointer" },
+  gifScroll: { display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "8px" },
+  gifThumb: { height: "60px", borderRadius: "8px", cursor: "pointer", flexShrink: 0 },
+  modalFooter: { display: "flex", gap: "16px" },
+  btnSecondary: { flex: 1, background: "transparent", color: "#94a3b8", border: "2px solid #334155", padding: "14px", borderRadius: "16px", fontWeight: 800, cursor: "pointer" },
+  btnPrimary: { flex: 2, background: "#4f7cff", color: "#fff", border: "none", padding: "14px", borderRadius: "16px", fontWeight: 900, cursor: "pointer" },
+  errorBanner: { background: "rgba(239, 68, 68, 0.15)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "16px", fontSize: "14px", textAlign: "center" },
 };
