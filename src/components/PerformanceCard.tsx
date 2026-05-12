@@ -58,6 +58,9 @@ export function PerformanceCard({
     return "😍";
   }
 
+  // Форматирование числа: убираем лишние нули после точки
+  const formatScore = (num: number) => Number(num.toFixed(2));
+
   async function loadLocalGifs() {
     try {
       setLoadingGifs(true);
@@ -145,14 +148,16 @@ export function PerformanceCard({
 
   return (
     <div style={styles.card}>
-      {/* 1. TOP ROW: Country Stack (Left Aligned) & Dynamic Score */}
+      {/* 1. TOP ROW: Country Stack & Dynamic Score */}
       <div style={styles.topRow}>
         <div style={{
             ...styles.mainScoreBox,
             background: `linear-gradient(135deg, ${avgColor} 0%, #0f172a 150%)`
         }}>
           <div style={styles.mainScoreLabel}>БАЛЛ</div>
-          <div style={styles.mainScoreValue}>{performance.total_score.toFixed(2)}</div>
+          <div style={styles.mainScoreValue}>
+            {formatScore(performance.total_score)}
+          </div>
         </div>
         
         <div style={styles.countryInfo}>
@@ -178,7 +183,7 @@ export function PerformanceCard({
         )}
       </div>
 
-      {/* 2. HERO SECTION: Video & Left-Aligned Track Info (Vertically Centered) */}
+      {/* 2. HERO SECTION */}
       <div style={styles.heroSection}>
         {youtubeId && (
           <div style={styles.videoBox}>
@@ -313,6 +318,9 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #1e293b",
     fontFamily: "'Inter', sans-serif",
     boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+    maxWidth: "100%",
+    boxSizing: "border-box",
+    overflow: "hidden", // Гарантируем, что контент не вылезет
   },
   topRow: {
     display: "flex",
@@ -320,13 +328,15 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     marginBottom: "20px",
     gap: "12px",
+    flexWrap: "wrap", // Чтобы кнопка "Оценить" могла уйти вниз на очень узких экранах
   },
   mainScoreBox: {
     padding: "8px 16px",
     borderRadius: "16px",
     textAlign: "center",
-    minWidth: "75px",
+    minWidth: "70px",
     transition: "background 0.3s ease",
+    boxSizing: "border-box",
   },
   mainScoreLabel: {
     fontSize: "9px",
@@ -335,13 +345,14 @@ const styles: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.7)",
   },
   mainScoreValue: {
-    fontSize: "30px",
+    fontSize: "26px", // Чуть меньше для мобилок
     fontWeight: 950,
     color: "#fff",
     lineHeight: "1",
   },
   countryInfo: {
     flex: "1 1 auto",
+    minWidth: "120px",
   },
   countryStack: {
     display: "flex",
@@ -353,6 +364,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: "6px",
+    flexWrap: "wrap",
   },
   number: {
     fontSize: "12px",
@@ -365,7 +377,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   flag: { fontSize: "24px" },
   countryName: {
-    fontSize: "20px",
+    fontSize: "18px",
     fontWeight: 900,
     color: "#fff",
     letterSpacing: "-0.3px",
@@ -382,16 +394,20 @@ const styles: Record<string, React.CSSProperties> = {
   },
   heroSection: {
     display: "flex",
-    alignItems: "stretch", 
+    flexDirection: "row",
+    flexWrap: "wrap", // Ключевое изменение для мобилок
+    alignItems: "center", 
     gap: "16px",
     marginBottom: "20px",
     background: "rgba(30, 41, 59, 0.3)",
     padding: "12px",
     borderRadius: "20px",
     border: "1px solid rgba(255,255,255,0.05)",
+    boxSizing: "border-box",
   },
   videoBox: {
-    width: "160px",
+    width: "100%", // На мобильных во весь экран
+    maxWidth: "160px", // Но не больше 160 на десктопе
     aspectRatio: "16 / 9",
     borderRadius: "12px",
     overflow: "hidden",
@@ -422,7 +438,7 @@ const styles: Record<string, React.CSSProperties> = {
     paddingLeft: "2px",
   },
   trackDetails: {
-    flex: 1,
+    flex: "1 1 150px", // Позволяет занимать минимум 150px перед переносом
     display: "flex",
     flexDirection: "column",
     justifyContent: "center", 
@@ -445,6 +461,7 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: "20px",
     padding: "16px",
     border: "1px solid #1e293b",
+    boxSizing: "border-box",
   },
   feedList: {
     display: "flex",
@@ -455,60 +472,67 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     gap: "12px",
-    padding: "6px 0",
+    padding: "8px 0",
     borderBottom: "1px solid #1e293b",
+    boxSizing: "border-box",
   },
   feedScoreBadge: {
     display: "flex",
     alignItems: "center",
     gap: "5px",
     background: "#1e293b",
-    padding: "5px 10px",
+    padding: "5px 8px",
     borderRadius: "12px",
-    minWidth: "55px",
+    minWidth: "50px",
     justifyContent: "center",
     border: "1px solid #334155",
+    flexShrink: 0,
   },
   feedScoreNum: { 
-    fontSize: "17px", 
+    fontSize: "16px", 
     fontWeight: 900, 
   },
   feedEmojiSmall: { fontSize: "14px" },
-  feedContent: { flex: 1 },
+  feedContent: { flex: 1, minWidth: 0 }, // minWidth: 0 предотвращает распирание флекс-контейнера текстом
   feedUser: { 
-    fontSize: "15px", 
+    fontSize: "14px", 
     fontWeight: 700, 
-    color: "#f1f5f9" 
+    color: "#f1f5f9",
+    whiteSpace: "nowrap",
+    overflow: "hidden",
+    textOverflow: "ellipsis"
   },
   feedComment: { 
-    fontSize: "14px", 
+    fontSize: "13px", 
     color: "#94a3b8", 
     fontStyle: "italic",
-    marginTop: "2px"
+    marginTop: "2px",
+    wordBreak: "break-word"
   },
   feedGifContainer: {
-    width: "55px",
-    height: "40px",
+    width: "50px",
+    height: "35px",
     borderRadius: "6px",
     overflow: "hidden",
+    flexShrink: 0,
   },
   feedGif: { width: "100%", height: "100%", objectFit: "cover" },
   emptyFeed: { textAlign: "center", padding: "10px", color: "#475569", fontSize: "12px" },
 
-  modal: { position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "20px" },
-  modalPaper: { background: "#0f172a", width: "100%", maxWidth: "480px", borderRadius: "32px", padding: "32px", border: "1px solid #334155" },
-  modalHeading: { fontSize: "24px", fontWeight: 900, textAlign: "center", marginBottom: "24px" },
-  ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "12px", marginBottom: "24px" },
-  ratingButton: { aspectRatio: "1/1", borderRadius: "16px", border: "2px solid transparent", color: "#fff", fontSize: "20px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
-  modalTextarea: { width: "100%", background: "#1e293b", border: "1px solid #334155", borderRadius: "16px", padding: "16px", color: "#fff", minHeight: "100px", marginBottom: "20px" },
-  gifPicker: { background: "#1e293b", borderRadius: "16px", padding: "12px", marginBottom: "24px" },
+  modal: { position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "10px" },
+  modalPaper: { background: "#0f172a", width: "100%", maxWidth: "480px", borderRadius: "24px", padding: "20px", border: "1px solid #334155", maxHeight: "95vh", overflowY: "auto", boxSizing: "border-box" },
+  modalHeading: { fontSize: "20px", fontWeight: 900, textAlign: "center", marginBottom: "20px" },
+  ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "20px" },
+  ratingButton: { aspectRatio: "1/1", borderRadius: "12px", border: "2px solid transparent", color: "#fff", fontSize: "18px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
+  modalTextarea: { width: "100%", background: "#1e293b", border: "1px solid #334155", borderRadius: "16px", padding: "16px", color: "#fff", minHeight: "80px", marginBottom: "16px", boxSizing: "border-box", fontSize: "16px" },
+  gifPicker: { background: "#1e293b", borderRadius: "16px", padding: "12px", marginBottom: "20px" },
   gifSearchBox: { display: "flex", gap: "8px", marginBottom: "12px" },
-  gifSearchInput: { flex: 1, background: "transparent", border: "none", borderBottom: "2px solid #334155", color: "#fff", padding: "8px", outline: "none" },
+  gifSearchInput: { flex: 1, background: "transparent", border: "none", borderBottom: "2px solid #334155", color: "#fff", padding: "8px", outline: "none", fontSize: "16px" },
   gifSearchBtn: { background: "none", border: "none", cursor: "pointer" },
   gifScroll: { display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "8px" },
   gifThumb: { height: "60px", borderRadius: "8px", cursor: "pointer", flexShrink: 0 },
-  modalFooter: { display: "flex", gap: "16px" },
-  btnSecondary: { flex: 1, background: "transparent", color: "#94a3b8", border: "2px solid #334155", padding: "14px", borderRadius: "16px", fontWeight: 800, cursor: "pointer" },
-  btnPrimary: { flex: 2, background: "#4f7cff", color: "#fff", border: "none", padding: "14px", borderRadius: "16px", fontWeight: 900, cursor: "pointer" },
+  modalFooter: { display: "flex", gap: "12px" },
+  btnSecondary: { flex: 1, background: "transparent", color: "#94a3b8", border: "2px solid #334155", padding: "12px", borderRadius: "14px", fontWeight: 800, cursor: "pointer", fontSize: "12px" },
+  btnPrimary: { flex: 2, background: "#4f7cff", color: "#fff", border: "none", padding: "12px", borderRadius: "14px", fontWeight: 900, cursor: "pointer", fontSize: "12px" },
   errorBanner: { background: "rgba(239, 68, 68, 0.15)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "16px", fontSize: "14px", textAlign: "center" },
 };
