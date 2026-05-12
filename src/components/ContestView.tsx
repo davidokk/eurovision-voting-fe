@@ -14,6 +14,7 @@ type ChatMessage = {
 };
 
 const API_URL = import.meta.env.VITE_API_URL;
+const WS_URL = import.meta.env.VITE_WS_URL;
 
 function translateContestType(type: string) {
     switch (type) {
@@ -97,7 +98,7 @@ export function ContestView({ contest }: Props) {
     }, []);
 
     useEffect(() => {
-        ws.current = new WebSocket("ws://localhost:8080/v1/ws");
+        ws.current = new WebSocket(`${WS_URL}/v1/ws`);
         ws.current.onmessage = (e) => {
             const msg: ChatMessage = JSON.parse(e.data);
             setMessages((prev) => [...prev, msg]);
