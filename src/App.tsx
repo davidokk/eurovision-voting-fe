@@ -1,3 +1,28 @@
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0b1220;
+    }
+    ::-webkit-scrollbar-thumb {
+      background-color: #334155;
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background-color: #4f7cff;
+    }
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: #334155 #0b1220;
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 import { useEffect, useState } from "react";
 import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
