@@ -43,7 +43,7 @@ export default function App() {
   const [selectedContest, setSelectedContest] = useState<ContestView | null>(null);
 
   // Состояние для управления видимостью лидерборда
-  const [leaderboardOpen, setLeaderboardOpen] = useState(true);
+  const [leaderboardOpen, setLeaderboardOpen] = useState(false);
   
   // Проверка мобилки для адаптивности
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
