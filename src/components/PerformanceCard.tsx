@@ -91,7 +91,7 @@ export function PerformanceCard({
       const res = await fetch(
         `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(
           query
-        )}&limit=20&rating=pg`
+        )}&limit=50&rating=pg`
       );
 
       const data = await res.json();

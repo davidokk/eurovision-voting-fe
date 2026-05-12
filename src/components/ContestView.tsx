@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-
 import type { ContestView as ContestViewType } from "../types/contest";
 import { PerformanceCard } from "./PerformanceCard";
 
 type Props = {
     contest: ContestViewType | null;
+    chatOpen: boolean;                    // Новый проп
+    setChatOpen: (open: boolean) => void;  // Новый проп
 };
 
 type ChatMessage = {
@@ -48,9 +49,8 @@ function formatTime(ms: number) {
     return parts.join(" ");
 }
 
-export function ContestView({ contest }: Props) {
+export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
     const [now, setNow] = useState(Date.now());
-    const [chatOpen, setChatOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -66,12 +66,13 @@ export function ContestView({ contest }: Props) {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
             setIsMobile(mobile);
+            // Если десктоп — чат по умолчанию открыт (по желанию можно убрать)
             if (!mobile) setChatOpen(true);
         };
         window.addEventListener("resize", handleResize);
         handleResize();
         return () => window.removeEventListener("resize", handleResize);
-    }, []);
+    }, [setChatOpen]);
 
     useEffect(() => {
         if (!contest) return;
@@ -108,12 +109,12 @@ export function ContestView({ contest }: Props) {
     async function sendMessage() {
         if (!input.trim() || !isAuthenticated || !contest) return;
         try {
+            setInput("");
             const params = new URLSearchParams({ contest_id: contest.contest.id, message: input });
-            const res = await fetch(`${API_URL}/v1/message/send?${params.toString()}`, {
+            await fetch(`${API_URL}/v1/message/send?${params.toString()}`, {
                 method: "POST",
                 headers: { Authorization: `Bearer ${token}` },
             });
-            if (res.ok) setInput("");
         } catch (err) { console.error(err); }
     }
 
@@ -130,7 +131,6 @@ export function ContestView({ contest }: Props) {
 
     return (
         <div style={styles.layout}>
-            {/* MAIN CONTENT */}
             <div 
                 style={styles.wrapper}
                 onClick={() => isMobile && chatOpen && setChatOpen(false)}
@@ -150,7 +150,6 @@ export function ContestView({ contest }: Props) {
                     ))}
                 </div>
 
-                {/* КНОПКА ЧАТА (Скрывается на мобилках если чат открыт) */}
                 <button
                     onClick={(e) => { e.stopPropagation(); setChatOpen(!chatOpen); }}
                     style={{
@@ -163,14 +162,13 @@ export function ContestView({ contest }: Props) {
                 </button>
             </div>
 
-            {/* CHAT SIDEBAR */}
             <div
                 style={{
                     ...styles.chatPanel,
                     width: chatOpen ? (isMobile ? "100%" : 340) : 0,
                     position: isMobile ? "absolute" : "relative",
                     right: 0,
-                    zIndex: 9999, // Выше чем кнопка лидерборда (1600)
+                    zIndex: 9999,
                     borderLeft: chatOpen ? "1px solid #24324f" : "none",
                     boxShadow: isMobile && chatOpen ? "-10px 0 30px rgba(0,0,0,0.5)" : "none",
                 }}

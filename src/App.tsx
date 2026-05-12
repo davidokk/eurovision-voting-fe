@@ -1,28 +1,3 @@
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
-    ::-webkit-scrollbar {
-      width: 6px;
-      height: 6px;
-    }
-    ::-webkit-scrollbar-track {
-      background: #0b1220;
-    }
-    ::-webkit-scrollbar-thumb {
-      background-color: #334155;
-      border-radius: 10px;
-    }
-    ::-webkit-scrollbar-thumb:hover {
-      background-color: #4f7cff;
-    }
-    * {
-      scrollbar-width: thin;
-      scrollbar-color: #334155 #0b1220;
-    }
-  `;
-  document.head.appendChild(style);
-}
-
 import { useEffect, useState } from "react";
 import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
@@ -38,17 +13,28 @@ import { Topbar } from "./components/Topbar";
 import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
 
+// Глобальные стили для скроллбара
+if (typeof document !== 'undefined') {
+  const style = document.createElement('style');
+  style.textContent = `
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0b1220; }
+    ::-webkit-scrollbar-thumb { background-color: #334155; border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background-color: #4f7cff; }
+    * { scrollbar-width: thin; scrollbar-color: #334155 #0b1220; }
+  `;
+  document.head.appendChild(style);
+}
+
 export default function App() {
   const [contests, setContests] = useState<ContestsByYear>({});
   const [selectedContest, setSelectedContest] = useState<ContestView | null>(null);
 
-  // Состояние для управления видимостью лидерборда
+  // Состояния интерфейса
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  
-  // Проверка мобилки для адаптивности
+  const [chatOpen, setChatOpen] = useState(false); // Поднятое состояние чата
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
-  // Следим за ресайзом окна
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
     window.addEventListener("resize", handleResize);
@@ -82,7 +68,6 @@ export default function App() {
 
   return (
     <div style={styles.app}>
-      {/* Обертка для Topbar с высоким z-index */}
       <div style={styles.topbarWrapper}>
         <Topbar
           contests={contests}
@@ -98,7 +83,7 @@ export default function App() {
             width: leaderboardOpen ? (isMobile ? "100%" : 300) : 0,
             position: isMobile && leaderboardOpen ? "absolute" : "relative",
             borderRight: leaderboardOpen ? "1px solid #24324f" : "none",
-            zIndex: isMobile ? 1500 : 100, // На мобилках выше контента, но ниже топбара
+            zIndex: isMobile ? 1500 : 100,
           }}
         >
           {leaderboardOpen && selectedContest && (
@@ -109,12 +94,14 @@ export default function App() {
         </div>
 
         {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ ЛИДЕРБОРДА */}
+        {/* Скрываем кнопку, если открыт чат */}
         <button
           onClick={() => setLeaderboardOpen(!leaderboardOpen)}
           style={{
             ...styles.toggleBtn,
             left: leaderboardOpen ? (isMobile ? "calc(100% - 60px)" : 315) : 15,
             opacity: isMobile && leaderboardOpen ? 0.8 : 1,
+            display: chatOpen && isMobile ? 'none' : 'flex', // ОСНОВНАЯ ЛОГИКА СКРЫТИЯ
           }}
         >
           {leaderboardOpen ? "✕" : "🏆"}
@@ -125,7 +112,11 @@ export default function App() {
           style={styles.content}
           onClick={() => isMobile && leaderboardOpen && setLeaderboardOpen(false)}
         >
-          <ContestViewComponent contest={selectedContest} />
+          <ContestViewComponent 
+            contest={selectedContest} 
+            chatOpen={chatOpen} 
+            setChatOpen={setChatOpen} 
+          />
         </div>
       </div>
     </div>
@@ -141,27 +132,23 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     flexDirection: "column",
   },
-
   topbarWrapper: {
     position: "relative",
-    zIndex: 2000, // Гарантирует, что выпадающие списки будут ПОВЕРХ всего
+    zIndex: 2000,
     flexShrink: 0,
   },
-
   layout: {
     display: "flex",
-    flex: 1, // Занимает всё оставшееся место под Topbar
+    flex: 1,
     position: "relative",
     overflow: "hidden",
   },
-
   sidebarContainer: {
     height: "100%",
     background: "#0f172a",
     transition: "width 0.25s ease, left 0.25s ease",
     overflow: "hidden",
   },
-
   content: {
     flex: 1,
     height: "100%",
@@ -169,7 +156,6 @@ const styles: Record<string, React.CSSProperties> = {
     position: "relative",
     zIndex: 1,
   },
-
   toggleBtn: {
     position: "fixed",
     bottom: 20,
@@ -183,7 +169,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
     boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
     transition: "all 0.25s ease",
-    zIndex: 1600, // Должен быть выше сайдбара, чтобы его можно было закрыть
+    zIndex: 1600,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
