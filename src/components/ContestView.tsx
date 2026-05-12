@@ -107,7 +107,7 @@ export function ContestView({ contest }: Props) {
 
     // WS Connection
     useEffect(() => {
-        ws.current = new WebSocket("ws://localhost:8080/v1/ws");
+        ws.current = new WebSocket(`wss://${API_URL}/v1/ws`);
 
         ws.current.onmessage = (e) => {
             const msg: ChatMessage = JSON.parse(e.data);
