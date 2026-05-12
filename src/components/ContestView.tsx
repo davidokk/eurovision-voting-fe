@@ -121,7 +121,7 @@ export function ContestView({ contest }: Props) {
         if (!contest) return null;
         const starts = new Date(contest.contest.starts).getTime();
         const diff = starts - now;
-        if (diff > 0) return `евравидение через........ ${formatTime(diff)}`;
+        if (diff > 0) return `евравидение чере........ ${formatTime(diff)}`;
         if (Math.abs(diff) <= 600000) return "start voting now!!!!!!!!!!!!!";
         return null;
     }, [contest, now]);

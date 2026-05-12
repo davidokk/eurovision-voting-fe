@@ -9,11 +9,9 @@ type Props = {
 type Mode = "all" | "mine";
 
 export function SidebarLeaderboard({ performances }: Props) {
-    const [hidden, setHidden] = useState(false);
     const [mode, setMode] = useState<Mode>("all");
 
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
-
     const user = localStorage.getItem("username");
 
     const getMyScore = (p: PerformanceWithScores) =>
@@ -34,31 +32,11 @@ export function SidebarLeaderboard({ performances }: Props) {
         );
     })();
 
-    if (hidden) {
-        return (
-            <div style={styles.collapsed}>
-                <button
-                    style={styles.showBtn}
-                    onClick={() => setHidden(false)}
-                >
-                    ▶
-                </button>
-            </div>
-        );
-    }
-
     return (
         <div style={styles.sidebar}>
             {/* HEADER */}
             <div style={styles.header}>
                 <h2 style={styles.title}>Топ</h2>
-
-                <button
-                    style={styles.hideBtn}
-                    onClick={() => setHidden(true)}
-                >
-                    ◀
-                </button>
             </div>
 
             {/* FILTER BUTTONS */}
@@ -66,10 +44,7 @@ export function SidebarLeaderboard({ performances }: Props) {
                 <button
                     style={{
                         ...styles.filterBtn,
-                        background:
-                            mode === "all"
-                                ? "#4f7cff"
-                                : "#16213a",
+                        background: mode === "all" ? "#4f7cff" : "#16213a",
                     }}
                     onClick={() => setMode("all")}
                 >
@@ -80,10 +55,7 @@ export function SidebarLeaderboard({ performances }: Props) {
                     <button
                         style={{
                             ...styles.filterBtn,
-                            background:
-                                mode === "mine"
-                                    ? "#4f7cff"
-                                    : "#16213a",
+                            background: mode === "mine" ? "#4f7cff" : "#16213a",
                         }}
                         onClick={() => setMode("mine")}
                     >
@@ -93,99 +65,77 @@ export function SidebarLeaderboard({ performances }: Props) {
             </div>
 
             {/* LIST */}
-            {filtered.map((p) => {
-                const displayScore =
-                    mode === "mine"
-                        ? getMyScore(p)
-                        : p.total_score;
+            <div style={styles.list}>
+                {filtered.map((p) => {
+                    const displayScore =
+                        mode === "mine"
+                            ? getMyScore(p)
+                            : p.total_score;
 
-                const myComment =
-                    mode === "mine"
-                        ? getMyComment(p)
-                        : null;
+                    const myComment =
+                        mode === "mine"
+                            ? getMyComment(p)
+                            : null;
 
-                return (
-                    <div
-                        key={p.performance_id}
-                        style={{
-                            ...styles.row,
-                            ...(p.qualified
-                                ? {
-                                      border:
-                                          "1px solid #22c55e",
-                                      background:
-                                          "#0f2a1c",
-                                  }
-                                : {}),
-                        }}
-                    >
-                        <div style={{ flex: 1 }}>
-                            <div>
-                                {supportsEmoji
-                                    ? p.country.flag_emoji
-                                    : ""}{" "}
-                                {p.country.name_ru}
-                            </div>
+                    return (
+                        <div
+                            key={p.performance_id}
+                            style={{
+                                ...styles.row,
+                                ...(p.qualified
+                                    ? {
+                                          border: "1px solid #22c55e",
+                                          background: "#0f2a1c",
+                                      }
+                                    : {}),
+                            }}
+                        >
+                            <div style={{ flex: 1 }}>
+                                <div>
+                                    {supportsEmoji ? p.country.flag_emoji : ""}{" "}
+                                    {p.country.name_ru}
+                                </div>
 
-                            {/* комментарий */}
-                            {mode === "mine" &&
-                                myComment && (
-                                    <div
-                                        style={
-                                            styles.comment
-                                        }
-                                    >
+                                {mode === "mine" && myComment && (
+                                    <div style={styles.comment}>
                                         “{myComment}”
                                     </div>
                                 )}
-                        </div>
+                            </div>
 
-                        <div>
-                            ⭐{" "}
-                            {Number(
-                                displayScore.toFixed(2)
-                            )}
+                            <div style={styles.score}>
+                                ⭐ {Number(displayScore.toFixed(2))}
+                            </div>
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })}
+            </div>
         </div>
     );
 }
 
 const styles: Record<string, React.CSSProperties> = {
     sidebar: {
-        width: 260,
-        borderRight: "1px solid #24324f",
+        width: "100%", // Теперь шириной управляет родительский контейнер
+        height: "100%",
         padding: 16,
-        display: "grid",
-        gap: 10,
-        height: "calc(100vh - 72px)",
-        overflowY: "auto",
-        background: "#111a2e",
-    },
-
-    collapsed: {
-        width: 40,
-        height: "calc(100vh - 72px)",
         display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        flexDirection: "column",
+        gap: 16,
         background: "#111a2e",
-        borderRight: "1px solid #24324f",
+        boxSizing: "border-box",
     },
 
     header: {
         display: "flex",
-        justifyContent: "space-between",
         alignItems: "center",
+        justifyContent: "center",
     },
 
     title: {
         margin: 0,
         color: "#e6edf7",
-        flex: 1,
-        textAlign: "center",
+        fontSize: "1.2rem",
     },
 
     filters: {
@@ -195,20 +145,29 @@ const styles: Record<string, React.CSSProperties> = {
 
     filterBtn: {
         flex: 1,
-        padding: "6px 8px",
+        padding: "8px",
         borderRadius: 8,
         border: "1px solid #24324f",
         color: "#e6edf7",
         cursor: "pointer",
         fontSize: 12,
         fontWeight: 600,
+        transition: "background 0.2s",
+    },
+
+    list: {
+        display: "flex",
+        flexDirection: "column",
+        gap: 10,
+        overflowY: "auto",
+        paddingRight: 4,
     },
 
     row: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: 12,
+        padding: "12px",
         border: "1px solid #24324f",
         borderRadius: 10,
         background: "#16213a",
@@ -216,28 +175,15 @@ const styles: Record<string, React.CSSProperties> = {
         gap: 10,
     },
 
+    score: {
+        whiteSpace: "nowrap",
+    },
+
     comment: {
         marginTop: 4,
         fontSize: 12,
         color: "#9fb0d0",
         fontStyle: "italic",
-    },
-
-    hideBtn: {
-        background: "#16213a",
-        border: "1px solid #24324f",
-        color: "#e6edf7",
-        borderRadius: 8,
-        padding: "4px 8px",
-        cursor: "pointer",
-    },
-
-    showBtn: {
-        background: "#16213a",
-        border: "1px solid #24324f",
-        color: "#e6edf7",
-        borderRadius: 8,
-        padding: "6px 8px",
-        cursor: "pointer",
+        fontWeight: 400,
     },
 };
