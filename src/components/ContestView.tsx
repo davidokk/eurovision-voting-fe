@@ -50,7 +50,7 @@ function formatTime(ms: number) {
 
 export function ContestView({ contest }: Props) {
     const [now, setNow] = useState(Date.now());
-    const [chatOpen, setChatOpen] = useState(false); // На мобилках лучше по умолчанию закрыт
+    const [chatOpen, setChatOpen] = useState(false);
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -62,12 +62,11 @@ export function ContestView({ contest }: Props) {
     const token = localStorage.getItem("token");
     const isAuthenticated = !!token;
 
-    // Следим за размером экрана
     useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
             setIsMobile(mobile);
-            if (!mobile) setChatOpen(true); // На десктопе открываем
+            if (!mobile) setChatOpen(true);
         };
         window.addEventListener("resize", handleResize);
         handleResize();
@@ -151,11 +150,13 @@ export function ContestView({ contest }: Props) {
                     ))}
                 </div>
 
+                {/* КНОПКА ЧАТА (Скрывается на мобилках если чат открыт) */}
                 <button
                     onClick={(e) => { e.stopPropagation(); setChatOpen(!chatOpen); }}
                     style={{
                         ...styles.chatButton,
                         right: (chatOpen && !isMobile) ? 360 : 20,
+                        display: (isMobile && chatOpen) ? 'none' : 'flex',
                     }}
                 >
                     {chatOpen ? "✕" : "💬"}
@@ -169,7 +170,7 @@ export function ContestView({ contest }: Props) {
                     width: chatOpen ? (isMobile ? "100%" : 340) : 0,
                     position: isMobile ? "absolute" : "relative",
                     right: 0,
-                    zIndex: 1000,
+                    zIndex: 9999, // Выше чем кнопка лидерборда (1600)
                     borderLeft: chatOpen ? "1px solid #24324f" : "none",
                     boxShadow: isMobile && chatOpen ? "-10px 0 30px rgba(0,0,0,0.5)" : "none",
                 }}
@@ -178,6 +179,14 @@ export function ContestView({ contest }: Props) {
                     <>
                         <div style={styles.chatHeader}>
                             <div style={styles.chatTitle}>💬 Чат</div>
+                            {isMobile && (
+                                <button 
+                                    onClick={() => setChatOpen(false)}
+                                    style={styles.closeChatHeader}
+                                >
+                                    ✕
+                                </button>
+                            )}
                         </div>
                         <div style={styles.chatMessages}>
                             {messages.map((m, i) => {
@@ -261,6 +270,9 @@ const styles: Record<string, React.CSSProperties> = {
         boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
         transition: "right 0.25s ease",
         zIndex: 1100,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
     },
     chatPanel: {
         height: "100%",
@@ -270,8 +282,23 @@ const styles: Record<string, React.CSSProperties> = {
         transition: "width 0.25s ease",
         overflow: "hidden",
     },
-    chatHeader: { padding: "16px 20px", borderBottom: "1px solid #24324f", color: "#fff", background: "#161f33" },
+    chatHeader: { 
+        padding: "16px 20px", 
+        borderBottom: "1px solid #24324f", 
+        color: "#fff", 
+        background: "#161f33",
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center'
+    },
     chatTitle: { fontWeight: 700, fontSize: "1.1rem" },
+    closeChatHeader: {
+        background: 'transparent',
+        border: 'none',
+        color: '#94a3b8',
+        fontSize: '1.2rem',
+        cursor: 'pointer'
+    },
     chatMessages: { flex: 1, padding: "16px 12px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 16 },
     msgWrap: { display: "flex", gap: 8, alignItems: "flex-end" },
     avatar: { width: 28, height: 28, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 12, fontWeight: 700, color: "#fff", flexShrink: 0, marginBottom: 2 },
@@ -279,8 +306,38 @@ const styles: Record<string, React.CSSProperties> = {
     name: { fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 2 },
     messageText: { fontSize: 14, lineHeight: "1.4", wordBreak: "break-word" },
     time: { fontSize: 10, opacity: 0.5, alignSelf: "flex-end", marginTop: 2 },
-    chatInput: { display: "flex", padding: "16px", borderTop: "1px solid #24324f", background: "#0f172a", gap: 10, minHeight: "76px", alignItems: "center" },
-    input: { flex: 1, padding: "12px 16px", borderRadius: "20px", border: "1px solid #334155", background: "#1e293b", color: "#fff", outline: "none", fontSize: 14, minWidth: 0 },
-    sendBtn: { width: 44, height: 44, borderRadius: "50%", border: "none", background: "#4f7cff", color: "#fff", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+    chatInput: { 
+        display: "flex", 
+        padding: "16px 12px", 
+        borderTop: "1px solid #24324f", 
+        background: "#0f172a", 
+        gap: 8, 
+        minHeight: "70px", 
+        alignItems: "center" 
+    },
+    input: { 
+        flex: 1, 
+        padding: "10px 14px", 
+        borderRadius: "20px", 
+        border: "1px solid #334155", 
+        background: "#1e293b", 
+        color: "#fff", 
+        outline: "none", 
+        fontSize: 14, 
+        minWidth: 0 
+    },
+    sendBtn: { 
+        width: 40, 
+        height: 40, 
+        borderRadius: "50%", 
+        border: "none", 
+        background: "#4f7cff", 
+        color: "#fff", 
+        cursor: "pointer", 
+        display: "flex", 
+        alignItems: "center", 
+        justifyContent: "center", 
+        flexShrink: 0 
+    },
     authPrompt: { flex: 1, textAlign: "center", color: "#94a3b8", fontSize: 13, fontStyle: "italic", padding: "10px", background: "rgba(30, 41, 59, 0.5)", borderRadius: "12px", border: "1px dashed #334155" }
 };
