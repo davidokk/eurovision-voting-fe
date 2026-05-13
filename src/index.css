@@ -1,3 +1,5 @@
+/* @import "tailwindcss"; */
+
 * {
   box-sizing: border-box;
 }
@@ -13,4 +15,42 @@ html, body, #root {
   color: #e6edf7;
 
   font-family: Arial, sans-serif;
+}
+
+/* Topbar mobile styles */
+@media (max-width: 768px) {
+  .topbar-left {
+    display: none !important;
+  }
+  
+  .topbar-logo {
+    margin-right: 0 !important;
+  }
+  
+  .hamburger-btn {
+    display: flex !important;
+  }
+  
+  .mobile-menu {
+    display: flex !important;
+  }
+  
+  .user-block-mobile {
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+  
+  .username-text {
+    display: none !important;
+  }
+}
+
+@media (min-width: 769px) {
+  .hamburger-btn {
+    display: none !important;
+  }
+  
+  .mobile-menu {
+    display: none !important;
+  }
 }

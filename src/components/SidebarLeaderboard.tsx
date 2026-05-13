@@ -4,11 +4,12 @@ import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
     performances: PerformanceWithScores[];
+    onClose?: () => void;
 };
 
 type Mode = "all" | "mine";
 
-export function SidebarLeaderboard({ performances }: Props) {
+export function SidebarLeaderboard({ performances, onClose }: Props) {
     const [mode, setMode] = useState<Mode>("all");
 
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
@@ -36,7 +37,26 @@ export function SidebarLeaderboard({ performances }: Props) {
         <div style={styles.sidebar}>
             {/* HEADER */}
             <div style={styles.header}>
-                <h2 style={styles.title}>Топ</h2>
+                <div style={styles.headerLeft}>
+                    <span style={styles.headerIcon}>🏆</span>
+                    <h2 style={styles.title}>Топ</h2>
+                </div>
+                {onClose && (
+                    <button
+                        style={styles.closeBtn}
+                        onClick={onClose}
+                        onMouseEnter={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background =
+                                "rgba(255, 255, 255, 0.12)";
+                        }}
+                        onMouseLeave={(e) => {
+                            (e.currentTarget as HTMLButtonElement).style.background =
+                                "rgba(255, 255, 255, 0.06)";
+                        }}
+                    >
+                        ✕
+                    </button>
+                )}
             </div>
 
             {/* FILTER BUTTONS */}
@@ -44,7 +64,7 @@ export function SidebarLeaderboard({ performances }: Props) {
                 <button
                     style={{
                         ...styles.filterBtn,
-                        background: mode === "all" ? "#4f7cff" : "#16213a",
+                        ...(mode === "all" ? styles.filterBtnActive : {}),
                     }}
                     onClick={() => setMode("all")}
                 >
@@ -55,7 +75,7 @@ export function SidebarLeaderboard({ performances }: Props) {
                     <button
                         style={{
                             ...styles.filterBtn,
-                            background: mode === "mine" ? "#4f7cff" : "#16213a",
+                            ...(mode === "mine" ? styles.filterBtnActive : {}),
                         }}
                         onClick={() => setMode("mine")}
                     >
@@ -66,7 +86,7 @@ export function SidebarLeaderboard({ performances }: Props) {
 
             {/* LIST */}
             <div style={styles.list}>
-                {filtered.map((p) => {
+                {filtered.map((p, index) => {
                     const displayScore =
                         mode === "mine"
                             ? getMyScore(p)
@@ -77,33 +97,49 @@ export function SidebarLeaderboard({ performances }: Props) {
                             ? getMyComment(p)
                             : null;
 
+                    const rank = index + 1;
+                    const isTop3 = rank <= 3;
+
                     return (
                         <div
                             key={p.performance_id}
                             style={{
                                 ...styles.row,
                                 ...(p.qualified
-                                    ? {
-                                          border: "1px solid #22c55e",
-                                          background: "#0f2a1c",
-                                      }
+                                    ? styles.rowQualified
                                     : {}),
                             }}
                         >
-                            <div style={{ flex: 1 }}>
-                                <div>
+                            {/* Rank */}
+                            <div style={{
+                                ...styles.rank,
+                                ...(isTop3 ? styles.rankTop : {}),
+                                ...(rank === 1 ? { background: "linear-gradient(135deg, #ffd700, #ffaa00)" } : {}),
+                                ...(rank === 2 ? { background: "linear-gradient(135deg, #c0c0c0, #a8a8a8)" } : {}),
+                                ...(rank === 3 ? { background: "linear-gradient(135deg, #cd7f32, #b8690e)" } : {}),
+                            }}>
+                                {rank}
+                            </div>
+
+                            {/* Country info */}
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={styles.countryName}>
                                     {supportsEmoji ? p.country.flag_emoji : ""}{" "}
                                     {p.country.name_ru}
                                 </div>
 
                                 {mode === "mine" && myComment && (
                                     <div style={styles.comment}>
-                                        “{myComment}”
+                                        "{myComment}"
                                     </div>
                                 )}
                             </div>
 
-                            <div style={styles.score}>
+                            {/* Score */}
+                            <div style={{
+                                ...styles.score,
+                                ...(p.qualified ? { color: "#4ade80" } : {}),
+                            }}>
                                 ⭐ {Number(displayScore.toFixed(2))}
                             </div>
                         </div>
@@ -116,74 +152,163 @@ export function SidebarLeaderboard({ performances }: Props) {
 
 const styles: Record<string, React.CSSProperties> = {
     sidebar: {
-        width: "100%", // Теперь шириной управляет родительский контейнер
+        width: "100%",
         height: "100%",
         padding: 16,
         display: "flex",
         flexDirection: "column",
-        gap: 16,
-        background: "#111a2e",
+        gap: 14,
+        background: "transparent",
         boxSizing: "border-box",
     },
 
     header: {
         display: "flex",
         alignItems: "center",
+        justifyContent: "space-between",
+        gap: 8,
+    },
+
+    headerLeft: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+    },
+
+    closeBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        border: "none",
+        background: "rgba(255, 255, 255, 0.06)",
+        color: "#94a3b8",
+        cursor: "pointer",
+        fontSize: 15,
+        display: "flex",
+        alignItems: "center",
         justifyContent: "center",
+        transition: "background 0.2s ease",
+        flexShrink: 0,
+    },
+
+    headerIcon: {
+        fontSize: 20,
+        filter: "drop-shadow(0 2px 6px rgba(255, 215, 0, 0.4))",
     },
 
     title: {
         margin: 0,
-        color: "#e6edf7",
+        color: "#fff",
         fontSize: "1.2rem",
+        fontWeight: 900,
+        letterSpacing: "-0.02em",
     },
 
     filters: {
         display: "flex",
-        gap: 8,
+        gap: 4,
+        background: "rgba(15, 23, 42, 0.6)",
+        borderRadius: 14,
+        padding: 4,
+        border: "1px solid rgba(255, 255, 255, 0.06)",
     },
 
     filterBtn: {
         flex: 1,
-        padding: "8px",
-        borderRadius: 8,
-        border: "1px solid #24324f",
-        color: "#e6edf7",
+        padding: "10px 8px",
+        borderRadius: 11,
+        border: "none",
+        background: "transparent",
+        color: "#64748b",
         cursor: "pointer",
         fontSize: 12,
-        fontWeight: 600,
-        transition: "background 0.2s",
+        fontWeight: 700,
+        transition: "all 0.25s ease",
+    },
+
+    filterBtnActive: {
+        background: "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
+        color: "#fff",
+        boxShadow: "0 4px 12px rgba(79, 124, 255, 0.25)",
     },
 
     list: {
         display: "flex",
         flexDirection: "column",
-        gap: 10,
+        gap: 8,
         overflowY: "auto",
         paddingRight: 4,
+        scrollbarWidth: "thin",
+        scrollbarColor: "rgba(79, 124, 255, 0.2) transparent",
     },
 
     row: {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "12px",
-        border: "1px solid #24324f",
-        borderRadius: 10,
-        background: "#16213a",
+        padding: "12px 14px",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        borderRadius: 14,
+        background: "rgba(30, 41, 59, 0.4)",
+        backdropFilter: "blur(12px)",
+        WebkitBackdropFilter: "blur(12px)",
         fontWeight: 600,
         gap: 10,
+        transition: "all 0.2s ease",
+    },
+
+    rowQualified: {
+        border: "1px solid rgba(74, 222, 128, 0.5)",
+        background: "rgba(74, 222, 128, 0.12)",
+        boxShadow: "0 0 24px rgba(74, 222, 128, 0.15), inset 0 0 20px rgba(74, 222, 128, 0.05)",
+    },
+
+    rank: {
+        width: 28,
+        height: 28,
+        borderRadius: 10,
+        background: "rgba(255, 255, 255, 0.06)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: 900,
+        color: "#94a3b8",
+        flexShrink: 0,
+    },
+
+    rankTop: {
+        color: "#fff",
+        boxShadow: "0 2px 8px rgba(0, 0, 0, 0.2)",
+    },
+
+    countryName: {
+        color: "#e6edf7",
+        fontSize: 14,
+        fontWeight: 700,
+        letterSpacing: "0.01em",
+        whiteSpace: "nowrap",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
     },
 
     score: {
         whiteSpace: "nowrap",
+        color: "#ffd166",
+        fontSize: 13,
+        fontWeight: 800,
+        fontFamily: "monospace",
+        flexShrink: 0,
     },
 
     comment: {
-        marginTop: 4,
-        fontSize: 12,
-        color: "#9fb0d0",
+        marginTop: 3,
+        fontSize: 11,
+        color: "#7aa2ff",
         fontStyle: "italic",
         fontWeight: 400,
+        opacity: 0.8,
+        lineHeight: 1.4,
+        wordBreak: "break-word" as const,
     },
 };

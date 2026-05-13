@@ -2,6 +2,8 @@ export type ContestItem = {
   id: string;
   type: string;
   year: number;
+  starts: string;
+  ends: string;
 };
 
 export type ContestsByYear = Record<string, ContestItem[]>;

@@ -32,7 +32,7 @@ export default function App() {
 
   // Состояния интерфейса
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false); // Поднятое состояние чата
+  const [chatOpen, setChatOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
 
   useEffect(() => {
@@ -82,43 +82,46 @@ export default function App() {
             ...styles.sidebarContainer,
             width: leaderboardOpen ? (isMobile ? "100%" : 300) : 0,
             position: isMobile && leaderboardOpen ? "absolute" : "relative",
-            borderRight: leaderboardOpen ? "1px solid #24324f" : "none",
+            borderRight: leaderboardOpen ? "1px solid rgba(255,255,255,0.06)" : "none",
             zIndex: isMobile ? 1500 : 100,
           }}
         >
           {leaderboardOpen && selectedContest && (
             <SidebarLeaderboard
               performances={selectedContest.performances}
+              onClose={() => setLeaderboardOpen(false)}
             />
           )}
         </div>
 
-        {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ ЛИДЕРБОРДА */}
-        {/* Скрываем кнопку, если открыт чат */}
-        <button
-          onClick={() => setLeaderboardOpen(!leaderboardOpen)}
-          style={{
-            ...styles.toggleBtn,
-            left: leaderboardOpen ? (isMobile ? "calc(100% - 60px)" : 315) : 15,
-            opacity: isMobile && leaderboardOpen ? 0.8 : 1,
-            display: chatOpen && isMobile ? 'none' : 'flex', // ОСНОВНАЯ ЛОГИКА СКРЫТИЯ
-          }}
-        >
-          {leaderboardOpen ? "✕" : "🏆"}
-        </button>
-
         {/* ОСНОВНОЙ КОНТЕНТ (CONTEST VIEW) */}
-        <div 
+        <div
           style={styles.content}
           onClick={() => isMobile && leaderboardOpen && setLeaderboardOpen(false)}
         >
-          <ContestViewComponent 
-            contest={selectedContest} 
-            chatOpen={chatOpen} 
-            setChatOpen={setChatOpen} 
+          <ContestViewComponent
+            contest={selectedContest}
+            chatOpen={chatOpen}
+            setChatOpen={setChatOpen}
           />
         </div>
       </div>
+
+      {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ ЛИДЕРБОРДА — вне layout, выше всех stacking context */}
+      <button
+        onClick={() => setLeaderboardOpen(!leaderboardOpen)}
+        style={{
+          ...styles.toggleBtn,
+          left: leaderboardOpen ? (isMobile ? 15 : 315) : 15,
+          transform: (isMobile && (chatOpen || leaderboardOpen)) ? "scale(0)" : "scale(1)",
+          opacity: (isMobile && (chatOpen || leaderboardOpen)) ? 0 : 1,
+          pointerEvents: (isMobile && (chatOpen || leaderboardOpen)) ? "none" : "auto",
+        }}
+      >
+        <span style={{ fontSize: 24 }}>
+          {leaderboardOpen ? "✕" : "🏆"}
+        </span>
+      </button>
     </div>
   );
 }
@@ -145,8 +148,10 @@ const styles: Record<string, React.CSSProperties> = {
   },
   sidebarContainer: {
     height: "100%",
-    background: "#0f172a",
-    transition: "width 0.25s ease, left 0.25s ease",
+    background: "rgba(15, 23, 42, 0.95)",
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+    transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
     overflow: "hidden",
   },
   content: {
@@ -158,20 +163,23 @@ const styles: Record<string, React.CSSProperties> = {
   },
   toggleBtn: {
     position: "fixed",
-    bottom: 20,
-    width: 48,
-    height: 48,
-    borderRadius: "50%",
-    background: "#4f7cff",
+    bottom: 30,
+    width: 68,
+    height: 68,
+    borderRadius: "24px",
+    background: "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
     color: "#fff",
-    border: "none",
+    border: "1px solid rgba(255,255,255,0.12)",
     fontSize: 18,
     cursor: "pointer",
-    boxShadow: "0 8px 16px rgba(0,0,0,0.4)",
-    transition: "all 0.25s ease",
-    zIndex: 1600,
+    zIndex: 2100,
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    boxShadow: `
+      0 10px 30px rgba(79, 124, 255, 0.35),
+      inset 0 1px rgba(255, 255, 255, 0.15)
+    `,
+    transition: "all 0.25s ease",
   },
 };

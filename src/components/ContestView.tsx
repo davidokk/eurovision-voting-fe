@@ -75,7 +75,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
 
             setIsMobile(mobile);
 
-            if (!mobile) setChatOpen(true);
+            // if (!mobile) setChatOpen(true);
         };
 
         window.addEventListener("resize", handleResize);
@@ -188,7 +188,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
         }
 
         return null;
-    }, [contest, now]);
+    }, [contest, now, ended]);
 
     const sortedPerformances = useMemo(() => {
         if (!contest) return [];
@@ -397,7 +397,15 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                         </div>
 
                         <div style={styles.chatInput}>
-                            {isAuthenticated ? (
+                            {started ? (
+                                <div style={styles.authPrompt}>
+                                    Конкурс еще не начался. Чат закрыт
+                                </div>
+                            ) : ended ? (
+                                <div style={styles.authPrompt}>
+                                    Конкурс завершился. Чат закрыт
+                                </div>
+                            ) : isAuthenticated ? (
                                 <div style={styles.inputWrapper}>
                                     <input
                                         value={input}
