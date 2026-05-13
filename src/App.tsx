@@ -108,7 +108,7 @@ export default function App() {
       </div>
 
       {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ ЛИДЕРБОРДА — вне layout, выше всех stacking context */}
-      <button
+      {selectedContest && (<button
         onClick={() => setLeaderboardOpen(!leaderboardOpen)}
         style={{
           ...styles.toggleBtn,
@@ -121,7 +121,7 @@ export default function App() {
         <span style={{ fontSize: 24 }}>
           {leaderboardOpen ? "✕" : "🏆"}
         </span>
-      </button>
+      </button>)}
     </div>
   );
 }
@@ -137,7 +137,7 @@ const styles: Record<string, React.CSSProperties> = {
   },
   topbarWrapper: {
     position: "relative",
-    zIndex: 2000,
+    zIndex: 3000,
     flexShrink: 0,
   },
   layout: {

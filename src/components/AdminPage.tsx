@@ -23,6 +23,7 @@ type EditablePerformance = any & {
 };
 
 const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
+const API_URL = import.meta.env.VITE_API_URL;
 
 function getYouTubeId(url: string) {
     const match = url.match(
@@ -156,7 +157,7 @@ export function AdminPage({ initialContest }: Props) {
 
         try {
             await fetch(
-                `http://localhost:8080/admin/performance/${item.performance_id}`,
+                `${API_URL}/admin/performance/${item.performance_id}`,
                 {
                     method: "PUT",
                     headers: {

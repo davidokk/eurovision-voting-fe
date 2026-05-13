@@ -27,10 +27,12 @@ export function Topbar({ contests, onSelectContest }: Props) {
   const [authMode, setAuthMode] =
     useState<"signin" | "signup" | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [mobileLogoutOpen, setMobileLogoutOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
+  const userId = localStorage.getItem("user_id");
 
   useEffect(() => {
     setToken(localStorage.getItem("token"));
@@ -165,44 +167,78 @@ export function Topbar({ contests, onSelectContest }: Props) {
               Войти
             </button>
           ) : (
-            <div style={{
-              ...styles.userBlock,
-              padding: isMobile ? "4px" : "6px 6px 6px 14px",
-              gap: isMobile ? 0 : 16,
-            }}>
-              <div style={styles.userInfo}>
-                <div style={{
-                  ...styles.avatar,
-                  width: isMobile ? 28 : 32,
-                  height: isMobile ? 28 : 32,
-                }}>
-                   {username?.charAt(0).toUpperCase()}
-                </div>
-                {username && (
-                  <span style={styles.username}>
-                    {username}
-                  </span>
-                )}
-              </div>
-
+            <div style={{ position: "relative" }}>
+              {/* Десктоп: полный блок */}
               {!isMobile && (
-                <button style={styles.logoutButton} onClick={logout}>
-                  Выход
-                </button>
+                <div style={{
+                  ...styles.userBlock,
+                  padding: "6px 6px 6px 14px",
+                  gap: 16,
+                }}>
+                  <div style={styles.userInfo}>
+                    <a
+                      href={userId ? `/user/${userId}` : "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        ...styles.avatarLink,
+                        width: 32,
+                        height: 32,
+                      }}
+                    >
+                      {username?.charAt(0).toUpperCase()}
+                    </a>
+                    {username && (
+                      <span style={styles.username}>
+                        {username}
+                      </span>
+                    )}
+                  </div>
+
+                  <button style={styles.logoutButton} onClick={logout}>
+                    Выйти
+                  </button>
+                </div>
               )}
-              
+
+              {/* Мобилка: только аватарка */}
               {isMobile && (
-                 <button 
-                  style={{
-                    ...styles.logoutButton,
-                    padding: "8px",
-                    background: "transparent"
-                  }} 
-                  onClick={logout}
-                  title="Выйти"
+                <div
+                  style={styles.mobileAvatarBtn}
+                  onClick={() => setMobileLogoutOpen(!mobileLogoutOpen)}
                 >
-                  Выйти
-                </button>
+                  <div style={{
+                    ...styles.avatar,
+                    width: 34,
+                    height: 34,
+                  }}>
+                    {username?.charAt(0).toUpperCase()}
+                  </div>
+                </div>
+              )}
+
+              {/* Мобильный dropdown */}
+              {isMobile && mobileLogoutOpen && (
+                <div style={styles.mobileLogoutDropdown}>
+                  <button
+                    style={styles.mobileProfileBtn}
+                    onClick={() => {
+                      if (userId) window.open(`/user/${userId}`, "_blank");
+                      setMobileLogoutOpen(false);
+                    }}
+                  >
+                    👤 Мой профиль
+                  </button>
+                  <button
+                    style={styles.mobileLogoutBtn}
+                    onClick={() => {
+                      logout();
+                      setMobileLogoutOpen(false);
+                    }}
+                  >
+                    🚪 Выйти
+                  </button>
+                </div>
               )}
             </div>
           )}
@@ -319,7 +355,7 @@ const styles: Record<string, React.CSSProperties> = {
     backdropFilter: "blur(24px)",
     WebkitBackdropFilter: "blur(24px)",
     borderRight: "1px solid rgba(255, 255, 255, 0.06)",
-    zIndex: 999,
+    zIndex: 2200,
     display: "none",
     flexDirection: "column",
     transition: "transform 0.3s cubic-bezier(0.4, 0, 0.2, 1)",
@@ -383,7 +419,7 @@ const styles: Record<string, React.CSSProperties> = {
     background: "rgba(0, 0, 0, 0.5)",
     backdropFilter: "blur(4px)",
     WebkitBackdropFilter: "blur(4px)",
-    zIndex: 998,
+    zIndex: 2150,
   },
 
   logo: {
@@ -500,6 +536,22 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
 
+  avatarLink: {
+    borderRadius: 12,
+    background: "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontSize: 14,
+    fontWeight: 900,
+    color: "#fff",
+    boxShadow: "0 4px 14px rgba(79, 124, 255, 0.3)",
+    flexShrink: 0,
+    textDecoration: "none",
+    cursor: "pointer",
+    transition: "transform 0.2s ease, box-shadow 0.2s ease",
+  },
+
   username: {
     color: "#e6edf7",
     fontWeight: 700,
@@ -517,6 +569,63 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
     fontWeight: 600,
     transition: "all 0.2s ease",
-    // marginLeft: 5,
+  },
+
+  mobileAvatarBtn: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    padding: 4,
+  },
+
+  mobileLogoutDropdown: {
+    position: "absolute",
+    top: "calc(100% + 8px)",
+    right: 0,
+    minWidth: 160,
+    background: "rgba(15, 23, 42, 0.95)",
+    backdropFilter: "blur(24px)",
+    WebkitBackdropFilter: "blur(24px)",
+    border: "1px solid rgba(255, 255, 255, 0.08)",
+    borderRadius: 14,
+    padding: 6,
+    zIndex: 3000,
+    boxShadow: `
+      0 20px 60px rgba(0, 0, 0, 0.5),
+      0 0 40px rgba(79, 124, 255, 0.08),
+      inset 0 1px rgba(255, 255, 255, 0.06)
+    `,
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+  },
+
+  mobileProfileBtn: {
+    width: "100%",
+    padding: "12px 16px",
+    border: "none",
+    borderRadius: 10,
+    background: "rgba(79, 124, 255, 0.1)",
+    color: "#7aa2ff",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 700,
+    textAlign: "left" as const,
+    transition: "background 0.2s ease",
+  },
+
+  mobileLogoutBtn: {
+    width: "100%",
+    padding: "12px 16px",
+    border: "none",
+    borderRadius: 10,
+    background: "rgba(255, 107, 107, 0.08)",
+    color: "#ff6b6b",
+    cursor: "pointer",
+    fontSize: 14,
+    fontWeight: 700,
+    textAlign: "left" as const,
+    transition: "background 0.2s ease",
   },
 };

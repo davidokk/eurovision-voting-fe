@@ -64,6 +64,9 @@ export function AuthModal({
             if (payload?.username) {
                 localStorage.setItem("username", payload.username);
             }
+            if (payload?.user_id) {
+                localStorage.setItem("user_id", payload.user_id);
+            }
 
             onSuccess(token);
 
