@@ -506,7 +506,7 @@ export function PerformanceCard({
             </div>
 
             {/* Вращающийся кружочек загрузки (spinner) поверх окна */}
-            {(submitting || showErrorAnimation) && (
+            {(submitting) && (
               <div style={{
                 position: "absolute",
                 inset: 0,

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { PerformanceCard } from "./PerformanceCard";
+import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
     contest: ContestViewType | null;
@@ -63,6 +64,7 @@ function formatTime(ms: number) {
 }
 
 export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue" }: Props) {
+    const supportsEmoji = getDoesBrowserSupportFlagEmojis();
     const [now, setNow] = useState(Date.now());
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
@@ -487,7 +489,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                                 </div>
 
                                                 <div style={styles.systemCountry}>
-                                                    {m.country_flag && (
+                                                    {supportsEmoji && m.country_flag && (
                                                         <span style={styles.systemFlag}>
                                                             {m.country_flag}
                                                         </span>
