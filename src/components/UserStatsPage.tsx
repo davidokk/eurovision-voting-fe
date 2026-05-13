@@ -449,7 +449,7 @@ const styles: Record<string, React.CSSProperties> = {
     list: {
         display: "grid",
         gap: 20,
-        gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
+        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     },
 
     card: {

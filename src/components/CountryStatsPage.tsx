@@ -333,7 +333,7 @@ const styles: Record<string, React.CSSProperties> = {
     row: { display: "flex", gap: 8, flexWrap: "wrap" },
     btn: { padding: "8px 14px", borderRadius: "10px", cursor: "pointer", fontSize: 13, fontWeight: 700, transition: "all 0.2s ease" },
     loading: { textAlign: "center", fontSize: 14, fontWeight: 600, marginBottom: 20 },
-    list: { display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))" },
+    list: { display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" },
     card: { padding: "24px", borderRadius: "24px", backdropFilter: "blur(12px)", display: "flex", flexDirection: "column", gap: 16 },
     cardMain: { display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" },
     meta: { display: "flex", flexDirection: "column", gap: 6, flex: 1 },
