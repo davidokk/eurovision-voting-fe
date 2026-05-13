@@ -59,9 +59,7 @@ function formatContestType(type: string) {
 
 function formatAvg(value: number) {
     if (!value || Number.isNaN(value)) return "0";
-
     const rounded = Math.round(value * 100) / 100;
-
     return Number.isInteger(rounded)
         ? String(rounded)
         : rounded.toFixed(2);
@@ -80,8 +78,6 @@ export function UserStatsPage({ userId }: Props) {
     const [selectedYear, setSelectedYear] = useState<string>("");
 
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
-
-    // ✔️ DEFAULT SORT = SCORE
     const [sort, setSort] = useState<SortType>("score");
 
     useEffect(() => {
@@ -104,26 +100,14 @@ export function UserStatsPage({ userId }: Props) {
 
     async function load() {
         setLoading(true);
-
         try {
             const params = new URLSearchParams();
-
             params.append("user_id", userId);
-
-            if (selectedCountry) {
-                params.append("country_id", selectedCountry);
-            }
-
-            if (selectedYear) {
-                params.append("year", selectedYear);
-            }
-
+            if (selectedCountry) params.append("country_id", selectedCountry);
+            if (selectedYear) params.append("year", selectedYear);
             params.append("sort", sort);
 
-            const res = await fetch(
-                `${API_URL}/v1/scores?${params.toString()}`
-            );
-
+            const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
             const json = await res.json();
             setData(Array.isArray(json) ? json : []);
         } catch {
@@ -135,220 +119,162 @@ export function UserStatsPage({ userId }: Props) {
 
     const avgScore =
         data.length > 0
-            ? data.reduce((sum, i) => sum + (i.Score || 0), 0) /
-            data.length
+            ? data.reduce((sum, i) => sum + (i.Score || 0), 0) / data.length
             : 0;
 
     return (
         <div style={styles.page}>
-            <h2 style={styles.title}>
-                Оценки пользователя {data?.[0]?.Username || ""}
-            </h2>
+            <div style={styles.container}>
+                <header style={styles.header}>
+                    <h2 style={styles.title}>
+                        Оценки пользователя <span style={styles.usernameHighlight}>{data?.[0]?.Username}</span>
+                    </h2>
+                </header>
 
-            {/* FILTERS */}
-            <div style={styles.filters}>
-                {/* COUNTRY */}
-                <div style={styles.block}>
-                    <div style={styles.label}>Страна</div>
-
-                    <div style={styles.row}>
-                        {countries.map((c) => {
-                            const active =
-                                selectedCountry === c.id;
-
-                            return (
-                                <button
-                                    key={c.id}
-                                    onClick={() =>
-                                        setSelectedCountry(
-                                            active ? "" : c.id
-                                        )
-                                    }
-                                    style={{
-                                        ...styles.btn,
-                                        background: active
-                                            ? "#4f7cff"
-                                            : "#111a2e",
-                                    }}
-                                >
-                                    {supportsEmoji && c.flag_emoji} {c.name_ru}
-                                </button>
-                            );
-                        })}
-                    </div>
+                {/* AVG SCORE BOX */}
+                <div style={styles.avgBox}>
+                    <div style={styles.avgLabelBig}>Средняя оценка</div>
+                    <div style={styles.avgValue}>{formatAvg(avgScore)} ⭐</div>
                 </div>
 
-                {/* YEAR */}
-                <div style={styles.block}>
-                    <div style={styles.label}>Год</div>
+                {/* FILTERS */}
+                <div style={styles.filters}>
+                    <div style={styles.block}>
+                        <div style={styles.label}>Страна</div>
+                        <div style={styles.row}>
+                            <button
+                                onClick={() => setSelectedCountry("")}
+                                style={{
+                                    ...styles.btn,
+                                    ...(selectedCountry === "" ? styles.btnActivePrimary : {})
+                                }}
+                            >
+                                Все страны
+                            </button>
+                            {countries.map((c) => (
+                                <button
+                                    key={c.id}
+                                    onClick={() => setSelectedCountry(c.id)}
+                                    style={{
+                                        ...styles.btn,
+                                        ...(selectedCountry === c.id ? styles.btnActivePrimary : {})
+                                    }}
+                                >
+                                    {supportsEmoji && <span style={{marginRight: 6}}>{c.flag_emoji}</span>}
+                                    {c.name_ru}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
 
-                    <div style={styles.row}>
-                        {Object.keys(contests)
-                            .sort((a, b) => Number(b) - Number(a))
-                            .map((year) => {
-                                const active =
-                                    selectedYear === year;
-
-                                return (
+                    <div style={styles.block}>
+                        <div style={styles.label}>Год</div>
+                        <div style={styles.row}>
+                            <button
+                                onClick={() => setSelectedYear("")}
+                                style={{
+                                    ...styles.btn,
+                                    ...(selectedYear === "" ? styles.btnActiveGreen : {})
+                                }}
+                            >
+                                Все годы
+                            </button>
+                            {Object.keys(contests)
+                                .sort((a, b) => Number(b) - Number(a))
+                                .map((year) => (
                                     <button
                                         key={year}
-                                        onClick={() =>
-                                            setSelectedYear(
-                                                active ? "" : year
-                                            )
-                                        }
+                                        onClick={() => setSelectedYear(year)}
                                         style={{
                                             ...styles.btn,
-                                            background: active
-                                                ? "#22c55e"
-                                                : "#111a2e",
+                                            ...(selectedYear === year ? styles.btnActiveGreen : {})
                                         }}
                                     >
                                         {year}
                                     </button>
-                                );
-                            })}
-                    </div>
-                </div>
-
-                {/* SORT */}
-                <div style={styles.block}>
-                    <div style={styles.label}>
-                        Сортировать по
-                    </div>
-
-                    <div style={styles.row}>
-                        <button
-                            onClick={() => setSort("time")}
-                            style={{
-                                ...styles.btn,
-                                background:
-                                    sort === "time"
-                                        ? "#f97316"
-                                        : "#111a2e",
-                            }}
-                        >
-                            Новые
-                        </button>
-
-                        <button
-                            onClick={() => setSort("score")}
-                            style={{
-                                ...styles.btn,
-                                background:
-                                    sort === "score"
-                                        ? "#f97316"
-                                        : "#111a2e",
-                            }}
-                        >
-                            Оценка
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            {/* ⭐️ AVG SCORE (BIGGER) */}
-            <div style={styles.avgBox}>
-                <div style={styles.avgLabelBig}>
-                    Средняя оценка
-                </div>
-
-                <div style={styles.avgValue}>
-                    {formatAvg(avgScore)} ⭐
-                </div>
-            </div>
-
-            {loading && (
-                <div style={styles.loading}>Загрузка...</div>
-            )}
-
-            {/* LIST */}
-            <div style={styles.list}>
-                {data.map((item, i) => {
-                    const youtubeId = item.YoutubeLink
-                        ? getYouTubeId(item.YoutubeLink)
-                        : null;
-                    const country = countries.find(
-                        (c) => c.name_ru === item.CountryName
-                    );
-
-                    return (
-                        <div key={i} style={styles.card}>
-                            <div style={styles.topRow}>
-                                <div style={styles.meta}>
-                                    <div style={styles.country}>
-                                        {supportsEmoji && country?.flag_emoji} {item.CountryName}
-                                    </div>
-
-                                    <div style={styles.contest}>
-                                        {item.ContestYear} •{" "}
-                                        {formatContestType(
-                                            item.ContestType
-                                        )}
-                                    </div>
-
-                                    <div style={styles.songSmall}>
-                                        {item.Artist} —{" "}
-                                        {item.Song}
-                                    </div>
-                                </div>
-
-                                <div style={styles.mediaBlock}>
-                                    {youtubeId && (
-                                        <div
-                                            style={
-                                                styles.thumbnailWrapper
-                                            }
-                                        >
-                                            <a
-                                                href={
-                                                    item.YoutubeLink
-                                                }
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                style={
-                                                    styles.thumbnail
-                                                }
-                                            >
-                                                <img
-                                                    src={`https://img.youtube.com/vi/${youtubeId}/hqdefault.jpg`}
-                                                    style={
-                                                        styles.thumbnailImg
-                                                    }
-                                                />
-                                            </a>
-
-                                            <a
-                                                href={
-                                                    item.YoutubeLink
-                                                }
-                                                target="_blank"
-                                                rel="noreferrer"
-                                                style={
-                                                    styles.youtubeOverlay
-                                                }
-                                            >
-                                                ▶ YouTube
-                                            </a>
-                                        </div>
-                                    )}
-
-                                    <div
-                                        style={styles.scoreBig}
-                                    >
-                                        {item.Score}
-                                    </div>
-                                </div>
-                            </div>
-
-                            {item.Comment && (
-                                <div style={styles.comment}>
-                                    “{item.Comment}”
-                                </div>
-                            )}
+                                ))}
                         </div>
-                    );
-                })}
+                    </div>
+
+                    <div style={styles.block}>
+                        <div style={styles.label}>Сортировка</div>
+                        <div style={styles.row}>
+                            <button
+                                onClick={() => setSort("time")}
+                                style={{
+                                    ...styles.btn,
+                                    ...(sort === "time" ? styles.btnActiveOrange : {})
+                                }}
+                            >
+                                Сначала новые
+                            </button>
+                            <button
+                                onClick={() => setSort("score")}
+                                style={{
+                                    ...styles.btn,
+                                    ...(sort === "score" ? styles.btnActiveOrange : {})
+                                }}
+                            >
+                                По баллу
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                {loading && <div style={styles.loading}>Обновление данных...</div>}
+
+                {/* LIST */}
+                <div style={styles.list}>
+                    {data.map((item, i) => {
+                        const youtubeId = item.YoutubeLink ? getYouTubeId(item.YoutubeLink) : null;
+                        const country = countries.find((c) => c.name_ru === item.CountryName);
+
+                        return (
+                            <div key={i} style={styles.card}>
+                                <div style={styles.cardMain}>
+                                    <div style={styles.meta}>
+                                        <div style={styles.contestTag}>
+                                            {item.ContestYear} • {formatContestType(item.ContestType)}
+                                        </div>
+                                        <div style={styles.countryRow}>
+                                            {supportsEmoji && country?.flag_emoji && (
+                                                <span style={styles.flagLarge}>{country.flag_emoji}</span>
+                                            )}
+                                            <div style={styles.countryName}>{item.CountryName}</div>
+                                        </div>
+                                        <div style={styles.artistInfo}>
+                                            <span style={styles.artist}>{item.Artist}</span>
+                                            <span style={styles.song}> — {item.Song}</span>
+                                        </div>
+                                    </div>
+
+                                    <div style={styles.scoreContainer}>
+                                        <div style={styles.scoreBig}>{item.Score}</div>
+                                        <div style={styles.starSmall}>⭐</div>
+                                    </div>
+                                </div>
+
+                                {item.Comment && (
+                                    <div style={styles.comment}>
+                                        “{item.Comment}”
+                                    </div>
+                                )}
+
+                                {youtubeId && (
+                                    <div style={styles.mediaContainer}>
+                                        <a href={item.YoutubeLink} target="_blank" rel="noreferrer" style={styles.thumbnailWrapper}>
+                                            <img
+                                                src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
+                                                style={styles.thumbnailImg}
+                                            />
+                                            <div style={styles.playOverlay}>▶ YouTube</div>
+                                        </a>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
         </div>
     );
@@ -356,88 +282,160 @@ export function UserStatsPage({ userId }: Props) {
 
 const styles: Record<string, React.CSSProperties> = {
     page: {
-        padding: 20,
-        background: "#0b1220",
+        padding: "40px 20px",
+        background: `
+            radial-gradient(circle at top left, rgba(79,124,255,0.15), transparent 40%),
+            radial-gradient(circle at bottom right, rgba(167,139,250,0.15), transparent 40%),
+            #020617
+        `,
         minHeight: "100vh",
-        color: "#e6edf7",
+        color: "#fff",
+        fontFamily: "'Inter', sans-serif",
+    },
+
+    container: {
+        maxWidth: 1200,
+        margin: "0 auto",
+    },
+
+    header: {
+        textAlign: "center",
+        marginBottom: 32,
     },
 
     title: {
-        fontSize: 22,
+        fontSize: "2.2rem",
+        fontWeight: 900,
+        letterSpacing: "-0.04em",
+        margin: 0,
+        textShadow: "0 10px 30px rgba(79,124,255,0.3)",
+    },
+
+    usernameHighlight: {
+        color: "#7aa2ff",
+    },
+
+    avgBox: {
+        textAlign: "center",
+        margin: "0 auto 48px",
+        padding: "24px",
+        maxWidth: 360,
+        background: "rgba(15, 23, 42, 0.4)",
+        borderRadius: "28px",
+        border: "1px solid rgba(79, 124, 255, 0.2)",
+        boxShadow: "0 15px 35px rgba(0,0,0,0.2)",
+        backdropFilter: "blur(12px)",
+    },
+
+    avgLabelBig: {
+        fontSize: 13,
         fontWeight: 800,
-        marginBottom: 16,
+        color: "#64748b",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        marginBottom: 8,
+    },
+
+    avgValue: {
+        fontSize: 48,
+        fontWeight: 950,
+        color: "#ffd166",
+        textShadow: "0 0 20px rgba(255, 209, 102, 0.4)",
     },
 
     filters: {
         display: "flex",
         flexDirection: "column",
-        gap: 16,
-        marginBottom: 10,
+        gap: 24,
+        marginBottom: 40,
+        background: "rgba(15, 23, 42, 0.3)",
+        padding: "24px",
+        borderRadius: "24px",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        backdropFilter: "blur(8px)",
     },
 
     block: {
         display: "flex",
         flexDirection: "column",
-        gap: 6,
+        gap: 12,
     },
 
     label: {
         fontWeight: 800,
-        fontSize: 13,
-        color: "#94a3b8",
+        fontSize: 12,
+        color: "#64748b",
+        textTransform: "uppercase",
+        letterSpacing: "0.1em",
+        paddingLeft: 4,
     },
 
     row: {
         display: "flex",
-        gap: 6,
+        gap: 8,
         flexWrap: "wrap",
     },
 
     btn: {
-        padding: "6px 10px",
-        borderRadius: 8,
-        border: "1px solid #24324f",
-        color: "#fff",
-        cursor: "pointer",
-        fontSize: 12,
-    },
-
-    avgBox: {
-        textAlign: "center",
-        margin: "10px 0 20px",
-    },
-
-    avgLabelBig: {
-        fontSize: 18,
-        fontWeight: 800,
+        padding: "8px 14px",
+        borderRadius: "10px",
+        border: "1px solid rgba(255, 255, 255, 0.08)",
+        background: "rgba(255, 255, 255, 0.03)",
         color: "#94a3b8",
-        marginBottom: 4,
+        cursor: "pointer",
+        fontSize: 13,
+        fontWeight: 700,
+        transition: "all 0.2s ease",
     },
 
-    avgValue: {
-        fontSize: 40,
-        fontWeight: 900,
-        color: "#ffd166",
+    btnActivePrimary: {
+        background: "#4f7cff",
+        color: "#fff",
+        borderColor: "#4f7cff",
+        boxShadow: "0 4px 12px rgba(79, 124, 255, 0.3)",
+    },
+
+    btnActiveGreen: {
+        background: "#22c55e",
+        color: "#fff",
+        borderColor: "#22c55e",
+        boxShadow: "0 4px 12px rgba(34, 197, 94, 0.3)",
+    },
+
+    btnActiveOrange: {
+        background: "#f97316",
+        color: "#fff",
+        borderColor: "#f97316",
+        boxShadow: "0 4px 12px rgba(249, 115, 22, 0.3)",
     },
 
     loading: {
-        color: "#94a3b8",
-        marginBottom: 10,
+        color: "#4f7cff",
+        textAlign: "center",
+        fontSize: 14,
+        fontWeight: 600,
+        marginBottom: 20,
     },
 
     list: {
         display: "grid",
-        gap: 14,
+        gap: 20,
+        gridTemplateColumns: "repeat(auto-fill, minmax(380px, 1fr))",
     },
 
     card: {
-        padding: 16,
-        background: "#111a2e",
-        borderRadius: 14,
-        border: "1px solid #1f2a44",
+        padding: "24px",
+        background: "rgba(30, 41, 59, 0.4)",
+        borderRadius: "24px",
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+        backdropFilter: "blur(12px)",
+        display: "flex",
+        flexDirection: "column",
+        gap: 16,
+        transition: "transform 0.2s ease",
     },
 
-    topRow: {
+    cardMain: {
         display: "flex",
         justifyContent: "space-between",
         gap: 16,
@@ -447,74 +445,127 @@ const styles: Record<string, React.CSSProperties> = {
     meta: {
         display: "flex",
         flexDirection: "column",
-        gap: 4,
+        gap: 6,
+        flex: 1,
     },
 
-    country: {
-        fontSize: 22,
-        fontWeight: 800,
-    },
-
-    contest: {
-        fontSize: 14,
-        color: "#94a3b8",
-    },
-
-    songSmall: {
+    contestTag: {
         fontSize: 13,
-        color: "#7f8fb3",
+        color: "#7aa2ff",
+        fontWeight: 800,
+        textTransform: "uppercase",
+        letterSpacing: "0.05em",
     },
 
-    mediaBlock: {
+    countryRow: {
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: 10,
+    },
+
+    flagLarge: {
+        fontSize: 28,
+    },
+
+    countryName: {
+        fontSize: 24,
+        fontWeight: 900,
+        color: "#fff",
+        letterSpacing: "-0.02em",
+    },
+
+    artistInfo: {
+        fontSize: 15,
+        color: "#94a3b8",
+        fontWeight: 600,
+        lineHeight: "1.4",
+    },
+
+    artist: {
+        color: "#e2e8f0",
+    },
+
+    song: {
+        color: "#64748b",
+    },
+
+    scoreContainer: {
+        textAlign: "center",
+        background: "rgba(255, 209, 102, 0.1)",
+        padding: "10px 16px",
+        borderRadius: "18px",
+        border: "1px solid rgba(255, 209, 102, 0.2)",
     },
 
     scoreBig: {
-        fontSize: 54,
-        fontWeight: 900,
+        fontSize: 44,
+        fontWeight: 1000,
         color: "#ffd166",
         lineHeight: 1,
-        minWidth: 70,
-        textAlign: "center",
     },
 
-    thumbnailWrapper: {
-        position: "relative",
-    },
-
-    thumbnail: {
-        display: "block",
-        borderRadius: 12,
-        overflow: "hidden",
-        border: "1px solid #24324f",
-    },
-
-    thumbnailImg: {
-        width: 240,
-        height: 135,
-        objectFit: "cover",
-        borderRadius: 10,
-        display: "block",
-    },
-
-    youtubeOverlay: {
-        position: "absolute",
-        right: 6,
-        bottom: 6,
-        padding: "4px 8px",
-        background: "rgba(255,0,51,0.9)",
-        color: "white",
-        borderRadius: 8,
-        fontSize: 10,
-        fontWeight: 700,
-        textDecoration: "none",
+    starSmall: {
+        fontSize: 12,
+        marginTop: 4,
     },
 
     comment: {
-        marginTop: 10,
         fontStyle: "italic",
-        color: "#9fb0d0",
+        color: "#7aa2ff",
+        fontSize: 14,
+        padding: "12px 16px",
+        background: "rgba(122, 162, 255, 0.08)",
+        borderRadius: "14px",
+        borderLeft: "4px solid #4f7cff",
+        lineHeight: "1.5",
+    },
+
+    mediaContainer: {
+        display: "flex",
+        gap: 12,
+        width: "100%",
+    },
+
+    thumbnailWrapper: {
+        width: "100%",
+        maxWidth: "320px",
+        position: "relative",
+        borderRadius: "12px",
+        overflow: "hidden",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+        aspectRatio: "16/9",
+    },
+
+    thumbnailImg: {
+        width: "100%",
+        height: "100%",
+        objectFit: "contain",
+        background: "#000",
+    },
+
+    playOverlay: {
+        position: "absolute",
+        inset: 0,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        background: "rgba(0, 0, 0, 0.4)",
+        color: "#fff",
+        fontSize: 10,
+        fontWeight: 800,
+        textTransform: "uppercase",
+    },
+
+    gifWrapper: {
+        width: 140,
+        borderRadius: "12px",
+        overflow: "hidden",
+        border: "1px solid rgba(255, 255, 255, 0.1)",
+    },
+
+    gifImg: {
+        width: "100%",
+        height: "100%",
+        objectFit: "cover",
     },
 };

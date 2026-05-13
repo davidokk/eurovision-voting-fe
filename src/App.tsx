@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
+import { CountryStatsPage } from "./components/CountryStatsPage";
 
 import { getContest, getContests } from "./api/contest";
 
@@ -12,6 +13,8 @@ import type {
 import { Topbar } from "./components/Topbar";
 import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
+
+const API_URL = import.meta.env.VITE_API_URL || "";
 
 // Глобальные стили для скроллбара
 if (typeof document !== 'undefined') {
@@ -44,6 +47,8 @@ export default function App() {
   const isAdmin = window.location.pathname === "/admin";
   const isUserPage = window.location.pathname.startsWith("/user/");
   const userId = isUserPage ? window.location.pathname.split("/user/")[1] : null;
+  const isCountryPage = window.location.pathname.startsWith("/country/");
+  const countryId = isCountryPage ? window.location.pathname.split("/country/")[1] : null;
 
   useEffect(() => {
     getContests().then(setContests);
@@ -57,6 +62,37 @@ export default function App() {
     });
   }, []);
 
+  // Валидация токена при заходе на сайт
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (!token) return;
+
+    async function validateToken() {
+      try {
+        const res = await fetch(`${API_URL}/v1/auth/validate`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (res.status === 401) {
+          // Токен невалидный — очищаем всё, кроме выбранного конкурса
+          const savedContestId = localStorage.getItem("selectedContestId");
+          localStorage.clear();
+          if (savedContestId) {
+            localStorage.setItem("selectedContestId", savedContestId);
+          }
+          window.location.reload();
+        }
+      } catch (err) {
+        console.error("Token validation failed", err);
+      }
+    }
+
+    validateToken();
+  }, []);
+
   async function handleSelectContest(id: string) {
     const data = await getContest(id);
     setSelectedContest(data);
@@ -65,6 +101,8 @@ export default function App() {
 
   if (isAdmin) return <AdminPage initialContest={selectedContest} />;
   if (isUserPage && userId) return <UserStatsPage userId={userId} />;
+  if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} />;
+  if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} />;
 
   return (
     <div style={styles.app}>

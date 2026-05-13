@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContestView as ContestViewType } from "../types/contest";
 import { PerformanceCard } from "./PerformanceCard";
-import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
     contest: ContestViewType | null;
@@ -18,6 +17,7 @@ type ChatMessage = {
     country?: string;
     country_flag?: string;
     score?: number;
+    old_score?: number;
     comment?: string;
 };
 
@@ -172,8 +172,6 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
             console.error(err);
         }
     }
-
-    const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
     const ended =
     !!contest &&
@@ -346,12 +344,12 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                                         {m.username}
                                                     </span>
                                                     <span style={styles.systemText}>
-                                                        оценил(а)
+                                                        {m.old_score != null && m.old_score !== m.score ? "переобувается" : "оценил(а)"}
                                                     </span>
                                                 </div>
 
                                                 <div style={styles.systemCountry}>
-                                                    {supportsEmoji && m.country_flag && (
+                                                    {m.country_flag && (
                                                         <span style={styles.systemFlag}>
                                                             {m.country_flag}
                                                         </span>
@@ -359,9 +357,21 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                                     <span style={styles.systemCountryName}>
                                                         {m.country}
                                                     </span>
-                                                    <span style={styles.systemScore}>
-                                                        {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
-                                                    </span>
+                                                    {m.old_score != null && m.old_score !== m.score ? (
+                                                        <div style={styles.scoreChange}>
+                                                            <span style={styles.oldScore}>
+                                                                {m.old_score}
+                                                            </span>
+                                                            <span style={styles.scoreArrow}>→</span>
+                                                            <span style={styles.systemScore}>
+                                                                {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
+                                                            </span>
+                                                        </div>
+                                                    ) : (
+                                                        <span style={styles.systemScore}>
+                                                            {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
+                                                        </span>
+                                                    )}
                                                 </div>
 
                                                 {m.comment && (
@@ -869,6 +879,30 @@ const styles: Record<string, React.CSSProperties> = {
         padding: "3px 10px",
         borderRadius: 8,
         border: "1px solid rgba(255, 209, 102, 0.2)",
+    },
+
+    scoreChange: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+    },
+
+    oldScore: {
+        color: "#ff6b6b",
+        fontWeight: 900,
+        fontSize: 16,
+        fontFamily: "monospace",
+        textDecoration: "line-through",
+        background: "rgba(255, 107, 107, 0.12)",
+        padding: "3px 10px",
+        borderRadius: 8,
+        border: "1px solid rgba(255, 107, 107, 0.2)",
+    },
+
+    scoreArrow: {
+        color: "#4f7cff",
+        fontSize: 18,
+        fontWeight: 900,
     },
 
     systemComment: {

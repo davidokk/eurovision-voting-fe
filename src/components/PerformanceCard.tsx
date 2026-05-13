@@ -32,6 +32,7 @@ export function PerformanceCard({
 }: Props) {
   const ENABLE_GIFS = true;
   const token = localStorage.getItem("token");
+  const myUsername = localStorage.getItem("username");
 
   const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
@@ -111,6 +112,7 @@ export function PerformanceCard({
     }
     setError(null);
     try {
+      setScore(null);
       const res = await fetch(
         `${API_URL}/v1/performance/${performance.performance_id}/rate`,
         {
@@ -212,27 +214,45 @@ export function PerformanceCard({
           <div style={styles.emptyFeed}>Пока никто не проголосовал</div>
         ) : (
           <div style={styles.feedList}>
-            {performance.scores.map((s, i) => (
-              <div key={i} style={styles.feedItem}>
-                <div style={styles.feedScoreBadge}>
-                  <span style={{...styles.feedScoreNum, color: getScoreColor(s.score)}}>
-                    {s.score}
-                  </span>
-                  <span style={styles.feedEmojiSmall}>{getScoreEmoji(s.score)}</span>
-                </div>
-                
-                <div style={styles.feedContent}>
-                  <div style={styles.feedUser}>{s.username}</div>
-                  {s.comment && <div style={styles.feedComment}>«{s.comment}»</div>}
-                </div>
+            {performance.scores.map((s, i) => {
+              const isMe = s.username === myUsername;
 
-                {s.gif_url && (
-                  <div style={styles.feedGifContainer}>
-                    <img src={s.gif_url} style={styles.feedGif} alt="reaction" />
+              return (
+                <div
+                  key={i}
+                  style={{
+                    ...styles.feedItem,
+                    ...(isMe ? styles.feedItemMe : {}),
+                  }}
+                >
+                  <div style={{
+                    ...styles.feedScoreBadge,
+                    ...(isMe ? styles.feedScoreBadgeMe : {}),
+                  }}>
+                    <span style={{...styles.feedScoreNum, color: getScoreColor(s.score)}}>
+                      {s.score}
+                    </span>
+                    <span style={styles.feedEmojiSmall}>{getScoreEmoji(s.score)}</span>
                   </div>
-                )}
-              </div>
-            ))}
+                  
+                  <div style={styles.feedContent}>
+                    <div style={{
+                      ...styles.feedUser,
+                      ...(isMe ? styles.feedUserMe : {}),
+                    }}>
+                      {s.username}{isMe ? " (вы)" : ""}
+                    </div>
+                    {s.comment && <div style={styles.feedComment}>«{s.comment}»</div>}
+                  </div>
+
+                  {s.gif_url && (
+                    <div style={styles.feedGifContainer}>
+                      <img src={s.gif_url} style={styles.feedGif} alt="reaction" />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -320,7 +340,7 @@ const styles: Record<string, React.CSSProperties> = {
     boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
     maxWidth: "100%",
     boxSizing: "border-box",
-    overflow: "hidden", // Гарантируем, что контент не вылезет
+    overflow: "hidden",
   },
   topRow: {
     display: "flex",
@@ -328,7 +348,7 @@ const styles: Record<string, React.CSSProperties> = {
     justifyContent: "space-between",
     marginBottom: "20px",
     gap: "12px",
-    flexWrap: "wrap", // Чтобы кнопка "Оценить" могла уйти вниз на очень узких экранах
+    flexWrap: "wrap",
   },
   mainScoreBox: {
     padding: "8px 16px",
@@ -345,7 +365,7 @@ const styles: Record<string, React.CSSProperties> = {
     color: "rgba(255,255,255,0.7)",
   },
   mainScoreValue: {
-    fontSize: "26px", // Чуть меньше для мобилок
+    fontSize: "26px",
     fontWeight: 950,
     color: "#fff",
     lineHeight: "1",
@@ -395,7 +415,7 @@ const styles: Record<string, React.CSSProperties> = {
   heroSection: {
     display: "flex",
     flexDirection: "row",
-    flexWrap: "wrap", // Ключевое изменение для мобилок
+    flexWrap: "wrap",
     alignItems: "center", 
     gap: "16px",
     marginBottom: "20px",
@@ -406,8 +426,8 @@ const styles: Record<string, React.CSSProperties> = {
     boxSizing: "border-box",
   },
   videoBox: {
-    width: "100%", // На мобильных во весь экран
-    maxWidth: "160px", // Но не больше 160 на десктопе
+    width: "100%",
+    maxWidth: "160px",
     aspectRatio: "16 / 9",
     borderRadius: "12px",
     overflow: "hidden",
@@ -438,7 +458,7 @@ const styles: Record<string, React.CSSProperties> = {
     paddingLeft: "2px",
   },
   trackDetails: {
-    flex: "1 1 150px", // Позволяет занимать минимум 150px перед переносом
+    flex: "1 1 150px",
     display: "flex",
     flexDirection: "column",
     justifyContent: "center", 
@@ -476,6 +496,19 @@ const styles: Record<string, React.CSSProperties> = {
     borderBottom: "1px solid #1e293b",
     boxSizing: "border-box",
   },
+
+  // Выделение оценки текущего пользователя
+  feedItemMe: {
+    background: "linear-gradient(135deg, rgba(79, 124, 255, 0.12), rgba(124, 77, 255, 0.08))",
+    border: "1px solid rgba(79, 124, 255, 0.35)",
+    borderRadius: "14px",
+    padding: "10px 12px",
+    marginLeft: "-4px",
+    marginRight: "-4px",
+    boxShadow: "0 0 16px rgba(79, 124, 255, 0.1)",
+    borderBottom: "1px solid rgba(79, 124, 255, 0.35)",
+  },
+
   feedScoreBadge: {
     display: "flex",
     alignItems: "center",
@@ -488,12 +521,19 @@ const styles: Record<string, React.CSSProperties> = {
     border: "1px solid #334155",
     flexShrink: 0,
   },
+
+  feedScoreBadgeMe: {
+    background: "rgba(79, 124, 255, 0.2)",
+    border: "1px solid rgba(79, 124, 255, 0.4)",
+    boxShadow: "0 0 12px rgba(79, 124, 255, 0.15)",
+  },
+
   feedScoreNum: { 
     fontSize: "16px", 
     fontWeight: 900, 
   },
   feedEmojiSmall: { fontSize: "14px" },
-  feedContent: { flex: 1, minWidth: 0 }, // minWidth: 0 предотвращает распирание флекс-контейнера текстом
+  feedContent: { flex: 1, minWidth: 0 },
   feedUser: { 
     fontSize: "14px", 
     fontWeight: 700, 
@@ -502,6 +542,12 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: "hidden",
     textOverflow: "ellipsis"
   },
+
+  feedUserMe: {
+    color: "#7aa2ff",
+    fontWeight: 900,
+  },
+
   feedComment: { 
     fontSize: "13px", 
     color: "#94a3b8", 
@@ -521,7 +567,7 @@ const styles: Record<string, React.CSSProperties> = {
 
   modal: { position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "10px" },
   modalPaper: { background: "#0f172a", width: "100%", maxWidth: "480px", borderRadius: "24px", padding: "20px", border: "1px solid #334155", maxHeight: "95vh", overflowY: "auto", boxSizing: "border-box" },
-  modalHeading: { fontSize: "20px", fontWeight: 900, textAlign: "center", marginBottom: "20px" },
+  modalHeading: { fontSize: "20px", fontWeight: 900, textAlign: "center", marginBottom: "20px", color: "#fff" },
   ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "20px" },
   ratingButton: { aspectRatio: "1/1", borderRadius: "12px", border: "2px solid transparent", color: "#fff", fontSize: "18px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
   modalTextarea: { width: "100%", background: "#1e293b", border: "1px solid #334155", borderRadius: "16px", padding: "16px", color: "#fff", minHeight: "80px", marginBottom: "16px", boxSizing: "border-box", fontSize: "16px" },
