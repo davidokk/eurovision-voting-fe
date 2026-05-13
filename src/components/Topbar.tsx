@@ -104,20 +104,22 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
         zIndex: 3000,
       }}>
         {/* Логотип / название */}
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginRight: isMobile ? 0 : 24 }}>
           <img
             src="https://www.eurovision.com/static/images/70-heart-sm@2x.c3d0a545227c.webp"
             alt="Eurovision"
             style={{ width: 28, height: 28, objectFit: "contain", filter: "drop-shadow(0 2px 8px rgba(79, 124, 255, 0.3))" }}
           />
-          <span style={{ fontSize: 16, fontWeight: 1000, letterSpacing: "0.12em", background: isLight ? "linear-gradient(135deg, #1f2937, #4b5563)" : "linear-gradient(135deg, #4f7cff, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-            EUROVISION
-          </span>
+          {!isMobile && (
+            <span style={{ fontSize: 16, fontWeight: 1000, letterSpacing: "0.12em", background: isLight ? "linear-gradient(135deg, #1f2937, #4b5563)" : "linear-gradient(135deg, #4f7cff, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+              EUROVISION
+            </span>
+          )}
         </div>
 
         {/* Гамбургер-кнопка (мобильная) */}
         {isMobile && (
-          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)" }}>
+          <div style={{ position: "absolute", left: "50%", transform: "translateX(-50%)", display: "flex", alignItems: "center", justifyContent: "center" }}>
             <button
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
               style={{
@@ -236,9 +238,9 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
                 style={{
                   padding: isMobile ? "8px 16px" : "10px 24px",
                   borderRadius: 14, border: "none",
-                  background: isGray ? "linear-gradient(135deg, #6b7280 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
+                  background: isLight ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" : isGray ? "linear-gradient(135deg, #6b7280 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
                   color: "#fff", cursor: "pointer", fontSize: isMobile ? 12 : 14, fontWeight: 800,
-                  boxShadow: "0 6px 20px rgba(79, 124, 255, 0.3)"
+                  boxShadow: isLight ? "0 6px 20px rgba(31, 41, 55, 0.25)" : "0 6px 20px rgba(79, 124, 255, 0.3)"
                 }}
                 onClick={() => setAuthMode("signin")}
               >
