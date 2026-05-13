@@ -458,7 +458,7 @@ export function PerformanceCard({
               placeholder="Твой комментарий (необязательно)..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              style={{ ...styles.modalTextarea, background: textareaBg, border: textareaBorder, color: textareaColor, minHeight: 60, marginBottom: 12, padding: 12, fontSize: 14 }}
+              style={{ ...styles.modalTextarea, background: textareaBg, border: textareaBorder, color: textareaColor, minHeight: 60, marginBottom: 12, padding: 12, fontSize: 16 }}
             />
             {ENABLE_GIFS && (
               <div style={{ ...styles.gifPicker, background: gifPickerBg, width: "100%", padding: 10, marginBottom: 16 }}>
@@ -467,7 +467,7 @@ export function PerformanceCard({
                     placeholder="Найди гифку для реакции..."
                     value={gifSearch}
                     onChange={(e) => setGifSearch(e.target.value)}
-                    style={{ ...styles.gifSearchInput, color: gifSearchColor, borderBottom: gifSearchBorder, padding: 6, fontSize: 14 }}
+                    style={{ ...styles.gifSearchInput, color: gifSearchColor, borderBottom: gifSearchBorder, padding: 6, fontSize: 16 }}
                   />
                   <button onClick={() => searchGifs(gifSearch)} style={{ ...styles.gifSearchBtn, fontSize: 16 }}>🔍</button>
                 </div>
