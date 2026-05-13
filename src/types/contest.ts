@@ -1,3 +1,5 @@
+export type Theme = "light" | "dark-gray" | "dark-blue";
+
 export type ContestItem = {
   id: string;
   type: string;

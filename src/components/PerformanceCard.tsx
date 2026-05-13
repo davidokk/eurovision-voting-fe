@@ -1,11 +1,12 @@
 import { useState } from "react";
-import type { PerformanceWithScores } from "../types/contest";
+import type { PerformanceWithScores, Theme } from "../types/contest";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
   performance: PerformanceWithScores;
   votingStarted: boolean;
   votingEnded: boolean;
+  theme?: Theme;
 };
 
 type GifItem = {
@@ -29,6 +30,7 @@ export function PerformanceCard({
   performance,
   votingStarted,
   votingEnded,
+  theme = "dark-blue",
 }: Props) {
   const ENABLE_GIFS = true;
   const token = localStorage.getItem("token");
@@ -46,8 +48,8 @@ export function PerformanceCard({
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
   const [loadingGifs, setLoadingGifs] = useState(false);
 
-  const API_URL = import.meta.env.VITE_API_URL;
-  const GIPHY_KEY = import.meta.env.VITE_GIPHY_KEY;
+  const API_URL = (import.meta as any).env?.VITE_API_URL || "";
+  const GIPHY_KEY = (import.meta as any).env?.VITE_GIPHY_KEY || "";
 
   const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
@@ -66,13 +68,15 @@ export function PerformanceCard({
     try {
       setLoadingGifs(true);
       const res = await fetch("/gifs.json");
-      const data = await res.json();
-      const normalized: GifItem[] = (data || []).map((g: any) => ({
-        id: g.id,
-        title: g.title,
-        url: g.image,
-      }));
-      setGifs(normalized);
+      if (res.ok) {
+        const data = await res.json();
+        const normalized: GifItem[] = (data || []).map((g: any) => ({
+          id: g.id,
+          title: g.title,
+          url: g.image,
+        }));
+        setGifs(normalized);
+      }
     } catch (e) {
       console.error("Failed to load local gifs", e);
     } finally {
@@ -81,7 +85,7 @@ export function PerformanceCard({
   }
 
   async function searchGifs(query: string) {
-    if (!query.trim()) return;
+    if (!query.trim() || !GIPHY_KEY) return;
     setLoadingGifs(true);
     try {
       const res = await fetch(
@@ -111,26 +115,29 @@ export function PerformanceCard({
       return;
     }
     setError(null);
+    const currentScore = score;
+    setScore(null);
     try {
-      setScore(null);
-      const res = await fetch(
-        `${API_URL}/v1/performance/${performance.performance_id}/rate`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({
-            score: Number(score),
-            comment: comment || "",
-            gif_url: selectedGif,
-          }),
+      if (API_URL) {
+        const res = await fetch(
+          `${API_URL}/v1/performance/${performance.performance_id}/rate`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              score: Number(currentScore),
+              comment: comment || "",
+              gif_url: selectedGif,
+            }),
+          }
+        );
+        if (!res.ok) {
+          const data = await res.json().catch(() => null);
+          throw new Error(data?.message || "Ошибка при отправке оценки");
         }
-      );
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.message || "Ошибка при отправке оценки");
       }
       setOpen(false);
       setScore(null);
@@ -145,19 +152,86 @@ export function PerformanceCard({
     }
   }
 
+  const isLight = theme === "light";
+  const isGray = theme === "dark-gray";
+
   const youtubeId = performance.youtube_link ? getYouTubeId(performance.youtube_link) : null;
   const avgColor = getScoreColor(performance.total_score);
 
+  const cardBg = isLight ? "#ffffff" : isGray ? "#181818" : "#0f172a";
+  const cardBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2a2a2a" : "1px solid #1e293b";
+  const cardTextColor = isLight ? "#0f172a" : "#e2e8f0";
+
+  const scoreGradEnd = isLight ? "#f1f5f9" : isGray ? "#121212" : "#0f172a";
+  const scoreLabelColor = isLight ? "rgba(0,0,0,0.6)" : "rgba(255,255,255,0.7)";
+  const scoreValueColor = isLight ? "#0f172a" : "#fff";
+
+  const countryNameColor = isLight ? "#0f172a" : "#fff";
+
+  const rateBtnBg = isLight ? "#374151" : isGray ? "#e5e7eb" : "#fff";
+  const rateBtnColor = isLight ? "#fff" : isGray ? "#121212" : "#0f172a";
+
+  const heroBg = isLight ? "rgba(241, 245, 249, 0.8)" : isGray ? "rgba(255, 255, 255, 0.03)" : "rgba(30, 41, 59, 0.3)";
+  const heroBorder = isLight ? "1px solid rgba(0,0,0,0.05)" : "1px solid rgba(255,255,255,0.05)";
+
+  const artistColor = isLight ? "#0f172a" : "#fff";
+  const songColor = isLight ? "#64748b" : "#94a3b8";
+
+  const feedBg = isLight ? "rgba(248, 250, 252, 0.6)" : isGray ? "rgba(20, 20, 20, 0.4)" : "rgba(15, 23, 42, 0.4)";
+  const feedBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #282828" : "1px solid #1e293b";
+  const feedItemBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #282828" : "1px solid #1e293b";
+
+  const feedMeBg = isLight 
+    ? "linear-gradient(135deg, rgba(55, 65, 81, 0.08), rgba(75, 85, 99, 0.04))" 
+    : isGray 
+    ? "linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03))" 
+    : "linear-gradient(135deg, rgba(79, 124, 255, 0.12), rgba(124, 77, 255, 0.08))";
+
+  const feedMeBorder = isLight ? "1px solid rgba(55, 65, 81, 0.25)" : isGray ? "1px solid rgba(255, 255, 255, 0.2)" : "1px solid rgba(79, 124, 255, 0.35)";
+
+  const badgeBg = isLight ? "#f1f5f9" : isGray ? "#282828" : "#1e293b";
+  const badgeBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #374151" : "1px solid #334155";
+  const badgeMeBg = isLight ? "rgba(55, 65, 81, 0.15)" : isGray ? "rgba(255, 255, 255, 0.12)" : "rgba(79, 124, 255, 0.2)";
+  const badgeMeBorder = isLight ? "1px solid rgba(55, 65, 81, 0.3)" : isGray ? "1px solid rgba(255, 255, 255, 0.25)" : "1px solid rgba(79, 124, 255, 0.4)";
+
+  const feedUserColor = isLight ? "#0f172a" : isGray ? "#f3f4f6" : "#f1f5f9";
+  const feedUserMeColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
+  const feedCommentColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#94a3b8";
+  const emptyColor = isLight ? "#64748b" : isGray ? "#6b7280" : "#475569";
+
+  const modalOverlayBg = isLight ? "rgba(0, 0, 0, 0.4)" : "rgba(2, 6, 23, 0.9)";
+  const modalPaperBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "#0f172a";
+  const modalPaperBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #374151" : "1px solid #334155";
+  const modalHeadingColor = isLight ? "#0f172a" : "#fff";
+
+  const ratingBtnInactiveBg = isLight ? "#f1f5f9" : isGray ? "#282828" : "#1e293b";
+  const ratingBtnInactiveText = isLight ? "#0f172a" : "#fff";
+  const ratingBtnInactiveBorder = isLight ? "#cbd5e1" : isGray ? "#374151" : "#334155";
+
+  const textareaBg = isLight ? "#f8fafc" : isGray ? "#282828" : "#1e293b";
+  const textareaBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #374151" : "1px solid #334155";
+  const textareaColor = isLight ? "#0f172a" : "#fff";
+
+  const gifPickerBg = isLight ? "#f8fafc" : isGray ? "#282828" : "#1e293b";
+  const gifSearchColor = isLight ? "#0f172a" : "#fff";
+  const gifSearchBorder = isLight ? "2px solid #cbd5e1" : isGray ? "2px solid #374151" : "2px solid #334155";
+
+  const btnSecBg = "transparent";
+  const btnSecColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#94a3b8";
+  const btnSecBorder = isLight ? "2px solid #cbd5e1" : isGray ? "2px solid #374151" : "2px solid #334155";
+
+  const btnPrimBg = isLight ? "#4b5563" : isGray ? "#4b5563" : "#4f7cff";
+
   return (
-    <div style={styles.card}>
+    <div style={{ ...styles.card, background: cardBg, border: cardBorder, color: cardTextColor }}>
       {/* 1. TOP ROW: Country Stack & Dynamic Score */}
       <div style={styles.topRow}>
         <div style={{
             ...styles.mainScoreBox,
-            background: `linear-gradient(135deg, ${avgColor} 0%, #0f172a 150%)`
+            background: `linear-gradient(135deg, ${avgColor} 0%, ${scoreGradEnd} 150%)`
         }}>
-          <div style={styles.mainScoreLabel}>БАЛЛ</div>
-          <div style={styles.mainScoreValue}>
+          <div style={{ ...styles.mainScoreLabel, color: scoreLabelColor }}>БАЛЛ</div>
+          <div style={{ ...styles.mainScoreValue, color: scoreValueColor }}>
             {formatScore(performance.total_score)}
           </div>
         </div>
@@ -171,7 +245,7 @@ export function PerformanceCard({
                     href={`/country/${performance.country.id}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    style={styles.countryNameLink}
+                    style={{ ...styles.countryNameLink, color: countryNameColor }}
                 >
                     {performance.country.name_ru}
                 </a>
@@ -181,7 +255,7 @@ export function PerformanceCard({
 
         {token && votingStarted && !votingEnded && (
           <button
-            style={styles.rateBtn}
+            style={{ ...styles.rateBtn, background: rateBtnBg, color: rateBtnColor }}
             onClick={() => {
               setOpen(true);
               loadLocalGifs();
@@ -193,7 +267,7 @@ export function PerformanceCard({
       </div>
 
       {/* 2. HERO SECTION */}
-      <div style={styles.heroSection}>
+      <div style={{ ...styles.heroSection, background: heroBg, border: heroBorder }}>
         {youtubeId && (
           <div style={styles.videoBox}>
             <a href={performance.youtube_link} target="_blank" rel="noreferrer" style={styles.videoLink}>
@@ -210,15 +284,15 @@ export function PerformanceCard({
         )}
 
         <div style={styles.trackDetails}>
-          <div style={styles.artistName}>{performance.artist}</div>
-          <div style={styles.songTitle}>{performance.song}</div>
+          <div style={{ ...styles.artistName, color: artistColor }}>{performance.artist}</div>
+          <div style={{ ...styles.songTitle, color: songColor }}>{performance.song}</div>
         </div>
       </div>
 
       {/* 3. FEED OF SCORES */}
-      <div style={styles.feed}>
+      <div style={{ ...styles.feed, background: feedBg, border: feedBorder }}>
         {performance.scores.length === 0 ? (
-          <div style={styles.emptyFeed}>Пока никто не проголосовал</div>
+          <div style={{ ...styles.emptyFeed, color: emptyColor }}>Пока никто не проголосовал</div>
         ) : (
           <div style={styles.feedList}>
             {performance.scores.map((s, i) => {
@@ -229,12 +303,23 @@ export function PerformanceCard({
                   key={i}
                   style={{
                     ...styles.feedItem,
-                    ...(isMe ? styles.feedItemMe : {}),
+                    borderBottom: feedItemBorder,
+                    ...(isMe ? {
+                      background: feedMeBg,
+                      border: feedMeBorder,
+                      borderRadius: "14px",
+                      padding: "10px 12px",
+                      marginLeft: "-4px",
+                      marginRight: "-4px",
+                      boxShadow: isLight ? "0 4px 12px rgba(0,0,0,0.05)" : "0 0 16px rgba(79, 124, 255, 0.1)",
+                    } : {}),
                   }}
                 >
                   <div style={{
                     ...styles.feedScoreBadge,
-                    ...(isMe ? styles.feedScoreBadgeMe : {}),
+                    background: isMe ? badgeMeBg : badgeBg,
+                    border: isMe ? badgeMeBorder : badgeBorder,
+                    ...(isMe ? { boxShadow: isLight ? "none" : "0 0 12px rgba(79, 124, 255, 0.15)" } : {}),
                   }}>
                     <span style={{...styles.feedScoreNum, color: getScoreColor(s.score)}}>
                       {s.score}
@@ -248,14 +333,14 @@ export function PerformanceCard({
                       target="_blank"
                       rel="noopener noreferrer"
                       style={{
-                        ...styles.feedUser,
-                        ...(isMe ? styles.feedUserMe : {}),
                         ...styles.feedUserLink,
+                        ...styles.feedUser,
+                        color: isMe ? feedUserMeColor : feedUserColor,
                       }}
                     >
                       {s.username}{isMe ? " (вы)" : ""}
                     </a>
-                    {s.comment && <div style={styles.feedComment}>«{s.comment}»</div>}
+                    {s.comment && <div style={{ ...styles.feedComment, color: feedCommentColor }}>«{s.comment}»</div>}
                   </div>
 
                   {s.gif_url && (
@@ -272,9 +357,9 @@ export function PerformanceCard({
 
       {/* MODAL */}
       {open && (
-        <div style={styles.modal}>
-          <div style={styles.modalPaper}>
-            <h2 style={styles.modalHeading}>Выстави свой балл</h2>
+        <div style={{ ...styles.modal, background: modalOverlayBg }}>
+          <div style={{ ...styles.modalPaper, background: modalPaperBg, border: modalPaperBorder }}>
+            <h2 style={{ ...styles.modalHeading, color: modalHeadingColor }}>Выстави свой балл</h2>
             {error && <div style={styles.errorBanner}>{error}</div>}
             <div style={{
                 ...styles.ratingGrid,
@@ -289,9 +374,10 @@ export function PerformanceCard({
                   }}
                   style={{
                     ...styles.ratingButton,
-                    background: score === n ? getScoreColor(n) : "#1e293b",
+                    background: score === n ? getScoreColor(n) : ratingBtnInactiveBg,
+                    color: score === n ? "#fff" : ratingBtnInactiveText,
                     transform: score === n ? "scale(1.1)" : "scale(1)",
-                    borderColor: score === n ? "#fff" : "#334155"
+                    borderColor: score === n ? (isLight ? "#0f172a" : "#fff") : ratingBtnInactiveBorder,
                   }}
                 >
                   {n}
@@ -302,21 +388,21 @@ export function PerformanceCard({
               placeholder="Твой комментарий (необязательно)..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              style={styles.modalTextarea}
+              style={{ ...styles.modalTextarea, background: textareaBg, border: textareaBorder, color: textareaColor }}
             />
             {ENABLE_GIFS && (
-              <div style={styles.gifPicker}>
+              <div style={{ ...styles.gifPicker, background: gifPickerBg }}>
                 <div style={styles.gifSearchBox}>
                   <input
                     placeholder="Найди гифку для реакции..."
                     value={gifSearch}
                     onChange={(e) => setGifSearch(e.target.value)}
-                    style={styles.gifSearchInput}
+                    style={{ ...styles.gifSearchInput, color: gifSearchColor, borderBottom: gifSearchBorder }}
                   />
                   <button onClick={() => searchGifs(gifSearch)} style={styles.gifSearchBtn}>🔍</button>
                 </div>
                 <div style={styles.gifScroll}>
-                  {loadingGifs && <div style={{textAlign: 'center', padding: 10}}>Ищем...</div>}
+                  {loadingGifs && <div style={{textAlign: 'center', padding: 10, color: gifSearchColor}}>Ищем...</div>}
                   {gifs.map((gif) => (
                     <img
                       key={gif.id}
@@ -324,7 +410,7 @@ export function PerformanceCard({
                       onClick={() => setSelectedGif(gif.url)}
                       style={{
                         ...styles.gifThumb,
-                        border: selectedGif === gif.url ? "3px solid #4f7cff" : "none"
+                        border: selectedGif === gif.url ? `3px solid ${isLight ? "#374151" : "#4f7cff"}` : "none"
                       }}
                     />
                   ))}
@@ -332,8 +418,8 @@ export function PerformanceCard({
               </div>
             )}
             <div style={styles.modalFooter}>
-              <button onClick={() => setOpen(false)} style={styles.btnSecondary}>ЗАКРЫТЬ</button>
-              <button onClick={submit} style={styles.btnPrimary}>ПОДТВЕРДИТЬ</button>
+              <button onClick={() => setOpen(false)} style={{ ...styles.btnSecondary, background: btnSecBg, color: btnSecColor, border: btnSecBorder }}>ЗАКРЫТЬ</button>
+              <button onClick={submit} style={{ ...styles.btnPrimary, background: btnPrimBg }}>ПОДТВЕРДИТЬ</button>
             </div>
           </div>
         </div>
@@ -344,13 +430,10 @@ export function PerformanceCard({
 
 const styles: Record<string, React.CSSProperties> = {
   card: {
-    background: "#0f172a",
     padding: "20px",
     borderRadius: "28px",
-    color: "#e2e8f0",
-    border: "1px solid #1e293b",
     fontFamily: "'Inter', sans-serif",
-    boxShadow: "0 20px 40px rgba(0,0,0,0.4)",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
     maxWidth: "100%",
     boxSizing: "border-box",
     overflow: "hidden",
@@ -375,12 +458,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: "9px",
     fontWeight: 900,
     letterSpacing: "1px",
-    color: "rgba(255,255,255,0.7)",
   },
   mainScoreValue: {
     fontSize: "26px",
     fontWeight: 950,
-    color: "#fff",
     lineHeight: "1",
   },
   countryInfo: {
@@ -409,30 +490,22 @@ const styles: Record<string, React.CSSProperties> = {
     textTransform: "uppercase",
   },
   flag: { fontSize: "24px" },
-  countryName: {
-    fontSize: "18px",
-    fontWeight: 900,
-    color: "#fff",
-    letterSpacing: "-0.3px",
-  },
   countryNameLink: {
     fontSize: "18px",
     fontWeight: 900,
-    color: "#fff",
     letterSpacing: "-0.3px",
     textDecoration: "none",
     cursor: "pointer",
     transition: "color 0.2s ease",
   },
   rateBtn: {
-    background: "#fff",
-    color: "#0f172a",
     border: "none",
     padding: "10px 18px",
     borderRadius: "14px",
     fontWeight: 900,
     fontSize: "12px",
     cursor: "pointer",
+    transition: "transform 0.2s ease",
   },
   heroSection: {
     display: "flex",
@@ -441,10 +514,8 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center", 
     gap: "16px",
     marginBottom: "20px",
-    background: "rgba(30, 41, 59, 0.3)",
     padding: "12px",
     borderRadius: "20px",
-    border: "1px solid rgba(255,255,255,0.05)",
     boxSizing: "border-box",
   },
   videoBox: {
@@ -489,20 +560,16 @@ const styles: Record<string, React.CSSProperties> = {
   artistName: {
     fontSize: "18px",
     fontWeight: 800,
-    color: "#fff",
     lineHeight: "1.2",
     marginBottom: "4px",
   },
   songTitle: {
     fontSize: "14px",
-    color: "#94a3b8",
     lineHeight: "1.4",
   },
   feed: {
-    background: "rgba(15, 23, 42, 0.4)",
     borderRadius: "20px",
     padding: "16px",
-    border: "1px solid #1e293b",
     boxSizing: "border-box",
   },
   feedList: {
@@ -515,41 +582,18 @@ const styles: Record<string, React.CSSProperties> = {
     alignItems: "center",
     gap: "12px",
     padding: "8px 0",
-    borderBottom: "1px solid #1e293b",
     boxSizing: "border-box",
   },
-
-  // Выделение оценки текущего пользователя
-  feedItemMe: {
-    background: "linear-gradient(135deg, rgba(79, 124, 255, 0.12), rgba(124, 77, 255, 0.08))",
-    border: "1px solid rgba(79, 124, 255, 0.35)",
-    borderRadius: "14px",
-    padding: "10px 12px",
-    marginLeft: "-4px",
-    marginRight: "-4px",
-    boxShadow: "0 0 16px rgba(79, 124, 255, 0.1)",
-    borderBottom: "1px solid rgba(79, 124, 255, 0.35)",
-  },
-
   feedScoreBadge: {
     display: "flex",
     alignItems: "center",
     gap: "5px",
-    background: "#1e293b",
     padding: "5px 8px",
     borderRadius: "12px",
     minWidth: "50px",
     justifyContent: "center",
-    border: "1px solid #334155",
     flexShrink: 0,
   },
-
-  feedScoreBadgeMe: {
-    background: "rgba(79, 124, 255, 0.2)",
-    border: "1px solid rgba(79, 124, 255, 0.4)",
-    boxShadow: "0 0 12px rgba(79, 124, 255, 0.15)",
-  },
-
   feedScoreNum: { 
     fontSize: "16px", 
     fontWeight: 900, 
@@ -559,26 +603,17 @@ const styles: Record<string, React.CSSProperties> = {
   feedUser: { 
     fontSize: "14px", 
     fontWeight: 700, 
-    color: "#f1f5f9",
     whiteSpace: "nowrap",
     overflow: "hidden",
     textOverflow: "ellipsis"
   },
-
-  feedUserMe: {
-    color: "#7aa2ff",
-    fontWeight: 900,
-  },
-
   feedUserLink: {
     textDecoration: "none",
     cursor: "pointer",
     display: "inline-block",
   },
-
   feedComment: { 
     fontSize: "13px", 
-    color: "#94a3b8", 
     fontStyle: "italic",
     marginTop: "2px",
     wordBreak: "break-word"
@@ -591,22 +626,22 @@ const styles: Record<string, React.CSSProperties> = {
     flexShrink: 0,
   },
   feedGif: { width: "100%", height: "100%", objectFit: "cover" },
-  emptyFeed: { textAlign: "center", padding: "10px", color: "#475569", fontSize: "12px" },
+  emptyFeed: { textAlign: "center", padding: "10px", fontSize: "12px" },
 
-  modal: { position: "fixed", inset: 0, background: "rgba(2, 6, 23, 0.9)", backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "10px" },
-  modalPaper: { background: "#0f172a", width: "100%", maxWidth: "480px", borderRadius: "24px", padding: "20px", border: "1px solid #334155", maxHeight: "95vh", overflowY: "auto", boxSizing: "border-box" },
-  modalHeading: { fontSize: "20px", fontWeight: 900, textAlign: "center", marginBottom: "20px", color: "#fff" },
+  modal: { position: "fixed", inset: 0, backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "10px" },
+  modalPaper: { width: "100%", maxWidth: "480px", borderRadius: "24px", padding: "20px", maxHeight: "95vh", overflowY: "auto", boxSizing: "border-box" },
+  modalHeading: { fontSize: "20px", fontWeight: 900, textAlign: "center", marginBottom: "20px" },
   ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "20px" },
-  ratingButton: { aspectRatio: "1/1", borderRadius: "12px", border: "2px solid transparent", color: "#fff", fontSize: "18px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
-  modalTextarea: { width: "100%", background: "#1e293b", border: "1px solid #334155", borderRadius: "16px", padding: "16px", color: "#fff", minHeight: "80px", marginBottom: "16px", boxSizing: "border-box", fontSize: "16px" },
-  gifPicker: { background: "#1e293b", borderRadius: "16px", padding: "12px", marginBottom: "20px" },
+  ratingButton: { aspectRatio: "1/1", borderRadius: "12px", border: "2px solid transparent", fontSize: "18px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
+  modalTextarea: { width: "100%", borderRadius: "16px", padding: "16px", minHeight: "80px", marginBottom: "16px", boxSizing: "border-box", fontSize: "16px", outline: "none" },
+  gifPicker: { borderRadius: "16px", padding: "12px", marginBottom: "20px" },
   gifSearchBox: { display: "flex", gap: "8px", marginBottom: "12px" },
-  gifSearchInput: { flex: 1, background: "transparent", border: "none", borderBottom: "2px solid #334155", color: "#fff", padding: "8px", outline: "none", fontSize: "16px" },
-  gifSearchBtn: { background: "none", border: "none", cursor: "pointer" },
+  gifSearchInput: { flex: 1, background: "transparent", border: "none", padding: "8px", outline: "none", fontSize: "16px" },
+  gifSearchBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "18px" },
   gifScroll: { display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "8px" },
   gifThumb: { height: "60px", borderRadius: "8px", cursor: "pointer", flexShrink: 0 },
   modalFooter: { display: "flex", gap: "12px" },
-  btnSecondary: { flex: 1, background: "transparent", color: "#94a3b8", border: "2px solid #334155", padding: "12px", borderRadius: "14px", fontWeight: 800, cursor: "pointer", fontSize: "12px" },
-  btnPrimary: { flex: 2, background: "#4f7cff", color: "#fff", border: "none", padding: "12px", borderRadius: "14px", fontWeight: 900, cursor: "pointer", fontSize: "12px" },
+  btnSecondary: { flex: 1, padding: "12px", borderRadius: "14px", fontWeight: 800, cursor: "pointer", fontSize: "12px", transition: "opacity 0.2s" },
+  btnPrimary: { flex: 2, color: "#fff", border: "none", padding: "12px", borderRadius: "14px", fontWeight: 900, cursor: "pointer", fontSize: "12px", transition: "opacity 0.2s" },
   errorBanner: { background: "rgba(239, 68, 68, 0.15)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "16px", fontSize: "14px", textAlign: "center" },
 };

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
+import type { Theme } from "../types/contest";
 
 type ScoreFiltered = {
     Username: string;
@@ -35,6 +36,7 @@ type ContestMap = Record<
 
 type Props = {
     userId: string;
+    theme?: Theme;
 };
 
 function getYouTubeId(url: string) {
@@ -65,8 +67,8 @@ function formatAvg(value: number) {
         : rounded.toFixed(2);
 }
 
-export function UserStatsPage({ userId }: Props) {
-    const API_URL = import.meta.env.VITE_API_URL;
+export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
+    const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 
     const [data, setData] = useState<ScoreFiltered[]>([]);
     const [loading, setLoading] = useState(false);
@@ -81,6 +83,7 @@ export function UserStatsPage({ userId }: Props) {
     const [sort, setSort] = useState<SortType>("score");
 
     useEffect(() => {
+        if (!API_URL) return;
         fetch(`${API_URL}/v1/countries`)
             .then((r) => r.json())
             .then(setCountries)
@@ -88,6 +91,7 @@ export function UserStatsPage({ userId }: Props) {
     }, []);
 
     useEffect(() => {
+        if (!API_URL) return;
         fetch(`${API_URL}/v1/contest`)
             .then((r) => r.json())
             .then(setContests)
@@ -101,6 +105,11 @@ export function UserStatsPage({ userId }: Props) {
     async function load() {
         setLoading(true);
         try {
+            if (!API_URL) {
+                setData([]);
+                setLoading(false);
+                return;
+            }
             const params = new URLSearchParams();
             params.append("user_id", userId);
             if (selectedCountry) params.append("country_id", selectedCountry);
@@ -122,31 +131,77 @@ export function UserStatsPage({ userId }: Props) {
             ? data.reduce((sum, i) => sum + (i.Score || 0), 0) / data.length
             : 0;
 
+    const isLight = theme === "light";
+    const isGray = theme === "dark-gray";
+
+    const pageBg = isLight 
+        ? "radial-gradient(circle at top left, rgba(55, 65, 81, 0.06), transparent 40%), radial-gradient(circle at bottom right, rgba(75, 85, 99, 0.06), transparent 40%), #f8fafc" 
+        : isGray 
+        ? "radial-gradient(circle at top left, rgba(255, 255, 255, 0.03), transparent 40%), radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.02), transparent 40%), #121212" 
+        : "radial-gradient(circle at top left, rgba(79,124,255,0.15), transparent 40%), radial-gradient(circle at bottom right, rgba(167,139,250,0.15), transparent 40%), #020617";
+
+    const textColor = isLight ? "#0f172a" : "#fff";
+    const subTextColor = isLight ? "#64748b" : "#94a3b8";
+
+    const titleShadow = isLight ? "0 10px 30px rgba(0,0,0,0.05)" : "0 10px 30px rgba(79,124,255,0.3)";
+    const highlightColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
+
+    const boxBg = isLight ? "#ffffff" : isGray ? "#1e1e1e" : "rgba(15, 23, 42, 0.4)";
+    const boxBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2d2d2d" : "1px solid rgba(79, 124, 255, 0.2)";
+    const boxShadow = isLight ? "0 10px 30px rgba(0,0,0,0.05)" : "0 15px 35px rgba(0,0,0,0.2)";
+
+    const filtersBg = isLight ? "rgba(255, 255, 255, 0.8)" : isGray ? "rgba(30, 30, 30, 0.4)" : "rgba(15, 23, 42, 0.3)";
+    const filtersBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #333" : "1px solid rgba(255, 255, 255, 0.06)";
+
+    const btnBg = isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.03)";
+    const btnBorder = isLight ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)";
+    const btnColor = isLight ? "#475569" : "#94a3b8";
+
+    const activePrimaryBg = isLight ? "#1f2937" : isGray ? "#4b5563" : "#4f7cff";
+    const activePrimaryShadow = isLight ? "0 4px 12px rgba(31, 41, 55, 0.2)" : isGray ? "0 4px 12px rgba(0,0,0,0.3)" : "0 4px 12px rgba(79, 124, 255, 0.3)";
+
+    const cardBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "rgba(30, 41, 59, 0.4)";
+    const cardBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2d2d2d" : "1px solid rgba(255, 255, 255, 0.06)";
+
+    const contestTagColor = isLight ? "#1f2937" : isGray ? "#9ca3af" : "#7aa2ff";
+    const artistColor = isLight ? "#0f172a" : "#e2e8f0";
+
+    const scoreBoxBg = isLight ? "rgba(245, 158, 11, 0.1)" : "rgba(255, 209, 102, 0.1)";
+    const scoreBoxBorder = isLight ? "1px solid rgba(245, 158, 11, 0.2)" : "1px solid rgba(255, 209, 102, 0.2)";
+    const scoreValColor = isLight ? "#d97706" : "#ffd166";
+
+    const commentBg = isLight ? "rgba(0,0,0,0.03)" : "rgba(122, 162, 255, 0.08)";
+    const commentBorder = isLight ? "4px solid #374151" : isGray ? "4px solid #6b7280" : "4px solid #4f7cff";
+    const commentTextColor = isLight ? "#374151" : isGray ? "#e5e7eb" : "#7aa2ff";
+
     return (
-        <div style={styles.page}>
+        <div style={{ ...styles.page, background: pageBg, color: textColor }}>
             <div style={styles.container}>
                 <header style={styles.header}>
-                    <h2 style={styles.title}>
-                        Оценки пользователя <span style={styles.usernameHighlight}>{data?.[0]?.Username}</span>
+                    <h2 style={{ ...styles.title, textShadow: titleShadow }}>
+                        Оценки пользователя <span style={{ ...styles.usernameHighlight, color: highlightColor }}>{data?.[0]?.Username || userId}</span>
                     </h2>
                 </header>
 
                 {/* AVG SCORE BOX */}
-                <div style={styles.avgBox}>
-                    <div style={styles.avgLabelBig}>Средняя оценка</div>
-                    <div style={styles.avgValue}>{formatAvg(avgScore)} ⭐</div>
+                <div style={{ ...styles.avgBox, background: boxBg, border: boxBorder, boxShadow: boxShadow }}>
+                    <div style={{ ...styles.avgLabelBig, color: subTextColor }}>Средняя оценка</div>
+                    <div style={{ ...styles.avgValue, color: scoreValColor }}>{formatAvg(avgScore)} ⭐</div>
                 </div>
 
                 {/* FILTERS */}
-                <div style={styles.filters}>
+                <div style={{ ...styles.filters, background: filtersBg, border: filtersBorder }}>
                     <div style={styles.block}>
-                        <div style={styles.label}>Страна</div>
+                        <div style={{ ...styles.label, color: subTextColor }}>Страна</div>
                         <div style={styles.row}>
                             <button
                                 onClick={() => setSelectedCountry("")}
                                 style={{
                                     ...styles.btn,
-                                    ...(selectedCountry === "" ? styles.btnActivePrimary : {})
+                                    background: selectedCountry === "" ? activePrimaryBg : btnBg,
+                                    color: selectedCountry === "" ? "#fff" : btnColor,
+                                    border: selectedCountry === "" ? "none" : btnBorder,
+                                    boxShadow: selectedCountry === "" ? activePrimaryShadow : "none",
                                 }}
                             >
                                 Все страны
@@ -157,7 +212,10 @@ export function UserStatsPage({ userId }: Props) {
                                     onClick={() => setSelectedCountry(c.id)}
                                     style={{
                                         ...styles.btn,
-                                        ...(selectedCountry === c.id ? styles.btnActivePrimary : {})
+                                        background: selectedCountry === c.id ? activePrimaryBg : btnBg,
+                                        color: selectedCountry === c.id ? "#fff" : btnColor,
+                                        border: selectedCountry === c.id ? "none" : btnBorder,
+                                        boxShadow: selectedCountry === c.id ? activePrimaryShadow : "none",
                                     }}
                                 >
                                     {supportsEmoji && <span style={{marginRight: 6}}>{c.flag_emoji}</span>}
@@ -168,13 +226,16 @@ export function UserStatsPage({ userId }: Props) {
                     </div>
 
                     <div style={styles.block}>
-                        <div style={styles.label}>Год</div>
+                        <div style={{ ...styles.label, color: subTextColor }}>Год</div>
                         <div style={styles.row}>
                             <button
                                 onClick={() => setSelectedYear("")}
                                 style={{
                                     ...styles.btn,
-                                    ...(selectedYear === "" ? styles.btnActiveGreen : {})
+                                    background: selectedYear === "" ? "#22c55e" : btnBg,
+                                    color: selectedYear === "" ? "#fff" : btnColor,
+                                    border: selectedYear === "" ? "none" : btnBorder,
+                                    boxShadow: selectedYear === "" ? "0 4px 12px rgba(34, 197, 94, 0.3)" : "none",
                                 }}
                             >
                                 Все годы
@@ -187,7 +248,10 @@ export function UserStatsPage({ userId }: Props) {
                                         onClick={() => setSelectedYear(year)}
                                         style={{
                                             ...styles.btn,
-                                            ...(selectedYear === year ? styles.btnActiveGreen : {})
+                                            background: selectedYear === year ? "#22c55e" : btnBg,
+                                            color: selectedYear === year ? "#fff" : btnColor,
+                                            border: selectedYear === year ? "none" : btnBorder,
+                                            boxShadow: selectedYear === year ? "0 4px 12px rgba(34, 197, 94, 0.3)" : "none",
                                         }}
                                     >
                                         {year}
@@ -197,13 +261,16 @@ export function UserStatsPage({ userId }: Props) {
                     </div>
 
                     <div style={styles.block}>
-                        <div style={styles.label}>Сортировка</div>
+                        <div style={{ ...styles.label, color: subTextColor }}>Сортировка</div>
                         <div style={styles.row}>
                             <button
                                 onClick={() => setSort("time")}
                                 style={{
                                     ...styles.btn,
-                                    ...(sort === "time" ? styles.btnActiveOrange : {})
+                                    background: sort === "time" ? "#f97316" : btnBg,
+                                    color: sort === "time" ? "#fff" : btnColor,
+                                    border: sort === "time" ? "none" : btnBorder,
+                                    boxShadow: sort === "time" ? "0 4px 12px rgba(249, 115, 22, 0.3)" : "none",
                                 }}
                             >
                                 Сначала новые
@@ -212,7 +279,10 @@ export function UserStatsPage({ userId }: Props) {
                                 onClick={() => setSort("score")}
                                 style={{
                                     ...styles.btn,
-                                    ...(sort === "score" ? styles.btnActiveOrange : {})
+                                    background: sort === "score" ? "#f97316" : btnBg,
+                                    color: sort === "score" ? "#fff" : btnColor,
+                                    border: sort === "score" ? "none" : btnBorder,
+                                    boxShadow: sort === "score" ? "0 4px 12px rgba(249, 115, 22, 0.3)" : "none",
                                 }}
                             >
                                 По баллу
@@ -221,7 +291,7 @@ export function UserStatsPage({ userId }: Props) {
                     </div>
                 </div>
 
-                {loading && <div style={styles.loading}>Обновление данных...</div>}
+                {loading && <div style={{ ...styles.loading, color: highlightColor }}>Обновление данных...</div>}
 
                 {/* LIST */}
                 <div style={styles.list}>
@@ -230,32 +300,32 @@ export function UserStatsPage({ userId }: Props) {
                         const country = countries.find((c) => c.name_ru === item.CountryName);
 
                         return (
-                            <div key={i} style={styles.card}>
+                            <div key={i} style={{ ...styles.card, background: cardBg, border: cardBorder }}>
                                 <div style={styles.cardMain}>
                                     <div style={styles.meta}>
-                                        <div style={styles.contestTag}>
+                                        <div style={{ ...styles.contestTag, color: contestTagColor }}>
                                             {item.ContestYear} • {formatContestType(item.ContestType)}
                                         </div>
                                         <div style={styles.countryRow}>
                                             {supportsEmoji && country?.flag_emoji && (
                                                 <span style={styles.flagLarge}>{country.flag_emoji}</span>
                                             )}
-                                            <div style={styles.countryName}>{item.CountryName}</div>
+                                            <div style={{ ...styles.countryName, color: textColor }}>{item.CountryName}</div>
                                         </div>
-                                        <div style={styles.artistInfo}>
-                                            <span style={styles.artist}>{item.Artist}</span>
+                                        <div style={{ ...styles.artistInfo, color: subTextColor }}>
+                                            <span style={{ ...styles.artist, color: artistColor }}>{item.Artist}</span>
                                             <span style={styles.song}> — {item.Song}</span>
                                         </div>
                                     </div>
 
-                                    <div style={styles.scoreContainer}>
-                                        <div style={styles.scoreBig}>{item.Score}</div>
+                                    <div style={{ ...styles.scoreContainer, background: scoreBoxBg, border: scoreBoxBorder }}>
+                                        <div style={{ ...styles.scoreBig, color: scoreValColor }}>{item.Score}</div>
                                         <div style={styles.starSmall}>⭐</div>
                                     </div>
                                 </div>
 
                                 {item.Comment && (
-                                    <div style={styles.comment}>
+                                    <div style={{ ...styles.comment, background: commentBg, borderLeft: commentBorder, color: commentTextColor }}>
                                         “{item.Comment}”
                                     </div>
                                 )}
@@ -283,13 +353,7 @@ export function UserStatsPage({ userId }: Props) {
 const styles: Record<string, React.CSSProperties> = {
     page: {
         padding: "40px 20px",
-        background: `
-            radial-gradient(circle at top left, rgba(79,124,255,0.15), transparent 40%),
-            radial-gradient(circle at bottom right, rgba(167,139,250,0.15), transparent 40%),
-            #020617
-        `,
         minHeight: "100vh",
-        color: "#fff",
         fontFamily: "'Inter', sans-serif",
     },
 
@@ -308,11 +372,10 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 900,
         letterSpacing: "-0.04em",
         margin: 0,
-        textShadow: "0 10px 30px rgba(79,124,255,0.3)",
     },
 
     usernameHighlight: {
-        color: "#7aa2ff",
+        fontWeight: 900,
     },
 
     avgBox: {
@@ -320,17 +383,13 @@ const styles: Record<string, React.CSSProperties> = {
         margin: "0 auto 48px",
         padding: "24px",
         maxWidth: 360,
-        background: "rgba(15, 23, 42, 0.4)",
         borderRadius: "28px",
-        border: "1px solid rgba(79, 124, 255, 0.2)",
-        boxShadow: "0 15px 35px rgba(0,0,0,0.2)",
         backdropFilter: "blur(12px)",
     },
 
     avgLabelBig: {
         fontSize: 13,
         fontWeight: 800,
-        color: "#64748b",
         textTransform: "uppercase",
         letterSpacing: "0.1em",
         marginBottom: 8,
@@ -339,8 +398,6 @@ const styles: Record<string, React.CSSProperties> = {
     avgValue: {
         fontSize: 48,
         fontWeight: 950,
-        color: "#ffd166",
-        textShadow: "0 0 20px rgba(255, 209, 102, 0.4)",
     },
 
     filters: {
@@ -348,10 +405,8 @@ const styles: Record<string, React.CSSProperties> = {
         flexDirection: "column",
         gap: 24,
         marginBottom: 40,
-        background: "rgba(15, 23, 42, 0.3)",
         padding: "24px",
         borderRadius: "24px",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
         backdropFilter: "blur(8px)",
     },
 
@@ -364,7 +419,6 @@ const styles: Record<string, React.CSSProperties> = {
     label: {
         fontWeight: 800,
         fontSize: 12,
-        color: "#64748b",
         textTransform: "uppercase",
         letterSpacing: "0.1em",
         paddingLeft: 4,
@@ -379,38 +433,13 @@ const styles: Record<string, React.CSSProperties> = {
     btn: {
         padding: "8px 14px",
         borderRadius: "10px",
-        border: "1px solid rgba(255, 255, 255, 0.08)",
-        background: "rgba(255, 255, 255, 0.03)",
-        color: "#94a3b8",
         cursor: "pointer",
         fontSize: 13,
         fontWeight: 700,
         transition: "all 0.2s ease",
     },
 
-    btnActivePrimary: {
-        background: "#4f7cff",
-        color: "#fff",
-        borderColor: "#4f7cff",
-        boxShadow: "0 4px 12px rgba(79, 124, 255, 0.3)",
-    },
-
-    btnActiveGreen: {
-        background: "#22c55e",
-        color: "#fff",
-        borderColor: "#22c55e",
-        boxShadow: "0 4px 12px rgba(34, 197, 94, 0.3)",
-    },
-
-    btnActiveOrange: {
-        background: "#f97316",
-        color: "#fff",
-        borderColor: "#f97316",
-        boxShadow: "0 4px 12px rgba(249, 115, 22, 0.3)",
-    },
-
     loading: {
-        color: "#4f7cff",
         textAlign: "center",
         fontSize: 14,
         fontWeight: 600,
@@ -425,9 +454,7 @@ const styles: Record<string, React.CSSProperties> = {
 
     card: {
         padding: "24px",
-        background: "rgba(30, 41, 59, 0.4)",
         borderRadius: "24px",
-        border: "1px solid rgba(255, 255, 255, 0.06)",
         backdropFilter: "blur(12px)",
         display: "flex",
         flexDirection: "column",
@@ -451,7 +478,6 @@ const styles: Record<string, React.CSSProperties> = {
 
     contestTag: {
         fontSize: 13,
-        color: "#7aa2ff",
         fontWeight: 800,
         textTransform: "uppercase",
         letterSpacing: "0.05em",
@@ -470,37 +496,24 @@ const styles: Record<string, React.CSSProperties> = {
     countryName: {
         fontSize: 24,
         fontWeight: 900,
-        color: "#fff",
         letterSpacing: "-0.02em",
     },
 
     artistInfo: {
         fontSize: 15,
-        color: "#94a3b8",
         fontWeight: 600,
         lineHeight: "1.4",
     },
 
-    artist: {
-        color: "#e2e8f0",
-    },
-
-    song: {
-        color: "#64748b",
-    },
-
     scoreContainer: {
         textAlign: "center",
-        background: "rgba(255, 209, 102, 0.1)",
         padding: "10px 16px",
         borderRadius: "18px",
-        border: "1px solid rgba(255, 209, 102, 0.2)",
     },
 
     scoreBig: {
         fontSize: 44,
         fontWeight: 1000,
-        color: "#ffd166",
         lineHeight: 1,
     },
 
@@ -511,12 +524,9 @@ const styles: Record<string, React.CSSProperties> = {
 
     comment: {
         fontStyle: "italic",
-        color: "#7aa2ff",
         fontSize: 14,
         padding: "12px 16px",
-        background: "rgba(122, 162, 255, 0.08)",
         borderRadius: "14px",
-        borderLeft: "4px solid #4f7cff",
         lineHeight: "1.5",
     },
 
@@ -554,18 +564,5 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: 10,
         fontWeight: 800,
         textTransform: "uppercase",
-    },
-
-    gifWrapper: {
-        width: 140,
-        borderRadius: "12px",
-        overflow: "hidden",
-        border: "1px solid rgba(255, 255, 255, 0.1)",
-    },
-
-    gifImg: {
-        width: "100%",
-        height: "100%",
-        objectFit: "cover",
     },
 };

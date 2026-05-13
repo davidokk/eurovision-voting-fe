@@ -2,34 +2,19 @@ import { useEffect, useState } from "react";
 import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
 import { CountryStatsPage } from "./components/CountryStatsPage";
-
 import { getContest, getContests } from "./api/contest";
-
-import type {
-  ContestView,
-  ContestsByYear,
-} from "./types/contest";
-
+import type { ContestView, ContestsByYear, Theme } from "./types/contest";
 import { Topbar } from "./components/Topbar";
 import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
 
-const API_URL = import.meta.env.VITE_API_URL || "";
-
-// Глобальные стили для скроллбара
-if (typeof document !== 'undefined') {
-  const style = document.createElement('style');
-  style.textContent = `
-    ::-webkit-scrollbar { width: 6px; height: 6px; }
-    ::-webkit-scrollbar-track { background: #0b1220; }
-    ::-webkit-scrollbar-thumb { background-color: #334155; border-radius: 10px; }
-    ::-webkit-scrollbar-thumb:hover { background-color: #4f7cff; }
-    * { scrollbar-width: thin; scrollbar-color: #334155 #0b1220; }
-  `;
-  document.head.appendChild(style);
-}
+const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 
 export default function App() {
+  const [theme, setTheme] = useState<Theme>(() => {
+    return (localStorage.getItem("theme") as Theme) || "dark-blue";
+  });
+
   const [contests, setContests] = useState<ContestsByYear>({});
   const [selectedContest, setSelectedContest] = useState<ContestView | null>(null);
 
@@ -69,6 +54,7 @@ export default function App() {
 
     async function validateToken() {
       try {
+        if (!API_URL) return;
         const res = await fetch(`${API_URL}/v1/auth/validate`, {
           method: "GET",
           headers: {
@@ -77,12 +63,11 @@ export default function App() {
         });
 
         if (res.status === 401) {
-          // Токен невалидный — очищаем всё, кроме выбранного конкурса
           const savedContestId = localStorage.getItem("selectedContestId");
+          const savedTheme = localStorage.getItem("theme");
           localStorage.clear();
-          if (savedContestId) {
-            localStorage.setItem("selectedContestId", savedContestId);
-          }
+          if (savedContestId) localStorage.setItem("selectedContestId", savedContestId);
+          if (savedTheme) localStorage.setItem("theme", savedTheme);
           window.location.reload();
         }
       } catch (err) {
@@ -93,39 +78,101 @@ export default function App() {
     validateToken();
   }, []);
 
+  // Обновление глобальных стилей скроллбара и фона body при смене темы
+  useEffect(() => {
+    localStorage.setItem("theme", theme);
+
+    const isLight = theme === "light";
+    const isGray = theme === "dark-gray";
+
+    const bgColor = isLight ? "#f8fafc" : isGray ? "#121212" : "#0b1220";
+    const trackColor = isLight ? "#f1f5f9" : isGray ? "#181818" : "#0b1220";
+    const thumbColor = isLight ? "#cbd5e1" : isGray ? "#374151" : "#334155";
+    const thumbHoverColor = isLight ? "#94a3b8" : isGray ? "#4b5563" : "#4f7cff";
+
+    document.body.style.background = bgColor;
+    document.body.style.margin = "0";
+    document.body.style.padding = "0";
+    document.body.style.fontFamily = "system-ui, -apple-system, sans-serif";
+
+    const styleId = "eurovision-dynamic-styles";
+    let styleEl = document.getElementById(styleId);
+    if (!styleEl) {
+      styleEl = document.createElement("style");
+      styleEl.id = styleId;
+      document.head.appendChild(styleEl);
+    }
+
+    styleEl.textContent = `
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: ${trackColor}; }
+      ::-webkit-scrollbar-thumb { background-color: ${thumbColor}; border-radius: 10px; }
+      ::-webkit-scrollbar-thumb:hover { background-color: ${thumbHoverColor}; }
+      * { scrollbar-width: thin; scrollbar-color: ${thumbColor} ${trackColor}; box-sizing: border-box; }
+    `;
+  }, [theme]);
+
   async function handleSelectContest(id: string) {
     const data = await getContest(id);
     setSelectedContest(data);
     localStorage.setItem("selectedContestId", id);
   }
 
+  function handleSelectTheme(newTheme: Theme) {
+    setTheme(newTheme);
+  }
+
   if (isAdmin) return <AdminPage initialContest={selectedContest} />;
-  if (isUserPage && userId) return <UserStatsPage userId={userId} />;
-  if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} />;
-  if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} />;
+  if (isUserPage && userId) return <UserStatsPage userId={userId} theme={theme} />;
+  if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} theme={theme}/>;
+
+  const isLight = theme === "light";
+  const isGray = theme === "dark-gray";
+
+  const appBg = isLight ? "#f8fafc" : isGray ? "#121212" : "#0b1220";
+  const sidebarBg = isLight ? "rgba(255, 255, 255, 0.95)" : isGray ? "rgba(28, 28, 28, 0.95)" : "rgba(15, 23, 42, 0.95)";
+  const borderColor = isLight ? "rgba(0,0,0,0.08)" : "rgba(255,255,255,0.06)";
+  const toggleBtnBg = isLight ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" : isGray ? "linear-gradient(135deg, #6b7280 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)";
+  const toggleBtnShadow = isLight ? "0 10px 30px rgba(0,0,0,0.15)" : "0 10px 30px rgba(79, 124, 255, 0.35), inset 0 1px rgba(255, 255, 255, 0.15)";
 
   return (
-    <div style={styles.app}>
-      <div style={styles.topbarWrapper}>
+    <div style={{
+      height: "100vh",
+      width: "100vw",
+      overflow: "hidden",
+      background: appBg,
+      display: "flex",
+      flexDirection: "column",
+      position: "relative",
+    }}>
+      <div style={{ position: "relative", zIndex: 3000, flexShrink: 0 }}>
         <Topbar
           contests={contests}
           onSelectContest={handleSelectContest}
+          theme={theme}
+          onSelectTheme={handleSelectTheme}
         />
       </div>
 
-      <div style={styles.layout}>
+      <div style={{ display: "flex", flex: 1, position: "relative", overflow: "hidden" }}>
         {/* ЛЕВАЯ ПАНЕЛЬ (ЛИДЕРБОРД) */}
         <div
           style={{
-            ...styles.sidebarContainer,
-            width: leaderboardOpen ? (isMobile ? "100%" : 300) : 0,
+            height: "100%",
+            background: sidebarBg,
+            backdropFilter: "blur(24px)",
+            WebkitBackdropFilter: "blur(24px)",
+            transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+            overflow: "hidden",
+            width: leaderboardOpen ? (isMobile ? "100%" : 320) : 0,
             position: isMobile && leaderboardOpen ? "absolute" : "relative",
-            borderRight: leaderboardOpen ? "1px solid rgba(255,255,255,0.06)" : "none",
+            borderRight: leaderboardOpen ? `1px solid ${borderColor}` : "none",
             zIndex: isMobile ? 1500 : 100,
           }}
         >
           {leaderboardOpen && selectedContest && (
             <SidebarLeaderboard
+              theme={theme}
               performances={selectedContest.performances}
               onClose={() => setLeaderboardOpen(false)}
             />
@@ -134,10 +181,11 @@ export default function App() {
 
         {/* ОСНОВНОЙ КОНТЕНТ (CONTEST VIEW) */}
         <div
-          style={styles.content}
+          style={{ flex: 1, height: "100%", overflow: "hidden", position: "relative", zIndex: 1 }}
           onClick={() => isMobile && leaderboardOpen && setLeaderboardOpen(false)}
         >
           <ContestViewComponent
+            theme={theme}
             contest={selectedContest}
             chatOpen={chatOpen}
             setChatOpen={setChatOpen}
@@ -146,78 +194,37 @@ export default function App() {
       </div>
 
       {/* КНОПКА ПЕРЕКЛЮЧЕНИЯ ЛИДЕРБОРДА — вне layout, выше всех stacking context */}
-      {selectedContest && (<button
-        onClick={() => setLeaderboardOpen(!leaderboardOpen)}
-        style={{
-          ...styles.toggleBtn,
-          left: leaderboardOpen ? (isMobile ? 15 : 315) : 15,
-          transform: (isMobile && (chatOpen || leaderboardOpen)) ? "scale(0)" : "scale(1)",
-          opacity: (isMobile && (chatOpen || leaderboardOpen)) ? 0 : 1,
-          pointerEvents: (isMobile && (chatOpen || leaderboardOpen)) ? "none" : "auto",
-        }}
-      >
-        <span style={{ fontSize: 24 }}>
-          {leaderboardOpen ? "✕" : "🏆"}
-        </span>
-      </button>)}
+      {selectedContest && (
+        <button
+          onClick={() => setLeaderboardOpen(!leaderboardOpen)}
+          style={{
+            position: "fixed",
+            bottom: 30,
+            width: 68,
+            height: 68,
+            borderRadius: "24px",
+            background: toggleBtnBg,
+            color: "#fff",
+            border: isLight ? "1px solid rgba(0,0,0,0.1)" : "1px solid rgba(255,255,255,0.12)",
+            fontSize: 18,
+            cursor: "pointer",
+            zIndex: 2100,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxShadow: toggleBtnShadow,
+            transition: "all 0.25s ease",
+            left: leaderboardOpen ? (isMobile ? 15 : 335) : 15,
+            transform: (isMobile && (chatOpen || leaderboardOpen)) ? "scale(0)" : "scale(1)",
+            opacity: (isMobile && (chatOpen || leaderboardOpen)) ? 0 : 1,
+            pointerEvents: (isMobile && (chatOpen || leaderboardOpen)) ? "none" : "auto",
+          }}
+        >
+          <span style={{ fontSize: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {leaderboardOpen ? "✕" : "🏆"}
+          </span>
+        </button>
+      )}
     </div>
   );
 }
-
-const styles: Record<string, React.CSSProperties> = {
-  app: {
-    height: "100vh",
-    width: "100vw",
-    overflow: "hidden",
-    background: "#0b1220",
-    display: "flex",
-    flexDirection: "column",
-  },
-  topbarWrapper: {
-    position: "relative",
-    zIndex: 3000,
-    flexShrink: 0,
-  },
-  layout: {
-    display: "flex",
-    flex: 1,
-    position: "relative",
-    overflow: "hidden",
-  },
-  sidebarContainer: {
-    height: "100%",
-    background: "rgba(15, 23, 42, 0.95)",
-    backdropFilter: "blur(24px)",
-    WebkitBackdropFilter: "blur(24px)",
-    transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
-    overflow: "hidden",
-  },
-  content: {
-    flex: 1,
-    height: "100%",
-    overflow: "hidden",
-    position: "relative",
-    zIndex: 1,
-  },
-  toggleBtn: {
-    position: "fixed",
-    bottom: 30,
-    width: 68,
-    height: 68,
-    borderRadius: "24px",
-    background: "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
-    color: "#fff",
-    border: "1px solid rgba(255,255,255,0.12)",
-    fontSize: 18,
-    cursor: "pointer",
-    zIndex: 2100,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    boxShadow: `
-      0 10px 30px rgba(79, 124, 255, 0.35),
-      inset 0 1px rgba(255, 255, 255, 0.15)
-    `,
-    transition: "all 0.25s ease",
-  },
-};

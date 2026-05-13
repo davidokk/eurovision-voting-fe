@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ContestView as ContestViewType } from "../types/contest";
+import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { PerformanceCard } from "./PerformanceCard";
 
 type Props = {
     contest: ContestViewType | null;
     chatOpen: boolean;
     setChatOpen: (open: boolean) => void;
+    theme?: Theme;
 };
 
 type ChatMessage = {
@@ -21,8 +22,8 @@ type ChatMessage = {
     comment?: string;
 };
 
-const API_URL = import.meta.env.VITE_API_URL;
-const WS_URL = import.meta.env.VITE_WS_URL;
+const API_URL = (import.meta as any).env?.VITE_API_URL || "";
+const WS_URL = (import.meta as any).env?.VITE_WS_URL || "";
 
 function translateContestType(type: string) {
     switch (type) {
@@ -61,7 +62,7 @@ function formatTime(ms: number) {
     return parts.join(" ");
 }
 
-export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
+export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue" }: Props) {
     const [now, setNow] = useState(Date.now());
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
@@ -71,7 +72,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const myUsername = localStorage.getItem("username");
-    const myUserId = localStorage.getItem("user_id"); // Предполагаю, что ID тоже в сторадже
+    const myUserId = localStorage.getItem("user_id");
     const token = localStorage.getItem("token");
 
     const isAuthenticated = !!token;
@@ -79,25 +80,21 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
     useEffect(() => {
         const handleResize = () => {
             const mobile = window.innerWidth < 768;
-
             setIsMobile(mobile);
-
-            // if (!mobile) setChatOpen(true);
         };
 
         window.addEventListener("resize", handleResize);
-
         handleResize();
 
         return () => window.removeEventListener("resize", handleResize);
     }, [setChatOpen]);
 
     useEffect(() => {
-        if (!contest) return;
+        if (!contest || !API_URL) return;
 
         async function fetchMessages() {
             try {
-                if (!contest) return;
+                if (!contest || !API_URL) return;
                 
                 const params = new URLSearchParams({
                     contest_id: contest.contest.id
@@ -110,7 +107,6 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                 if (!res.ok) throw new Error("Failed");
 
                 const data = await res.json();
-
                 setMessages(data || []);
             } catch (err) {
                 console.error(err);
@@ -135,13 +131,16 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
     }, []);
 
     useEffect(() => {
-        ws.current = new WebSocket(`${WS_URL}/v1/ws`);
-
-        ws.current.onmessage = (e) => {
-            const msg: ChatMessage = JSON.parse(e.data);
-
-            setMessages((prev) => [...prev, msg]);
-        };
+        if (!WS_URL) return;
+        try {
+            ws.current = new WebSocket(`${WS_URL}/v1/ws`);
+            ws.current.onmessage = (e) => {
+                const msg: ChatMessage = JSON.parse(e.data);
+                setMessages((prev) => [...prev, msg]);
+            };
+        } catch (err) {
+            console.error("WS error", err);
+        }
 
         return () => ws.current?.close();
     }, []);
@@ -151,31 +150,38 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
 
         try {
             const currentInput = input;
-
             setInput("");
 
-            const params = new URLSearchParams({
-                contest_id: contest.contest.id,
-                message: currentInput,
-            });
+            if (API_URL) {
+                const params = new URLSearchParams({
+                    contest_id: contest.contest.id,
+                    message: currentInput,
+                });
 
-            await fetch(
-                `${API_URL}/v1/message/send?${params.toString()}`,
-                {
-                    method: "POST",
-                    headers: {
-                        Authorization: `Bearer ${token}`,
-                    },
-                }
-            );
+                await fetch(
+                    `${API_URL}/v1/message/send?${params.toString()}`,
+                    {
+                        method: "POST",
+                        headers: {
+                            Authorization: `Bearer ${token}`,
+                        },
+                    }
+                );
+            } else {
+                setMessages((prev) => [...prev, {
+                    username: myUsername || "Гость",
+                    message: currentInput,
+                    createdAt: new Date().toISOString()
+                }]);
+            }
         } catch (err) {
             console.error(err);
         }
     }
 
     const ended =
-    !!contest &&
-    new Date(contest.contest.ends).getTime() < now;
+        !!contest &&
+        new Date(contest.contest.ends).getTime() < now;
 
     const started =
         !!contest &&
@@ -185,7 +191,6 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
         if (!contest) return null;
 
         const starts = new Date(contest.contest.starts).getTime();
-
         const diff = starts - now;
 
         if (diff > 0) return formatTime(diff);
@@ -202,7 +207,6 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
         
         const items = [...contest.performances];
         
-        // Ищем первое выступление, где в массиве scores нет объекта с твоим ID или username
         const firstUnvotedIndex = items.findIndex(p => 
             !p.scores.some(s => s.user_id === myUserId || s.username === myUsername)
         );
@@ -215,40 +219,170 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
         return items;
     }, [contest, myUsername, myUserId]);
 
+    const isLight = theme === "light";
+    const isGray = theme === "dark-gray";
+
+    const layoutBg = isLight 
+        ? "radial-gradient(circle at top left, rgba(55, 65, 81, 0.06), transparent 30%), radial-gradient(circle at bottom right, rgba(75, 85, 99, 0.06), transparent 30%), #f8fafc" 
+        : isGray 
+        ? "radial-gradient(circle at top left, rgba(255, 255, 255, 0.03), transparent 30%), radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.02), transparent 30%), #121212" 
+        : "radial-gradient(circle at top left, rgba(79,124,255,0.18), transparent 30%), radial-gradient(circle at bottom right, rgba(159,122,234,0.18), transparent 30%), #020617";
+
+    const wrapperBgImage = isLight 
+        ? "radial-gradient(circle at top, rgba(55, 65, 81, 0.04), transparent 35%)"
+        : isGray
+        ? "radial-gradient(circle at top, rgba(255, 255, 255, 0.02), transparent 35%)"
+        : "radial-gradient(circle at top, rgba(79,124,255,0.08), transparent 35%)";
+
+    const titleColor = isLight ? "#0f172a" : "#fff";
+    const titleShadow = isLight ? "0 10px 30px rgba(0,0,0,0.05)" : isGray ? "0 10px 40px rgba(0,0,0,0.5)" : "0 10px 40px rgba(79,124,255,0.35)";
+    
+    const yearTopBg = isLight ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" : isGray ? "linear-gradient(135deg, #4b5563 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #3b5bdb 100%)";
+    const yearTopShadow = isLight ? "0 8px 20px rgba(31, 41, 55, 0.2)" : isGray ? "0 8px 24px rgba(0,0,0,0.4)" : "0 8px 24px rgba(79,124,255,0.35), inset 0 1px rgba(255,255,255,0.18)";
+    const yearTopBorder = isLight ? "1px solid rgba(55, 65, 81, 0.2)" : "1px solid rgba(255,255,255,0.12)";
+
+    const timerBg = isLight ? "rgba(245, 158, 11, 0.1)" : "rgba(255, 209, 102, 0.1)";
+    const timerBorder = isLight ? "1px solid rgba(245, 158, 11, 0.2)" : "1px solid rgba(255, 209, 102, 0.2)";
+    const timerValColor = isLight ? "#d97706" : "#ffd166";
+
+    const chatBtnBg = isLight ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" : isGray ? "linear-gradient(135deg, #6b7280 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)";
+    const chatBtnShadow = isLight ? "0 10px 30px rgba(0,0,0,0.15)" : "0 10px 30px rgba(79,124,255,0.35), inset 0 1px rgba(255,255,255,0.15)";
+    const chatBtnBorder = isLight ? "1px solid rgba(0,0,0,0.1)" : "1px solid rgba(255,255,255,0.12)";
+
+    const chatPanelBg = isLight ? "rgba(255, 255, 255, 0.95)" : isGray ? "rgba(28, 28, 28, 0.95)" : "rgba(15, 23, 42, 0.72)";
+    const chatPanelBorder = isLight ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)";
+    const chatPanelShadow = isLight ? "-10px 0 40px rgba(0,0,0,0.1)" : "-10px 0 40px rgba(0,0,0,0.35), inset 1px 0 rgba(255,255,255,0.05)";
+
+    const chatHeaderBg = isLight ? "rgba(241, 245, 249, 0.8)" : isGray ? "rgba(45, 45, 45, 0.8)" : "rgba(30, 41, 59, 0.45)";
+    const chatCloseBg = isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
+
+    const chatInputWrapBg = isLight ? "rgba(241, 245, 249, 0.8)" : isGray ? "rgba(45, 45, 45, 0.8)" : "rgba(30,41,59,0.45)";
+    const inputInnerBg = isLight ? "rgba(255, 255, 255, 0.9)" : isGray ? "rgba(18, 18, 18, 0.8)" : "rgba(15,23,42,0.65)";
+    const inputBorder = isLight ? "1px solid rgba(0,0,0,0.08)" : "1px solid rgba(255,255,255,0.08)";
+    const inputTextColor = isLight ? "#0f172a" : "#fff";
+
+    const myBubbleBg = isLight ? "linear-gradient(135deg, #4b5563, #1f2937)" : isGray ? "linear-gradient(135deg, #4b5563, #374151)" : "linear-gradient(135deg, rgba(79,124,255,0.8), rgba(59,91,219,0.8))";
+    const theirBubbleBg = isLight ? "#f1f5f9" : isGray ? "#282828" : "rgba(30,41,59,0.7)";
+    const theirBubbleText = isLight ? "#0f172a" : "#fff";
+    const theirBubbleBorder = isLight ? "1px solid rgba(0,0,0,0.05)" : "1px solid rgba(255,255,255,0.05)";
+
+    const sysMsgBg = isLight ? "rgba(55, 65, 81, 0.06)" : "linear-gradient(135deg, rgba(79, 124, 255, 0.12), rgba(124, 77, 255, 0.08))";
+    const sysMsgBorder = isLight ? "1px solid rgba(55, 65, 81, 0.2)" : "1px solid rgba(79, 124, 255, 0.25)";
+    const sysMsgUser = isLight ? "#1f2937" : "#7aa2ff";
+    const sysMsgAction = isLight ? "#64748b" : "#94a3b8";
+    const sysMsgCountry = isLight ? "#0f172a" : "#e6edf7";
+    const sysMsgCommentBg = isLight ? "rgba(0,0,0,0.03)" : "rgba(255, 255, 255, 0.04)";
+    const sysMsgCommentBorder = isLight ? "3px solid #374151" : "3px solid rgba(79, 124, 255, 0.4)";
+    const sysMsgCommentText = isLight ? "#334155" : "#a5b4d4";
+
+    const promptBg = isLight ? "rgba(0,0,0,0.03)" : isGray ? "rgba(30, 30, 30, 0.6)" : "rgba(15, 23, 42, 0.5)";
+    const promptBorder = isLight ? "1px dashed rgba(0,0,0,0.15)" : isGray ? "1px dashed #4b5563" : "1px dashed #334155";
+    const promptText = isLight ? "#64748b" : "#9ca3af";
+
     if (!contest) {
         return (
-            <div style={styles.empty}>
+            <div style={{ ...styles.empty, color: isLight ? "#64748b" : "#64748b" }}>
                 Выберите год в меню
             </div>
         );
     }
 
     return (
-        <div style={styles.layout}>
+        <div style={{ ...styles.layout, background: layoutBg }}>
             <div
-                style={styles.wrapper}
+                style={{ ...styles.wrapper, backgroundImage: wrapperBgImage }}
                 onClick={() => isMobile && chatOpen && setChatOpen(false)}
             >
-                <header style={styles.header}>
-                    <h1 style={styles.title}>
-                        {translateContestType(contest.contest.type)}
-                    </h1>
-                    <div style={styles.yearTop}>
-                        {contest.contest.year}
+                <header style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    padding: isMobile ? "32px 20px" : "48px 40px",
+                    background: isLight 
+                        ? "linear-gradient(135deg, rgba(255, 255, 255, 0.9) 0%, rgba(241, 245, 249, 0.85) 100%)" 
+                        : isGray 
+                        ? "linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(18, 18, 18, 0.9) 100%)" 
+                        : "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.8) 100%)",
+                    border: isLight ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: "32px",
+                    boxShadow: isLight ? "0 20px 40px rgba(0,0,0,0.05)" : "0 20px 60px rgba(0,0,0,0.4), inset 0 1px rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(24px)",
+                    WebkitBackdropFilter: "blur(24px)",
+                    maxWidth: 1200,
+                    margin: "0 auto 36px",
+                    gap: 16,
+                    textAlign: "center",
+                }}>
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 8,
+                        padding: "6px 18px",
+                        background: yearTopBg,
+                        borderRadius: "100px",
+                        boxShadow: yearTopShadow,
+                        border: yearTopBorder,
+                        color: "#fff",
+                        fontSize: 13,
+                        fontWeight: 900,
+                        letterSpacing: "0.15em",
+                        textTransform: "uppercase",
+                    }}>
+                        <span>✨</span>
+                        <span>EUROVISION • {contest.contest.year}</span>
                     </div>
 
-                    {(
-                        <div style={styles.timerContainer}>
-                            {started && <span style={styles.timerLabel}>
-                                До начала:
-                            </span>}
+                    <h1 style={{
+                        margin: 0,
+                        color: titleColor,
+                        fontSize: isMobile ? "2.2rem" : "3.6rem",
+                        fontWeight: 950,
+                        lineHeight: 1.1,
+                        letterSpacing: "-0.03em",
+                        textShadow: titleShadow,
+                    }}>
+                        {translateContestType(contest.contest.type)}
+                    </h1>
 
-                            <span style={styles.timerValue}>
-                                {timerText}
-                                {ended && ("ОЦЕНИВАНИЕ ЗАКРЫТО")}
-                            </span>
-                        </div>
-                    )}
+                    <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "10px 24px",
+                        background: timerBg,
+                        border: timerBorder,
+                        borderRadius: "100px",
+                        marginTop: 8,
+                    }}>
+                        <span style={{
+                            width: 10,
+                            height: 10,
+                            borderRadius: "50%",
+                            background: timerValColor,
+                            boxShadow: `0 0 12px ${timerValColor}`,
+                        }} />
+
+                        {started && <span style={{
+                            fontSize: 13,
+                            fontWeight: 700,
+                            textTransform: "uppercase",
+                            color: isLight ? "#64748b" : "#94a3b8",
+                            letterSpacing: "0.05em",
+                        }}>
+                            До начала:
+                        </span>}
+
+                        <span style={{
+                            fontSize: 16,
+                            fontWeight: 800,
+                            fontFamily: "monospace",
+                            color: timerValColor,
+                            letterSpacing: "0.02em",
+                        }}>
+                            {timerText}
+                            {ended && ("ОЦЕНИВАНИЕ ЗАКРЫТО")}
+                        </span>
+                    </div>
                 </header>
 
                 <div style={styles.grid}>
@@ -262,6 +396,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                             votingEnded={
                                 now > new Date(contest.contest.ends).getTime()
                             }
+                            theme={theme}
                         />
                     ))}
                 </div>
@@ -269,11 +404,13 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-
                         setChatOpen(!chatOpen);
                     }}
                     style={{
                         ...styles.chatButton,
+                        background: chatBtnBg,
+                        boxShadow: chatBtnShadow,
+                        border: chatBtnBorder,
                         right: (chatOpen && !isMobile) ? 360 : 30,
                         transform:
                             (isMobile && chatOpen)
@@ -298,6 +435,9 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
             <div
                 style={{
                     ...styles.chatPanel,
+                    background: chatPanelBg,
+                    borderLeft: chatPanelBorder,
+                    boxShadow: chatPanelShadow,
                     width: chatOpen
                         ? (isMobile ? "100%" : 340)
                         : 0,
@@ -314,18 +454,17 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
             >
                 {chatOpen && (
                     <>
-                        <div style={styles.chatHeader}>
-                            <div style={styles.chatTitle}>
+                        <div style={{ ...styles.chatHeader, background: chatHeaderBg, borderBottom: chatPanelBorder }}>
+                            <div style={{ ...styles.chatTitle, color: titleColor }}>
                                 Чат
                             </div>
 
                             <button
                                 onClick={(e) => {
                                     e.stopPropagation();
-
                                     setChatOpen(false);
                                 }}
-                                style={styles.closeChatHeader}
+                                style={{ ...styles.closeChatHeader, background: chatCloseBg, color: titleColor }}
                             >
                                 ✕
                             </button>
@@ -333,17 +472,16 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
 
                         <div style={styles.chatMessages}>
                             {messages.map((m, i) => {
-                                // Системное сообщение об оценке
                                 if (m.type === "system") {
                                     return (
                                         <div key={i} style={styles.systemMsg}>
-                                            <div style={styles.systemMsgInner}>
+                                            <div style={{ ...styles.systemMsgInner, background: sysMsgBg, border: sysMsgBorder }}>
                                                 <div style={styles.systemHeader}>
                                                     <span style={styles.systemIcon}>⭐</span>
-                                                    <span style={styles.systemUser}>
+                                                    <span style={{ ...styles.systemUser, color: sysMsgUser }}>
                                                         {m.username}
                                                     </span>
-                                                    <span style={styles.systemText}>
+                                                    <span style={{ ...styles.systemText, color: sysMsgAction }}>
                                                         {m.old_score != null && m.old_score !== m.score ? "переобувается" : "оценил(а)"}
                                                     </span>
                                                 </div>
@@ -354,7 +492,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                                             {m.country_flag}
                                                         </span>
                                                     )}
-                                                    <span style={styles.systemCountryName}>
+                                                    <span style={{ ...styles.systemCountryName, color: sysMsgCountry }}>
                                                         {m.country}
                                                     </span>
                                                     {m.old_score != null && m.old_score !== m.score ? (
@@ -363,19 +501,19 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                                                 {m.old_score}
                                                             </span>
                                                             <span style={styles.scoreArrow}>→</span>
-                                                            <span style={styles.systemScore}>
+                                                            <span style={{ ...styles.systemScore, color: timerValColor }}>
                                                                 {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
                                                             </span>
                                                         </div>
                                                     ) : (
-                                                        <span style={styles.systemScore}>
+                                                        <span style={{ ...styles.systemScore, color: timerValColor }}>
                                                             {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
                                                         </span>
                                                     )}
                                                 </div>
 
                                                 {m.comment && (
-                                                    <div style={styles.systemComment}>
+                                                    <div style={{ ...styles.systemComment, background: sysMsgCommentBg, borderLeft: sysMsgCommentBorder, color: sysMsgCommentText }}>
                                                         «{m.comment}»
                                                     </div>
                                                 )}
@@ -404,9 +542,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                     );
                                 }
 
-                                // Обычное сообщение
-                                const isMe =
-                                    m.username === myUsername;
+                                const isMe = m.username === myUsername;
 
                                 return (
                                     <div
@@ -423,8 +559,9 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                             style={{
                                                 ...styles.avatar,
                                                 background: isMe
-                                                    ? "linear-gradient(135deg, #6b8eff, #4f7cff)"
-                                                    : "#24324f",
+                                                    ? (isLight ? "linear-gradient(135deg, #4b5563, #1f2937)" : isGray ? "#4b5563" : "linear-gradient(135deg, #6b8eff, #4f7cff)")
+                                                    : (isLight ? "#cbd5e1" : "#24324f"),
+                                                color: isLight && !isMe ? "#0f172a" : "#fff",
                                             }}
                                         >
                                             {m.username
@@ -435,19 +572,19 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                                         <div
                                             style={{
                                                 ...styles.bubble,
-                                                background: isMe
-                                                    ? "linear-gradient(135deg, rgba(79,124,255,0.8), rgba(59,91,219,0.8))"
-                                                    : "rgba(30,41,59,0.7)",
+                                                background: isMe ? myBubbleBg : theirBubbleBg,
+                                                color: isMe ? "#fff" : theirBubbleText,
                                                 border: isMe
                                                     ? "1px solid rgba(255,255,255,0.08)"
-                                                    : "1px solid rgba(255,255,255,0.05)",
+                                                    : theirBubbleBorder,
                                                 borderRadius: isMe
                                                     ? "14px 14px 4px 14px"
                                                     : "14px 14px 14px 4px",
+                                                boxShadow: isLight ? "0 4px 15px rgba(0,0,0,0.05)" : styles.bubble.boxShadow,
                                             }}
                                         >
                                             {!isMe && (
-                                                <div style={styles.name}>
+                                                <div style={{ ...styles.name, color: isLight ? "#1f2937" : isGray ? "#9ca3af" : "#7aa2ff" }}>
                                                     {m.username}
                                                 </div>
                                             )}
@@ -475,24 +612,24 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                             <div ref={messagesEndRef} />
                         </div>
 
-                        <div style={styles.chatInput}>
+                        <div style={{ ...styles.chatInput, background: chatInputWrapBg, borderTop: chatPanelBorder }}>
                             {started ? (
-                                <div style={styles.authPrompt}>
+                                <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
                                     Конкурс еще не начался. Чат закрыт
                                 </div>
                             ) : ended ? (
-                                <div style={styles.authPrompt}>
+                                <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
                                     Конкурс завершился. Чат закрыт
                                 </div>
                             ) : isAuthenticated ? (
-                                <div style={styles.inputWrapper}>
+                                <div style={{ ...styles.inputWrapper, background: inputInnerBg, border: inputBorder }}>
                                     <input
                                         value={input}
                                         onChange={(e) => {
                                             setInput(e.target.value);
                                         }}
                                         placeholder="Напиши что-нибудь..."
-                                        style={styles.input}
+                                        style={{ ...styles.input, color: inputTextColor }}
                                         onKeyDown={(e) =>
                                             e.key === "Enter" &&
                                             sendMessage()
@@ -501,13 +638,13 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
 
                                     <button
                                         onClick={sendMessage}
-                                        style={styles.sendBtn}
+                                        style={{ ...styles.sendBtn, background: chatBtnBg, boxShadow: isLight ? "0 4px 10px rgba(0,0,0,0.1)" : styles.sendBtn.boxShadow }}
                                     >
                                         ➤
                                     </button>
                                 </div>
                             ) : (
-                                <div style={styles.authPrompt}>
+                                <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
                                     Войдите для участия в чате
                                 </div>
                             )}
@@ -526,11 +663,6 @@ const styles: Record<string, React.CSSProperties> = {
         height: "calc(100vh - 72px)",
         overflow: "hidden",
         position: "relative",
-        background: `
-            radial-gradient(circle at top left, rgba(79,124,255,0.18), transparent 30%),
-            radial-gradient(circle at bottom right, rgba(159,122,234,0.18), transparent 30%),
-            #020617
-        `,
     },
 
     wrapper: {
@@ -540,9 +672,6 @@ const styles: Record<string, React.CSSProperties> = {
         overflowY: "auto",
         position: "relative",
         scrollbarWidth: "none",
-        backgroundImage: `
-            radial-gradient(circle at top, rgba(79,124,255,0.08), transparent 35%)
-        `,
     },
 
     header: {
@@ -554,7 +683,6 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     yearTop: {
-        background: "linear-gradient(135deg, #4f7cff 0%, #3b5bdb 100%)",
         padding: "8px 18px",
         borderRadius: "999px",
         color: "#fff",
@@ -562,31 +690,22 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 1000,
         letterSpacing: "0.13em",
         textTransform: "uppercase",
-        boxShadow: `
-        0 8px 24px rgba(79,124,255,0.35),
-        inset 0 1px rgba(255,255,255,0.18)
-    `,
-        border: "1px solid rgba(255,255,255,0.12)",
         backdropFilter: "blur(12px)",
         marginBottom: 10,
     },
 
     title: {
-        color: "#fff",
         fontSize: "2.8rem",
         fontWeight: 900,
         textAlign: "center",
         lineHeight: 1,
         letterSpacing: "-0.04em",
-        textShadow: "0 10px 40px rgba(79,124,255,0.35)",
         margin: 10,
     },
 
     timerContainer: {
-        background: "rgba(255, 209, 102, 0.1)",
         padding: "8px 20px",
         borderRadius: "100px",
-        border: "1px solid rgba(255, 209, 102, 0.2)",
         display: "flex",
         alignItems: "center",
         gap: 10,
@@ -595,13 +714,11 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     timerLabel: {
-        color: "#94a3b8",
         fontSize: 13,
         textTransform: "uppercase",
     },
 
     timerValue: {
-        color: "#ffd166",
         fontWeight: 800,
         fontSize: 15,
         fontFamily: "monospace",
@@ -620,7 +737,6 @@ const styles: Record<string, React.CSSProperties> = {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        color: "#64748b",
     },
 
     chatButton: {
@@ -629,45 +745,28 @@ const styles: Record<string, React.CSSProperties> = {
         width: 68,
         height: 68,
         borderRadius: "24px",
-        background:
-            "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
-        color: "#fff",
-        border: "1px solid rgba(255,255,255,0.12)",
         cursor: "pointer",
         zIndex: 1100,
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        boxShadow: `
-            0 10px 30px rgba(79,124,255,0.35),
-            inset 0 1px rgba(255,255,255,0.15)
-        `,
         transition: "all 0.25s ease",
     },
 
     chatPanel: {
         backdropFilter: "blur(24px)",
         WebkitBackdropFilter: "blur(24px)",
-        background: "rgba(15, 23, 42, 0.72)",
         display: "flex",
         flexDirection: "column",
-        transition:
-            "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
+        transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
         overflow: "hidden",
-        borderLeft: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: `
-            -10px 0 40px rgba(0,0,0,0.35),
-            inset 1px 0 rgba(255,255,255,0.05)
-        `,
     },
 
     chatHeader: {
         padding: "0 24px",
-        borderBottom: "1px solid rgba(255,255,255,0.08)",
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        background: "rgba(30, 41, 59, 0.45)",
         backdropFilter: "blur(20px)",
         WebkitBackdropFilter: "blur(20px)",
         flexShrink: 0,
@@ -677,13 +776,9 @@ const styles: Record<string, React.CSSProperties> = {
     chatTitle: {
         fontWeight: 800,
         fontSize: "1.1rem",
-        color: "#fff",
     },
 
     closeChatHeader: {
-        background: "rgba(255,255,255,0.08)",
-        border: "none",
-        color: "#fff",
         width: "38px",
         height: "38px",
         borderRadius: "14px",
@@ -692,6 +787,7 @@ const styles: Record<string, React.CSSProperties> = {
         justifyContent: "center",
         cursor: "pointer",
         backdropFilter: "blur(10px)",
+        border: "none",
     },
 
     chatMessages: {
@@ -700,17 +796,17 @@ const styles: Record<string, React.CSSProperties> = {
         overflowY: "auto",
         display: "flex",
         flexDirection: "column",
-        gap: 12, // Уменьшено расстояние между сообщениями
+        gap: 12,
     },
 
     msgWrap: {
         display: "flex",
-        gap: 8, // Уменьшен зазор между аватаром и бабблом
+        gap: 8,
         alignItems: "flex-end",
     },
 
     avatar: {
-        width: 30, // Уменьшен размер аватара
+        width: 30,
         height: 30,
         borderRadius: "10px",
         display: "flex",
@@ -718,15 +814,13 @@ const styles: Record<string, React.CSSProperties> = {
         justifyContent: "center",
         fontSize: 12,
         fontWeight: 800,
-        color: "#fff",
         flexShrink: 0,
         boxShadow: "0 4px 14px rgba(0,0,0,0.25)",
     },
 
     bubble: {
-        maxWidth: "85%", // Чуть увеличена макс. ширина для текста
-        padding: "10px 14px", // Уменьшены внутренние отступы баббла
-        color: "#fff",
+        maxWidth: "85%",
+        padding: "10px 14px",
         position: "relative",
         backdropFilter: "blur(12px)",
         WebkitBackdropFilter: "blur(12px)",
@@ -736,12 +830,11 @@ const styles: Record<string, React.CSSProperties> = {
     name: {
         fontSize: 11,
         fontWeight: 700,
-        color: "#7aa2ff",
         marginBottom: 2,
     },
 
     messageText: {
-        fontSize: 13, // Чуть уменьшен шрифт сообщения
+        fontSize: 13,
         lineHeight: "1.4",
         wordBreak: "break-word",
     },
@@ -754,21 +847,16 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     chatInput: {
-        padding: "12px 16px", // Уменьшены отступы блока ввода
-        borderTop: "1px solid rgba(255,255,255,0.08)",
-        background: "rgba(30,41,59,0.45)",
+        padding: "12px 16px",
         backdropFilter: "blur(20px)",
         flexShrink: 0,
-        paddingBottom:
-            "calc(12px + env(safe-area-inset-bottom))",
+        paddingBottom: "calc(12px + env(safe-area-inset-bottom))",
     },
 
     inputWrapper: {
         display: "flex",
-        background: "rgba(15,23,42,0.65)",
         borderRadius: "16px",
         padding: "4px",
-        border: "1px solid rgba(255,255,255,0.08)",
         alignItems: "center",
         backdropFilter: "blur(16px)",
     },
@@ -778,7 +866,6 @@ const styles: Record<string, React.CSSProperties> = {
         padding: "10px 14px",
         background: "transparent",
         border: "none",
-        color: "#fff",
         outline: "none",
         fontSize: "16px",
     },
@@ -788,8 +875,6 @@ const styles: Record<string, React.CSSProperties> = {
         height: 38,
         borderRadius: "12px",
         border: "none",
-        background:
-            "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
         color: "#fff",
         cursor: "pointer",
         display: "flex",
@@ -800,15 +885,11 @@ const styles: Record<string, React.CSSProperties> = {
 
     authPrompt: {
         textAlign: "center",
-        color: "#64748b",
         fontSize: 12,
         padding: "10px",
-        background: "rgba(15, 23, 42, 0.5)",
         borderRadius: "12px",
-        border: "1px dashed #334155",
     },
 
-    // Системные сообщения об оценке
     systemMsg: {
         display: "flex",
         justifyContent: "center",
@@ -818,8 +899,6 @@ const styles: Record<string, React.CSSProperties> = {
     systemMsgInner: {
         width: "100%",
         maxWidth: "95%",
-        background: "linear-gradient(135deg, rgba(79, 124, 255, 0.12), rgba(124, 77, 255, 0.08))",
-        border: "1px solid rgba(79, 124, 255, 0.25)",
         borderRadius: 16,
         padding: "12px 14px",
         boxShadow: "0 4px 20px rgba(79, 124, 255, 0.12), inset 0 1px rgba(255,255,255,0.06)",
@@ -832,7 +911,7 @@ const styles: Record<string, React.CSSProperties> = {
         alignItems: "center",
         gap: 6,
         marginBottom: 6,
-        flexWrap: "wrap" as const,
+        flexWrap: "wrap",
     },
 
     systemIcon: {
@@ -841,13 +920,11 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     systemUser: {
-        color: "#7aa2ff",
         fontWeight: 800,
         fontSize: 13,
     },
 
     systemText: {
-        color: "#94a3b8",
         fontSize: 12,
         fontWeight: 500,
     },
@@ -864,14 +941,12 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     systemCountryName: {
-        color: "#e6edf7",
         fontWeight: 700,
         fontSize: 14,
         flex: 1,
     },
 
     systemScore: {
-        color: "#ffd166",
         fontWeight: 900,
         fontSize: 16,
         fontFamily: "monospace",
@@ -906,21 +981,18 @@ const styles: Record<string, React.CSSProperties> = {
     },
 
     systemComment: {
-        color: "#a5b4d4",
         fontSize: 13,
         fontStyle: "italic",
         lineHeight: 1.4,
         marginTop: 6,
         padding: "8px 12px",
-        background: "rgba(255, 255, 255, 0.04)",
         borderRadius: 10,
-        borderLeft: "3px solid rgba(79, 124, 255, 0.4)",
     },
 
     systemGif: {
         width: "100%",
         maxHeight: 140,
-        objectFit: "cover" as const,
+        objectFit: "cover",
         borderRadius: 12,
         marginTop: 8,
         border: "1px solid rgba(255, 255, 255, 0.06)",
@@ -929,7 +1001,7 @@ const styles: Record<string, React.CSSProperties> = {
     systemTime: {
         fontSize: 9,
         color: "#64748b",
-        textAlign: "right" as const,
+        textAlign: "right",
         marginTop: 6,
         opacity: 0.6,
     },

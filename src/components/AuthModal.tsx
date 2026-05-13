@@ -1,13 +1,11 @@
 import { useState } from "react";
-
-import {
-    signin,
-    signup,
-} from "../api/auth";
+import { signin, signup } from "../api/auth";
+import type { Theme } from "../types/contest";
 
 type Props = {
     onClose: () => void;
     onSuccess: (token: string) => void;
+    theme?: Theme;
 };
 
 type ApiError = {
@@ -18,7 +16,6 @@ type ApiError = {
 function parseJwt(token: string) {
     try {
         const base64 = token.split(".")[1];
-
         const json = decodeURIComponent(
             atob(base64)
                 .split("")
@@ -27,7 +24,6 @@ function parseJwt(token: string) {
                 })
                 .join("")
         );
-
         return JSON.parse(json);
     } catch {
         return null;
@@ -37,8 +33,8 @@ function parseJwt(token: string) {
 export function AuthModal({
     onClose,
     onSuccess,
+    theme = "dark-blue",
 }: Props) {
-
     const [mode, setMode] = useState<"signin" | "signup">("signin");
     const [username, setUsername] = useState("");
     const [password, setPassword] = useState("");
@@ -54,11 +50,9 @@ export function AuthModal({
 
         try {
             const res = await signin(username, password);
-
             const token = res.token;
 
             localStorage.setItem("token", token);
-
             const payload = parseJwt(token);
 
             if (payload?.username) {
@@ -69,7 +63,6 @@ export function AuthModal({
             }
 
             onSuccess(token);
-
         } catch (err) {
             const e = err as ApiError;
 
@@ -90,11 +83,9 @@ export function AuthModal({
 
         try {
             const res = await signup(username, password);
-
             const token = res.token;
 
             localStorage.setItem("token", token);
-
             const payload = parseJwt(token);
 
             if (payload?.username) {
@@ -102,7 +93,6 @@ export function AuthModal({
             }
 
             onSuccess(token);
-
         } catch (err) {
             const e = err as ApiError;
             setError(e.message || "ошибка регистрации");
@@ -119,38 +109,108 @@ export function AuthModal({
         }
     }
 
+    const isLight = theme === "light";
+    const isGray = theme === "dark-gray";
+
+    const modalBg = isLight 
+        ? "rgba(255, 255, 255, 0.95)" 
+        : isGray 
+        ? "rgba(28, 28, 28, 0.95)" 
+        : "rgba(15, 23, 42, 0.95)";
+
+    const modalBorder = isLight 
+        ? "1px solid rgba(0, 0, 0, 0.1)" 
+        : isGray 
+        ? "1px solid rgba(255, 255, 255, 0.1)" 
+        : "1px solid rgba(255, 255, 255, 0.08)";
+
+    const titleColor = isLight ? "#0f172a" : "#fff";
+    const subtitleColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#64748b";
+
+    const btnBg = isLight ? "rgba(0, 0, 0, 0.05)" : "rgba(255, 255, 255, 0.06)";
+    const btnBgHover = isLight ? "rgba(0, 0, 0, 0.12)" : "rgba(255, 255, 255, 0.12)";
+
+    const primaryGradient = isLight 
+        ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" 
+        : isGray 
+        ? "linear-gradient(135deg, #4b5563 0%, #374151 100%)" 
+        : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)";
+
+    const primaryShadow = isLight 
+        ? "0 8px 24px rgba(31, 41, 55, 0.25)" 
+        : isGray 
+        ? "0 8px 24px rgba(0, 0, 0, 0.4)" 
+        : "0 8px 24px rgba(79, 124, 255, 0.35), inset 0 1px rgba(255,255,255,0.15)";
+
+    const primaryShadowHover = isLight 
+        ? "0 12px 35px rgba(31, 41, 55, 0.35)" 
+        : isGray 
+        ? "0 12px 35px rgba(0, 0, 0, 0.6)" 
+        : "0 12px 35px rgba(79, 124, 255, 0.5), inset 0 1px rgba(255,255,255,0.2)";
+
+    const tabsWrapperBg = isLight ? "rgba(0, 0, 0, 0.04)" : isGray ? "rgba(0, 0, 0, 0.2)" : "rgba(15, 23, 42, 0.6)";
+    const inputBg = isLight ? "rgba(0, 0, 0, 0.03)" : isGray ? "rgba(0, 0, 0, 0.2)" : "rgba(15, 23, 42, 0.6)";
+    const inputTextColor = isLight ? "#0f172a" : isGray ? "#f3f4f6" : "#e6edf7";
+    const inputBorderColor = isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.08)";
+    const inputFocusBorder = isLight ? "rgba(55, 65, 81, 0.5)" : isGray ? "rgba(156, 163, 175, 0.5)" : "rgba(79, 124, 255, 0.5)";
+    const inputFocusShadow = isLight ? "0 0 20px rgba(55, 65, 81, 0.1)" : isGray ? "0 0 20px rgba(255, 255, 255, 0.05)" : "0 0 20px rgba(79, 124, 255, 0.1)";
+
+    const promptBg = isLight 
+        ? "linear-gradient(135deg, rgba(55, 65, 81, 0.08), rgba(75, 85, 99, 0.05))" 
+        : isGray 
+        ? "linear-gradient(135deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03))" 
+        : "linear-gradient(135deg, rgba(79, 124, 255, 0.08), rgba(124, 77, 255, 0.06))";
+
+    const promptBorder = isLight ? "1px solid rgba(55, 65, 81, 0.2)" : isGray ? "1px solid rgba(255, 255, 255, 0.15)" : "1px solid rgba(79, 124, 255, 0.2)";
+    const promptHighlightColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
+
     return (
         <div style={styles.overlay} onClick={onClose}>
             <div
-                style={styles.modal}
+                style={{
+                    ...styles.modal,
+                    background: modalBg,
+                    border: modalBorder,
+                    boxShadow: isLight ? "0 30px 80px rgba(0,0,0,0.15)" : styles.modal.boxShadow,
+                }}
                 onClick={(e) => e.stopPropagation()}
             >
                 {/* Кнопка закрытия */}
                 <button
-                    style={styles.closeBtn}
+                    style={{
+                        ...styles.closeBtn,
+                        background: btnBg,
+                    }}
                     onClick={onClose}
                     onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background =
-                            "rgba(255, 255, 255, 0.12)";
+                        e.currentTarget.style.background = btnBgHover;
                     }}
                     onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background =
-                            "rgba(255, 255, 255, 0.06)";
+                        e.currentTarget.style.background = btnBg;
                     }}
                 >
                     ✕
                 </button>
 
                 {/* Иконка */}
-                <div style={styles.iconWrap}>
+                <div style={{
+                    ...styles.iconWrap,
+                    background: isLight 
+                        ? "linear-gradient(135deg, rgba(55, 65, 81, 0.15), rgba(75, 85, 99, 0.15))" 
+                        : isGray 
+                        ? "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))" 
+                        : styles.iconWrap.background,
+                    borderColor: isLight ? "rgba(55, 65, 81, 0.2)" : isGray ? "rgba(255, 255, 255, 0.1)" : "rgba(79, 124, 255, 0.2)",
+                    boxShadow: isLight ? "0 8px 24px rgba(55, 65, 81, 0.1)" : isGray ? "0 8px 24px rgba(0,0,0,0.3)" : styles.iconWrap.boxShadow,
+                }}>
                     <span style={styles.icon}>🎤</span>
                 </div>
 
                 {/* Заголовок */}
-                <h2 style={styles.title}>
+                <h2 style={{ ...styles.title, color: titleColor }}>
                     {mode === "signin" ? "Вход в систему" : "Регистрация"}
                 </h2>
-                <p style={styles.subtitle}>
+                <p style={{ ...styles.subtitle, color: subtitleColor }}>
                     {mode === "signin"
                         ? "Войдите, чтобы оценивать выступления и участвовать в чате"
                         : "Создайте аккаунт, чтобы оценивать выступления и участвовать в чате"
@@ -158,11 +218,13 @@ export function AuthModal({
                 </p>
 
                 {/* Табы */}
-                <div style={styles.tabs}>
+                <div style={{ ...styles.tabs, background: tabsWrapperBg, borderColor: inputBorderColor }}>
                     <button
                         style={{
                             ...styles.tab,
-                            ...(mode === "signin" ? styles.tabActive : {}),
+                            color: mode === "signin" ? "#fff" : subtitleColor,
+                            background: mode === "signin" ? primaryGradient : "transparent",
+                            boxShadow: mode === "signin" ? "0 4px 16px rgba(0,0,0,0.2)" : "none",
                         }}
                         onClick={() => {
                             setMode("signin");
@@ -175,7 +237,9 @@ export function AuthModal({
                     <button
                         style={{
                             ...styles.tab,
-                            ...(mode === "signup" ? styles.tabActive : {}),
+                            color: mode === "signup" ? "#fff" : subtitleColor,
+                            background: mode === "signup" ? primaryGradient : "transparent",
+                            boxShadow: mode === "signup" ? "0 4px 16px rgba(0,0,0,0.2)" : "none",
                         }}
                         onClick={() => {
                             setMode("signup");
@@ -193,18 +257,19 @@ export function AuthModal({
                         placeholder="Имя пользователя"
                         value={username}
                         onChange={(e) => setUsername(e.target.value)}
-                        style={styles.input}
+                        style={{
+                            ...styles.input,
+                            background: inputBg,
+                            borderColor: inputBorderColor,
+                            color: inputTextColor,
+                        }}
                         onFocus={(e) => {
-                            (e.currentTarget as HTMLInputElement).style.borderColor =
-                                "rgba(79, 124, 255, 0.5)";
-                            (e.currentTarget as HTMLInputElement).style.boxShadow =
-                                "0 0 20px rgba(79, 124, 255, 0.1)";
+                            e.currentTarget.style.borderColor = inputFocusBorder;
+                            e.currentTarget.style.boxShadow = inputFocusShadow;
                         }}
                         onBlur={(e) => {
-                            (e.currentTarget as HTMLInputElement).style.borderColor =
-                                "rgba(255, 255, 255, 0.08)";
-                            (e.currentTarget as HTMLInputElement).style.boxShadow =
-                                "none";
+                            e.currentTarget.style.borderColor = inputBorderColor;
+                            e.currentTarget.style.boxShadow = "none";
                         }}
                     />
 
@@ -214,18 +279,19 @@ export function AuthModal({
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         onKeyDown={(e) => e.key === "Enter" && handleAuth()}
-                        style={styles.input}
+                        style={{
+                            ...styles.input,
+                            background: inputBg,
+                            borderColor: inputBorderColor,
+                            color: inputTextColor,
+                        }}
                         onFocus={(e) => {
-                            (e.currentTarget as HTMLInputElement).style.borderColor =
-                                "rgba(79, 124, 255, 0.5)";
-                            (e.currentTarget as HTMLInputElement).style.boxShadow =
-                                "0 0 20px rgba(79, 124, 255, 0.1)";
+                            e.currentTarget.style.borderColor = inputFocusBorder;
+                            e.currentTarget.style.boxShadow = inputFocusShadow;
                         }}
                         onBlur={(e) => {
-                            (e.currentTarget as HTMLInputElement).style.borderColor =
-                                "rgba(255, 255, 255, 0.08)";
-                            (e.currentTarget as HTMLInputElement).style.boxShadow =
-                                "none";
+                            e.currentTarget.style.borderColor = inputBorderColor;
+                            e.currentTarget.style.boxShadow = "none";
                         }}
                     />
                 </div>
@@ -240,15 +306,19 @@ export function AuthModal({
 
                 {/* Предложение зарегистрироваться */}
                 {showRegisterPrompt && (
-                    <div style={styles.registerPrompt}>
+                    <div style={{
+                        ...styles.registerPrompt,
+                        background: promptBg,
+                        border: promptBorder,
+                    }}>
                         <span style={styles.promptIcon}>✨</span>
                         <div style={styles.promptContent}>
-                            <div style={styles.promptTitle}>
+                            <div style={{ ...styles.promptTitle, color: promptHighlightColor }}>
                                 Пользователь не найден
                             </div>
-                            <div style={styles.promptText}>
+                            <div style={{ ...styles.promptText, color: subtitleColor }}>
                                 Такого аккаунта ещё нет. Перейдите на вкладку
-                                <span style={styles.promptHighlight}> Регистрация</span>,
+                                <span style={{ ...styles.promptHighlight, color: promptHighlightColor }}> Регистрация</span>,
                                 чтобы создать его — это быстро!
                             </div>
                         </div>
@@ -261,21 +331,19 @@ export function AuthModal({
                     disabled={loading}
                     style={{
                         ...styles.button,
+                        background: primaryGradient,
+                        boxShadow: primaryShadow,
                         opacity: loading ? 0.6 : 1,
                     }}
                     onMouseEnter={(e) => {
                         if (!loading) {
-                            (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                                "0 12px 35px rgba(79, 124, 255, 0.5), inset 0 1px rgba(255,255,255,0.2)";
-                            (e.currentTarget as HTMLButtonElement).style.transform =
-                                "translateY(-2px)";
+                            e.currentTarget.style.boxShadow = primaryShadowHover;
+                            e.currentTarget.style.transform = "translateY(-2px)";
                         }
                     }}
                     onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.boxShadow =
-                            "0 8px 24px rgba(79, 124, 255, 0.35), inset 0 1px rgba(255,255,255,0.15)";
-                        (e.currentTarget as HTMLButtonElement).style.transform =
-                            "translateY(0)";
+                        e.currentTarget.style.boxShadow = primaryShadow;
+                        e.currentTarget.style.transform = "translateY(0)";
                     }}
                 >
                     {loading
@@ -288,18 +356,17 @@ export function AuthModal({
 
                 <button
                     onClick={onClose}
-                    style={styles.secondary}
+                    style={{
+                        ...styles.secondary,
+                        background: btnBg,
+                        borderColor: inputBorderColor,
+                        color: subtitleColor,
+                    }}
                     onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background =
-                            "rgba(255, 255, 255, 0.08)";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor =
-                            "rgba(255, 255, 255, 0.12)";
+                        e.currentTarget.style.background = btnBgHover;
                     }}
                     onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLButtonElement).style.background =
-                            "rgba(255, 255, 255, 0.03)";
-                        (e.currentTarget as HTMLButtonElement).style.borderColor =
-                            "rgba(255, 255, 255, 0.06)";
+                        e.currentTarget.style.background = btnBg;
                     }}
                 >
                     Закрыть
@@ -420,12 +487,6 @@ const styles: Record<string, React.CSSProperties> = {
         fontSize: 14,
         fontWeight: 700,
         transition: "all 0.25s ease",
-    },
-
-    tabActive: {
-        background: "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
-        color: "#fff",
-        boxShadow: "0 4px 16px rgba(79, 124, 255, 0.3)",
     },
 
     form: {
