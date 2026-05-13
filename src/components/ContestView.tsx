@@ -693,7 +693,7 @@ const styles: Record<string, React.CSSProperties> = {
         border: "none",
         color: "#fff",
         outline: "none",
-        fontSize: "15px",
+        fontSize: "16px",
     },
 
     sendBtn: {
