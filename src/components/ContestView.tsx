@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContestView as ContestViewType } from "../types/contest";
 import { PerformanceCard } from "./PerformanceCard";
+import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
     contest: ContestViewType | null;
@@ -12,6 +13,12 @@ type ChatMessage = {
     username: string;
     message: string;
     createdAt: string;
+    type?: string;
+    gif?: string;
+    country?: string;
+    country_flag?: string;
+    score?: number;
+    comment?: string;
 };
 
 const API_URL = import.meta.env.VITE_API_URL;
@@ -165,6 +172,8 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
             console.error(err);
         }
     }
+
+    const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
     const ended =
     !!contest &&
@@ -326,6 +335,66 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
 
                         <div style={styles.chatMessages}>
                             {messages.map((m, i) => {
+                                // Системное сообщение об оценке
+                                if (m.type === "system") {
+                                    return (
+                                        <div key={i} style={styles.systemMsg}>
+                                            <div style={styles.systemMsgInner}>
+                                                <div style={styles.systemHeader}>
+                                                    <span style={styles.systemIcon}>⭐</span>
+                                                    <span style={styles.systemUser}>
+                                                        {m.username}
+                                                    </span>
+                                                    <span style={styles.systemText}>
+                                                        оценил(а)
+                                                    </span>
+                                                </div>
+
+                                                <div style={styles.systemCountry}>
+                                                    {supportsEmoji && m.country_flag && (
+                                                        <span style={styles.systemFlag}>
+                                                            {m.country_flag}
+                                                        </span>
+                                                    )}
+                                                    <span style={styles.systemCountryName}>
+                                                        {m.country}
+                                                    </span>
+                                                    <span style={styles.systemScore}>
+                                                        {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
+                                                    </span>
+                                                </div>
+
+                                                {m.comment && (
+                                                    <div style={styles.systemComment}>
+                                                        «{m.comment}»
+                                                    </div>
+                                                )}
+
+                                                {m.gif && (
+                                                    <img
+                                                        src={m.gif}
+                                                        alt="reaction"
+                                                        style={styles.systemGif}
+                                                    />
+                                                )}
+
+                                                <div style={styles.systemTime}>
+                                                    {new Date(
+                                                        m.createdAt
+                                                    ).toLocaleTimeString(
+                                                        [],
+                                                        {
+                                                            hour: "2-digit",
+                                                            minute: "2-digit",
+                                                        }
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    );
+                                }
+
+                                // Обычное сообщение
                                 const isMe =
                                     m.username === myUsername;
 
@@ -727,5 +796,107 @@ const styles: Record<string, React.CSSProperties> = {
         background: "rgba(15, 23, 42, 0.5)",
         borderRadius: "12px",
         border: "1px dashed #334155",
+    },
+
+    // Системные сообщения об оценке
+    systemMsg: {
+        display: "flex",
+        justifyContent: "center",
+        padding: "4px 0",
+    },
+
+    systemMsgInner: {
+        width: "100%",
+        maxWidth: "95%",
+        background: "linear-gradient(135deg, rgba(79, 124, 255, 0.12), rgba(124, 77, 255, 0.08))",
+        border: "1px solid rgba(79, 124, 255, 0.25)",
+        borderRadius: 16,
+        padding: "12px 14px",
+        boxShadow: "0 4px 20px rgba(79, 124, 255, 0.12), inset 0 1px rgba(255,255,255,0.06)",
+        backdropFilter: "blur(16px)",
+        WebkitBackdropFilter: "blur(16px)",
+    },
+
+    systemHeader: {
+        display: "flex",
+        alignItems: "center",
+        gap: 6,
+        marginBottom: 6,
+        flexWrap: "wrap" as const,
+    },
+
+    systemIcon: {
+        fontSize: 16,
+        filter: "drop-shadow(0 2px 6px rgba(255, 215, 0, 0.5))",
+    },
+
+    systemUser: {
+        color: "#7aa2ff",
+        fontWeight: 800,
+        fontSize: 13,
+    },
+
+    systemText: {
+        color: "#94a3b8",
+        fontSize: 12,
+        fontWeight: 500,
+    },
+
+    systemCountry: {
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        marginBottom: 4,
+    },
+
+    systemFlag: {
+        fontSize: 20,
+    },
+
+    systemCountryName: {
+        color: "#e6edf7",
+        fontWeight: 700,
+        fontSize: 14,
+        flex: 1,
+    },
+
+    systemScore: {
+        color: "#ffd166",
+        fontWeight: 900,
+        fontSize: 16,
+        fontFamily: "monospace",
+        background: "rgba(255, 209, 102, 0.12)",
+        padding: "3px 10px",
+        borderRadius: 8,
+        border: "1px solid rgba(255, 209, 102, 0.2)",
+    },
+
+    systemComment: {
+        color: "#a5b4d4",
+        fontSize: 13,
+        fontStyle: "italic",
+        lineHeight: 1.4,
+        marginTop: 6,
+        padding: "8px 12px",
+        background: "rgba(255, 255, 255, 0.04)",
+        borderRadius: 10,
+        borderLeft: "3px solid rgba(79, 124, 255, 0.4)",
+    },
+
+    systemGif: {
+        width: "100%",
+        maxHeight: 140,
+        objectFit: "cover" as const,
+        borderRadius: 12,
+        marginTop: 8,
+        border: "1px solid rgba(255, 255, 255, 0.06)",
+    },
+
+    systemTime: {
+        fontSize: 9,
+        color: "#64748b",
+        textAlign: "right" as const,
+        marginTop: 6,
+        opacity: 0.6,
     },
 };
