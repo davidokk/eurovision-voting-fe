@@ -167,7 +167,14 @@ export function PerformanceCard({
             <span style={styles.number}>#{performance.number}</span>
             <div style={styles.countryNameRow}>
                 {supportsEmoji && <span style={styles.flag}>{performance.country.flag_emoji}</span>}
-                <span style={styles.countryName}>{performance.country.name_ru}</span>
+                <a
+                    href={`/country/${performance.country.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={styles.countryNameLink}
+                >
+                    {performance.country.name_ru}
+                </a>
             </div>
           </div>
         </div>
@@ -236,12 +243,18 @@ export function PerformanceCard({
                   </div>
                   
                   <div style={styles.feedContent}>
-                    <div style={{
-                      ...styles.feedUser,
-                      ...(isMe ? styles.feedUserMe : {}),
-                    }}>
+                    <a
+                      href={`/user/${s.user_id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{
+                        ...styles.feedUser,
+                        ...(isMe ? styles.feedUserMe : {}),
+                        ...styles.feedUserLink,
+                      }}
+                    >
                       {s.username}{isMe ? " (вы)" : ""}
-                    </div>
+                    </a>
                     {s.comment && <div style={styles.feedComment}>«{s.comment}»</div>}
                   </div>
 
@@ -402,6 +415,15 @@ const styles: Record<string, React.CSSProperties> = {
     color: "#fff",
     letterSpacing: "-0.3px",
   },
+  countryNameLink: {
+    fontSize: "18px",
+    fontWeight: 900,
+    color: "#fff",
+    letterSpacing: "-0.3px",
+    textDecoration: "none",
+    cursor: "pointer",
+    transition: "color 0.2s ease",
+  },
   rateBtn: {
     background: "#fff",
     color: "#0f172a",
@@ -546,6 +568,12 @@ const styles: Record<string, React.CSSProperties> = {
   feedUserMe: {
     color: "#7aa2ff",
     fontWeight: 900,
+  },
+
+  feedUserLink: {
+    textDecoration: "none",
+    cursor: "pointer",
+    display: "inline-block",
   },
 
   feedComment: { 
