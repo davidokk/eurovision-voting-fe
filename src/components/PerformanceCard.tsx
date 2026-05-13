@@ -47,6 +47,7 @@ export function PerformanceCard({
   const [gifs, setGifs] = useState<GifItem[]>([]);
   const [selectedGif, setSelectedGif] = useState<string | null>(null);
   const [loadingGifs, setLoadingGifs] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   const API_URL = (import.meta as any).env?.VITE_API_URL || "";
   const GIPHY_KEY = (import.meta as any).env?.VITE_GIPHY_KEY || "";
@@ -115,8 +116,8 @@ export function PerformanceCard({
       return;
     }
     setError(null);
+    setSubmitting(true);
     const currentScore = score;
-    setScore(null);
     try {
       if (API_URL) {
         const res = await fetch(
@@ -149,6 +150,8 @@ export function PerformanceCard({
       window.location.reload();
     } catch (err) {
       setError((err as Error).message);
+    } finally {
+      setSubmitting(false);
     }
   }
 
@@ -219,8 +222,6 @@ export function PerformanceCard({
   const btnSecBg = "transparent";
   const btnSecColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#94a3b8";
   const btnSecBorder = isLight ? "2px solid #cbd5e1" : isGray ? "2px solid #374151" : "2px solid #334155";
-
-  const btnPrimBg = isLight ? "#4b5563" : isGray ? "#4b5563" : "#4f7cff";
 
   return (
     <div style={{ ...styles.card, background: cardBg, border: cardBorder, color: cardTextColor }}>
@@ -355,15 +356,77 @@ export function PerformanceCard({
         )}
       </div>
 
-      {/* MODAL */}
+      {/* RATING MODAL */}
       {open && (
         <div style={{ ...styles.modal, background: modalOverlayBg }}>
-          <div style={{ ...styles.modalPaper, background: modalPaperBg, border: modalPaperBorder }}>
-            <h2 style={{ ...styles.modalHeading, color: modalHeadingColor }}>Выстави свой балл</h2>
-            {error && <div style={styles.errorBanner}>{error}</div>}
+          <div style={{
+            ...styles.modalPaper,
+            background: modalPaperBg,
+            border: modalPaperBorder,
+            padding: "24px 28px 20px",
+            boxShadow: "0 30px 80px rgba(0,0,0,0.5), inset 0 1px rgba(255, 255, 255, 0.06)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            position: "relative",
+            boxSizing: "border-box",
+            maxHeight: "85vh",
+          }}>
+            <button
+              onClick={() => setOpen(false)}
+              style={{
+                position: "absolute",
+                top: 14,
+                right: 14,
+                width: 32,
+                height: 32,
+                borderRadius: 12,
+                border: "none",
+                background: isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.06)",
+                color: isLight ? "#64748b" : "#94a3b8",
+                cursor: "pointer",
+                fontSize: 15,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ✕
+            </button>
+
+            {/* Иконка в стиле AuthModal */}
             <div style={{
-                ...styles.ratingGrid,
-                outline: showErrorAnimation ? "3px solid #ff6b6b" : "none"
+              width: 48,
+              height: 48,
+              borderRadius: 16,
+              background: isLight ? "linear-gradient(135deg, rgba(55, 65, 81, 0.15), rgba(75, 85, 99, 0.15))" : isGray ? "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))" : "linear-gradient(135deg, rgba(79, 124, 255, 0.2), rgba(124, 77, 255, 0.2))",
+              border: isLight ? "1px solid rgba(55, 65, 81, 0.2)" : isGray ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(79, 124, 255, 0.2)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              marginBottom: 12,
+              boxShadow: isLight ? "0 4px 16px rgba(55, 65, 81, 0.1)" : "0 4px 16px rgba(79, 124, 255, 0.15)",
+              fontSize: 22,
+            }}>
+              ⭐
+            </div>
+
+            <h2 style={{ margin: "0 0 4px 0", fontSize: 20, fontWeight: 900, color: modalHeadingColor, textAlign: "center", letterSpacing: "-0.02em" }}>
+              Оценка выступления
+            </h2>
+            <p style={{ margin: "0 0 16px 0", color: isLight ? "#64748b" : "#94a3b8", fontSize: 13, textAlign: "center", lineHeight: 1.4, maxWidth: 360 }}>
+              Оцените выступление по 10-балльной шкале и поделитесь впечатлениями
+            </p>
+
+            {error && <div style={styles.errorBanner}>{error}</div>}
+            
+            <div style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(10, 1fr)",
+                gap: 4,
+                marginBottom: 16,
+                outline: showErrorAnimation ? "3px solid #ff6b6b" : "none",
+                width: "100%",
             }}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
                 <button
@@ -373,11 +436,19 @@ export function PerformanceCard({
                     setShowErrorAnimation(false);
                   }}
                   style={{
-                    ...styles.ratingButton,
+                    aspectRatio: "1/1",
+                    borderRadius: 10,
+                    border: "none",
                     background: score === n ? getScoreColor(n) : ratingBtnInactiveBg,
                     color: score === n ? "#fff" : ratingBtnInactiveText,
-                    transform: score === n ? "scale(1.1)" : "scale(1)",
+                    fontSize: 15,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    transform: score === n ? "scale(1.12)" : "scale(1)",
                     borderColor: score === n ? (isLight ? "#0f172a" : "#fff") : ratingBtnInactiveBorder,
+                    transition: "all 0.2s ease",
+                    padding: 0,
+                    boxShadow: score === n ? `0 4px 12px ${getScoreColor(n)}` : "none",
                   }}
                 >
                   {n}
@@ -388,21 +459,21 @@ export function PerformanceCard({
               placeholder="Твой комментарий (необязательно)..."
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              style={{ ...styles.modalTextarea, background: textareaBg, border: textareaBorder, color: textareaColor }}
+              style={{ ...styles.modalTextarea, background: textareaBg, border: textareaBorder, color: textareaColor, minHeight: 60, marginBottom: 12, padding: 12, fontSize: 14 }}
             />
             {ENABLE_GIFS && (
-              <div style={{ ...styles.gifPicker, background: gifPickerBg }}>
-                <div style={styles.gifSearchBox}>
+              <div style={{ ...styles.gifPicker, background: gifPickerBg, width: "100%", padding: 10, marginBottom: 16 }}>
+                <div style={{ ...styles.gifSearchBox, marginBottom: 8 }}>
                   <input
                     placeholder="Найди гифку для реакции..."
                     value={gifSearch}
                     onChange={(e) => setGifSearch(e.target.value)}
-                    style={{ ...styles.gifSearchInput, color: gifSearchColor, borderBottom: gifSearchBorder }}
+                    style={{ ...styles.gifSearchInput, color: gifSearchColor, borderBottom: gifSearchBorder, padding: 6, fontSize: 14 }}
                   />
-                  <button onClick={() => searchGifs(gifSearch)} style={styles.gifSearchBtn}>🔍</button>
+                  <button onClick={() => searchGifs(gifSearch)} style={{ ...styles.gifSearchBtn, fontSize: 16 }}>🔍</button>
                 </div>
-                <div style={styles.gifScroll}>
-                  {loadingGifs && <div style={{textAlign: 'center', padding: 10, color: gifSearchColor}}>Ищем...</div>}
+                <div style={{ ...styles.gifScroll, paddingBottom: 4 }}>
+                  {loadingGifs && <div style={{textAlign: 'center', padding: 8, color: gifSearchColor, width: "100%", fontSize: 13}}>Ищем...</div>}
                   {gifs.map((gif) => (
                     <img
                       key={gif.id}
@@ -410,6 +481,7 @@ export function PerformanceCard({
                       onClick={() => setSelectedGif(gif.url)}
                       style={{
                         ...styles.gifThumb,
+                        height: 48,
                         border: selectedGif === gif.url ? `3px solid ${isLight ? "#374151" : "#4f7cff"}` : "none"
                       }}
                     />
@@ -417,10 +489,50 @@ export function PerformanceCard({
                 </div>
               </div>
             )}
-            <div style={styles.modalFooter}>
-              <button onClick={() => setOpen(false)} style={{ ...styles.btnSecondary, background: btnSecBg, color: btnSecColor, border: btnSecBorder }}>ЗАКРЫТЬ</button>
-              <button onClick={submit} style={{ ...styles.btnPrimary, background: btnPrimBg }}>ПОДТВЕРДИТЬ</button>
+            <div style={{ ...styles.modalFooter, width: "100%" }}>
+              <button onClick={() => setOpen(false)} style={{ ...styles.btnSecondary, background: btnSecBg, color: btnSecColor, border: btnSecBorder, padding: "10px 0" }}>Закрыть</button>
+              <button
+                onClick={submit}
+                style={{
+                  ...styles.btnPrimary,
+                  padding: "10px 0",
+                  background: isLight ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" : isGray ? "linear-gradient(135deg, #4b5563 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
+                  boxShadow: isLight ? "0 8px 24px rgba(31, 41, 55, 0.25)" : isGray ? "0 8px 24px rgba(0, 0, 0, 0.4)" : "0 8px 24px rgba(79, 124, 255, 0.35)",
+                }}
+              >
+                Подтвердить
+              </button>
             </div>
+
+            {/* Вращающийся кружочек загрузки (spinner) поверх окна */}
+            {(submitting || showErrorAnimation) && (
+              <div style={{
+                position: "absolute",
+                inset: 0,
+                background: "rgba(0,0,0,0.6)",
+                backdropFilter: "blur(4px)",
+                borderRadius: 24,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                zIndex: 10,
+              }}>
+                <div style={{
+                  width: 44,
+                  height: 44,
+                  border: "4px solid rgba(255,255,255,0.2)",
+                  borderTopColor: isLight ? "#1f2937" : "#4f7cff",
+                  borderRadius: "50%",
+                  animation: "spin 0.8s linear infinite",
+                }} />
+                <style>{`
+                  @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                  }
+                `}</style>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -634,7 +746,7 @@ const styles: Record<string, React.CSSProperties> = {
   ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "20px" },
   ratingButton: { aspectRatio: "1/1", borderRadius: "12px", border: "2px solid transparent", fontSize: "18px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
   modalTextarea: { width: "100%", borderRadius: "16px", padding: "16px", minHeight: "80px", marginBottom: "16px", boxSizing: "border-box", fontSize: "16px", outline: "none" },
-  gifPicker: { borderRadius: "16px", padding: "12px", marginBottom: "20px" },
+  gifPicker: { borderRadius: "16px", padding: "12px", marginBottom: "20px", boxSizing: "border-box" },
   gifSearchBox: { display: "flex", gap: "8px", marginBottom: "12px" },
   gifSearchInput: { flex: 1, background: "transparent", border: "none", padding: "8px", outline: "none", fontSize: "16px" },
   gifSearchBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "18px" },
