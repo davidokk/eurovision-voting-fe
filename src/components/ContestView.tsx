@@ -64,6 +64,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const myUsername = localStorage.getItem("username");
+    const myUserId = localStorage.getItem("user_id"); // Предполагаю, что ID тоже в сторадже
     const token = localStorage.getItem("token");
 
     const isAuthenticated = !!token;
@@ -189,6 +190,24 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
         return null;
     }, [contest, now]);
 
+    const sortedPerformances = useMemo(() => {
+        if (!contest) return [];
+        
+        const items = [...contest.performances];
+        
+        // Ищем первое выступление, где в массиве scores нет объекта с твоим ID или username
+        const firstUnvotedIndex = items.findIndex(p => 
+            !p.scores.some(s => s.user_id === myUserId || s.username === myUsername)
+        );
+        
+        if (firstUnvotedIndex > 0) {
+            const [nextToVote] = items.splice(firstUnvotedIndex, 1);
+            items.unshift(nextToVote);
+        }
+        
+        return items;
+    }, [contest, myUsername, myUserId]);
+
     if (!contest) {
         return (
             <div style={styles.empty}>
@@ -226,7 +245,7 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
                 </header>
 
                 <div style={styles.grid}>
-                    {contest.performances.map((p) => (
+                    {sortedPerformances.map((p) => (
                         <PerformanceCard
                             key={p.performance_id}
                             performance={p}
@@ -417,7 +436,7 @@ const styles: Record<string, React.CSSProperties> = {
     layout: {
         display: "flex",
         width: "100%",
-        height: "calc(100vh - 96px)",
+        height: "calc(100vh - 72px)",
         overflow: "hidden",
         position: "relative",
         background: `
