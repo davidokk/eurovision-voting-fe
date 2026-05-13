@@ -214,6 +214,8 @@ export function AdminPage({ initialContest }: Props) {
     return (
         <div style={styles.app}>
             <Topbar
+                theme={"dark-blue"}
+                onSelectTheme={function(){}}
                 contests={contests}
                 onSelectContest={handleSelectContest}
             />
