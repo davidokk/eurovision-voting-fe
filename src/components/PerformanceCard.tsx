@@ -118,6 +118,7 @@ export function PerformanceCard({
     setError(null);
     setSubmitting(true);
     const currentScore = score;
+    setScore(null);
     try {
       if (API_URL) {
         const res = await fetch(
