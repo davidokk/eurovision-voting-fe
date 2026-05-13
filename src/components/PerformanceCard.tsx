@@ -426,7 +426,6 @@ export function PerformanceCard({
                 gridTemplateColumns: "repeat(10, 1fr)",
                 gap: 4,
                 marginBottom: 16,
-                outline: showErrorAnimation ? "3px solid #ff6b6b" : "none",
                 width: "100%",
             }}>
               {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
@@ -439,17 +438,16 @@ export function PerformanceCard({
                   style={{
                     aspectRatio: "1/1",
                     borderRadius: 10,
-                    border: "none",
                     background: score === n ? getScoreColor(n) : ratingBtnInactiveBg,
                     color: score === n ? "#fff" : ratingBtnInactiveText,
                     fontSize: 15,
                     fontWeight: 800,
                     cursor: "pointer",
                     transform: score === n ? "scale(1.12)" : "scale(1)",
-                    borderColor: score === n ? (isLight ? "#0f172a" : "#fff") : ratingBtnInactiveBorder,
+                    border: score === n ? "2px solid #fff" : showErrorAnimation ? "2px solid #ff6b6b" : `1px solid ${ratingBtnInactiveBorder}`,
                     transition: "all 0.2s ease",
                     padding: 0,
-                    boxShadow: score === n ? `0 4px 12px ${getScoreColor(n)}` : "none",
+                    boxShadow: score === n ? `0 4px 12px ${getScoreColor(n)}` : showErrorAnimation ? "0 0 10px rgba(255, 107, 107, 0.5)" : "none",
                   }}
                 >
                   {n}
@@ -506,7 +504,7 @@ export function PerformanceCard({
             </div>
 
             {/* Вращающийся кружочек загрузки (spinner) поверх окна */}
-            {(submitting) && (
+            {submitting && (
               <div style={{
                 position: "absolute",
                 inset: 0,
