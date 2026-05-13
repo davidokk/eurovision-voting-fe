@@ -89,6 +89,8 @@ export function ContestView({ contest, chatOpen, setChatOpen }: Props) {
 
         async function fetchMessages() {
             try {
+                if (!contest) return;
+                
                 const params = new URLSearchParams({
                     contest_id: contest.contest.id
                 });
