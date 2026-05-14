@@ -7,6 +7,7 @@ type Props = {
   votingStarted: boolean;
   votingEnded: boolean;
   theme?: Theme;
+  contestType?: string;
 };
 
 type GifItem = {
@@ -31,6 +32,7 @@ export function PerformanceCard({
   votingStarted,
   votingEnded,
   theme = "dark-blue",
+  contestType,
 }: Props) {
   const ENABLE_GIFS = true;
   const token = localStorage.getItem("token");
@@ -224,6 +226,15 @@ export function PerformanceCard({
   const btnSecColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#94a3b8";
   const btnSecBorder = isLight ? "2px solid #cbd5e1" : isGray ? "2px solid #374151" : "2px solid #334155";
 
+  const placeWords: Record<number, string> = {
+    1: "Первое место",
+    2: "Второе место",
+    3: "Третье место",
+  };
+
+  const isSemifinal = contestType?.includes("semifinal");
+  const hasPlace = performance.place !== undefined && performance.place !== null;
+
   return (
     <div style={{ ...styles.card, background: cardBg, border: cardBorder, color: cardTextColor }}>
       {/* 1. TOP ROW: Country Stack & Dynamic Score */}
@@ -240,7 +251,41 @@ export function PerformanceCard({
         
         <div style={styles.countryInfo}>
           <div style={styles.countryStack}>
-            <span style={styles.number}>#{performance.number}</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={styles.number}>#{performance.number}</span>
+
+              {hasPlace && (
+                <span style={{
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  ...(performance.place! === 1 ? { background: "#facc15", color: "#000" } :
+                      performance.place! === 2 ? { background: "#94a3b8", color: "#fff" } :
+                      performance.place! === 3 ? { background: "#d97706", color: "#fff" } :
+                      { background: isLight ? "#1f2937" : isGray ? "#374151" : "#4f7cff", color: "#fff" })
+                }}>
+                  {performance.place! <= 3 ? placeWords[performance.place!] : `${performance.place} место`}
+                </span>
+              )}
+
+              {isSemifinal && (
+                <span style={{
+                  padding: "2px 8px",
+                  borderRadius: 6,
+                  fontSize: 11,
+                  fontWeight: 800,
+                  textTransform: "uppercase",
+                  ...(performance.qualified 
+                      ? { background: "rgba(34, 197, 94, 0.15)", color: isLight ? "#166534" : "#4ade80", border: "1px solid rgba(34, 197, 94, 0.3)" } 
+                      : { background: "rgba(239, 68, 68, 0.15)", color: isLight ? "#991b1b" : "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)" })
+                }}>
+                  {performance.qualified ? "В финале" : "Не прошла"}
+                </span>
+              )}
+
+            </div>
             <div style={styles.countryNameRow}>
                 {supportsEmoji && <span style={styles.flag}>{performance.country.flag_emoji}</span>}
                 <a

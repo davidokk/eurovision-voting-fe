@@ -515,6 +515,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                 now > new Date(contest.contest.ends).getTime()
                             }
                             theme={theme}
+                            contestType={contest.contest.type}
                         />
                     ))}
                 </div>
