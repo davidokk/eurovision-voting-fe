@@ -17,7 +17,7 @@ type ScoreFiltered = {
     Place?: number;
 };
 
-type SortType = "time" | "score";
+type SortType = "time" | "score" | "place";
 
 type Country = {
     id: string;
@@ -81,6 +81,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const [contests, setContests] = useState<ContestMap>({});
     const [selectedYear, setSelectedYear] = useState<string>("");
     const [filterType, setFilterType] = useState<string>("");
+    const [qualifiedFilter, setQualifiedFilter] = useState<string>(""); // "" = все, "qualified", "not-qualified"
 
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
     const [sort, setSort] = useState<SortType>("score");
@@ -111,7 +112,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
 
     useEffect(() => {
         load();
-    }, [userId, selectedCountry, selectedYear, sort]);
+    }, [userId, selectedCountry, selectedYear, sort === "time" ? "time" : "score"]);
 
     async function load() {
         setLoading(true);
@@ -125,7 +126,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
             params.append("user_id", userId);
             if (selectedCountry) params.append("country_id", selectedCountry);
             if (selectedYear) params.append("year", selectedYear);
-            params.append("sort", sort);
+            params.append("sort", sort === "time" ? "time" : "score");
 
             const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
             const json = await res.json();
@@ -138,9 +139,25 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     }
 
     const filteredData = useMemo(() => {
-        if (!filterType) return data;
-        return data.filter(item => item.ContestType === filterType);
-    }, [data, filterType]);
+        let res = [...data];
+        if (filterType === "final") {
+            res = res.filter(item => item.ContestType === "final" || item.ContestType === "Финал");
+        } else if (filterType === "semifinal") {
+            res = res.filter(item => item.ContestType?.includes("semifinal"));
+
+            if (qualifiedFilter === "qualified") {
+                res = res.filter(item => item.Qualified === true);
+            } else if (qualifiedFilter === "not-qualified") {
+                res = res.filter(item => item.Qualified === false || item.Qualified === null || item.Qualified === undefined);
+            }
+        }
+
+        if (filterType === "final" && sort === "place") {
+            res.sort((a, b) => (a.Place ?? Infinity) - (b.Place ?? Infinity));
+        }
+
+        return res;
+    }, [data, filterType, qualifiedFilter, sort]);
 
     const avgScore =
         filteredData.length > 0
@@ -290,7 +307,11 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                         <div style={{ ...styles.label, color: subTextColor }}>Этап</div>
                         <div style={styles.row}>
                             <button
-                                onClick={() => setFilterType("")}
+                                onClick={() => {
+                                    setFilterType("");
+                                    setQualifiedFilter("");
+                                    if (sort === "place") setSort("score");
+                                }}
                                 style={{
                                     ...styles.btn,
                                     background: filterType === "" ? "#ec4899" : btnBg,
@@ -302,7 +323,10 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                 Все этапы
                             </button>
                             <button
-                                onClick={() => setFilterType("final")}
+                                onClick={() => {
+                                    setFilterType("final");
+                                    setQualifiedFilter("");
+                                }}
                                 style={{
                                     ...styles.btn,
                                     background: filterType === "final" ? "#ec4899" : btnBg,
@@ -314,31 +338,66 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                 Финал
                             </button>
                             <button
-                                onClick={() => setFilterType("first-semifinal")}
+                                onClick={() => {
+                                    setFilterType("semifinal");
+                                    if (sort === "place") setSort("score");
+                                }}
                                 style={{
                                     ...styles.btn,
-                                    background: filterType === "first-semifinal" ? "#ec4899" : btnBg,
-                                    color: filterType === "first-semifinal" ? "#fff" : btnColor,
-                                    border: filterType === "first-semifinal" ? "none" : btnBorder,
-                                    boxShadow: filterType === "first-semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                                    background: filterType === "semifinal" ? "#ec4899" : btnBg,
+                                    color: filterType === "semifinal" ? "#fff" : btnColor,
+                                    border: filterType === "semifinal" ? "none" : btnBorder,
+                                    boxShadow: filterType === "semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
                                 }}
                             >
-                                Первый полуфинал
-                            </button>
-                            <button
-                                onClick={() => setFilterType("second-semifinal")}
-                                style={{
-                                    ...styles.btn,
-                                    background: filterType === "second-semifinal" ? "#ec4899" : btnBg,
-                                    color: filterType === "second-semifinal" ? "#fff" : btnColor,
-                                    border: filterType === "second-semifinal" ? "none" : btnBorder,
-                                    boxShadow: filterType === "second-semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
-                                }}
-                            >
-                                Второй полуфинал
+                                Полуфинал
                             </button>
                         </div>
                     </div>
+
+                    {filterType === "semifinal" && (
+                        <div style={styles.block}>
+                            <div style={{ ...styles.label, color: subTextColor }}>Квалификация</div>
+                            <div style={styles.row}>
+                                <button
+                                    onClick={() => setQualifiedFilter("")}
+                                    style={{
+                                        ...styles.btn,
+                                        background: qualifiedFilter === "" ? "#8b5cf6" : btnBg,
+                                        color: qualifiedFilter === "" ? "#fff" : btnColor,
+                                        border: qualifiedFilter === "" ? "none" : btnBorder,
+                                        boxShadow: qualifiedFilter === "" ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
+                                    }}
+                                >
+                                    Все участники
+                                </button>
+                                <button
+                                    onClick={() => setQualifiedFilter("qualified")}
+                                    style={{
+                                        ...styles.btn,
+                                        background: qualifiedFilter === "qualified" ? "#8b5cf6" : btnBg,
+                                        color: qualifiedFilter === "qualified" ? "#fff" : btnColor,
+                                        border: qualifiedFilter === "qualified" ? "none" : btnBorder,
+                                        boxShadow: qualifiedFilter === "qualified" ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
+                                    }}
+                                >
+                                    Прошел в финал
+                                </button>
+                                <button
+                                    onClick={() => setQualifiedFilter("not-qualified")}
+                                    style={{
+                                        ...styles.btn,
+                                        background: qualifiedFilter === "not-qualified" ? "#8b5cf6" : btnBg,
+                                        color: qualifiedFilter === "not-qualified" ? "#fff" : btnColor,
+                                        border: qualifiedFilter === "not-qualified" ? "none" : btnBorder,
+                                        boxShadow: qualifiedFilter === "not-qualified" ? "0 4px 12px rgba(139, 92, 246, 0.3)" : "none",
+                                    }}
+                                >
+                                    Не прошел
+                                </button>
+                            </div>
+                        </div>
+                    )}
 
                     <div style={styles.block}>
                         <div style={{ ...styles.label, color: subTextColor }}>Сортировка</div>
@@ -367,6 +426,20 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             >
                                 По баллу
                             </button>
+                            {filterType === "final" && (
+                                <button
+                                    onClick={() => setSort("place")}
+                                    style={{
+                                        ...styles.btn,
+                                        background: sort === "place" ? "#f97316" : btnBg,
+                                        color: sort === "place" ? "#fff" : btnColor,
+                                        border: sort === "place" ? "none" : btnBorder,
+                                        boxShadow: sort === "place" ? "0 4px 12px rgba(249, 115, 22, 0.3)" : "none",
+                                    }}
+                                >
+                                    По месту
+                                </button>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -71,6 +71,8 @@ export function SidebarLeaderboard({ performances, contestType, onClose, theme =
     const countryColor = isLight ? "#0f172a" : "#e6edf7";
     const commentColor = isLight ? "#374151" : isGray ? "#9ca3af" : "#7aa2ff";
     const scoreColor = isLight ? "#d97706" : "#ffd166";
+    const scorePillBg = isLight ? "rgba(217, 119, 6, 0.1)" : "rgba(255, 209, 102, 0.12)";
+    const scorePillBorder = isLight ? "1px solid rgba(217, 119, 6, 0.2)" : "1px solid rgba(255, 209, 102, 0.2)";
 
     return (
         <div style={styles.sidebar}>
@@ -208,17 +210,11 @@ export function SidebarLeaderboard({ performances, contestType, onClose, theme =
                                 )}
                             </div>
 
-                            {/* Score & Diff */}
-                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
-                                <div style={{
-                                    ...styles.score,
-                                    color: p.qualified ? "#4ade80" : scoreColor,
-                                }}>
-                                    ⭐ {Number(displayScore.toFixed(2))}
-                                </div>
                                 {(contestType === "final" || contestType === "Финал") && mode !== "results" && actualPlace !== undefined && actualPlace !== null && actualPlace !== "" ? (
                                     <div style={{
-                                        fontSize: 11,
+                                        display: "flex",
+                                        alignItems: "center",
+                                        fontSize: 12,
                                         fontWeight: 800,
                                         fontFamily: "monospace",
                                         color: (rank - actualPlace) > 0 ? "#22c55e" : (rank - actualPlace) < 0 ? "#ef4444" : subTextColor,
@@ -226,6 +222,26 @@ export function SidebarLeaderboard({ performances, contestType, onClose, theme =
                                         {(rank - actualPlace) > 0 ? `▲ ${rank - actualPlace}` : (rank - actualPlace) < 0 ? `▼ ${Math.abs(rank - actualPlace)}` : "═ 0"}
                                     </div>
                                 ) : null}
+
+                            {/* Score & Diff Container */}
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+                                <div style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 6,
+                                    background: p.qualified ? "rgba(74, 222, 128, 0.15)" : scorePillBg,
+                                    border: p.qualified ? "1px solid rgba(74, 222, 128, 0.3)" : scorePillBorder,
+                                    padding: "4px 10px",
+                                    borderRadius: 10,
+                                    color: p.qualified ? "#4ade80" : scoreColor,
+                                }}>
+                                    <span style={{ fontSize: 13 }}>⭐</span>
+                                    <span style={{ fontSize: 15, fontWeight: 900, fontFamily: "monospace" }}>
+                                        {Number(displayScore.toFixed(2))}
+                                    </span>
+                                </div>
+
+            
                             </div>
                         </div>
                     );
@@ -358,14 +374,6 @@ const styles: Record<string, React.CSSProperties> = {
         whiteSpace: "nowrap",
         overflow: "hidden",
         textOverflow: "ellipsis",
-    },
-
-    score: {
-        whiteSpace: "nowrap",
-        fontSize: 13,
-        fontWeight: 800,
-        fontFamily: "monospace",
-        flexShrink: 0,
     },
 
     comment: {
