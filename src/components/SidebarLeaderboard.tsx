@@ -4,13 +4,14 @@ import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
     performances: PerformanceWithScores[];
+    contestType?: string;
     onClose?: () => void;
     theme?: Theme;
 };
 
-type Mode = "all" | "mine";
+type Mode = "all" | "mine" | "results";
 
-export function SidebarLeaderboard({ performances, onClose, theme = "dark-blue" }: Props) {
+export function SidebarLeaderboard({ performances, contestType, onClose, theme = "dark-blue" }: Props) {
     const [mode, setMode] = useState<Mode>("all");
 
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
@@ -22,14 +23,21 @@ export function SidebarLeaderboard({ performances, onClose, theme = "dark-blue" 
     const getMyComment = (p: PerformanceWithScores) =>
         p.scores.find((s) => s.username === user)?.comment ?? "";
 
-    const sorted = [...performances].sort(
+    const sortedByScore = [...performances].sort(
         (a, b) => b.total_score - a.total_score
     );
 
-    const filtered = (() => {
-        if (mode === "all") return sorted;
+    const sortedByPlace = [...performances].sort((a, b) => {
+        const placeA = (a as any).place ?? (a as any).Place ?? Infinity;
+        const placeB = (b as any).place ?? (b as any).Place ?? Infinity;
+        return placeA - placeB;
+    });
 
-        return [...sorted].sort(
+    const filtered = (() => {
+        if (mode === "results") return sortedByPlace;
+        if (mode === "all") return sortedByScore;
+
+        return [...sortedByScore].sort(
             (a, b) => getMyScore(b) - getMyScore(a)
         );
     })();
@@ -115,11 +123,29 @@ export function SidebarLeaderboard({ performances, onClose, theme = "dark-blue" 
                         Мой топ
                     </button>
                 )}
+
+                {(contestType === "final" || contestType === "Финал") && (
+                    <button
+                        style={{
+                            ...styles.filterBtn,
+                            color: mode === "results" ? "#fff" : subTextColor,
+                            background: mode === "results" ? activeFilterGrad : "transparent",
+                            boxShadow: mode === "results" ? activeFilterShadow : "none",
+                        }}
+                        onClick={() => setMode("results")}
+                    >
+                        Результаты
+                    </button>
+                )}
             </div>
 
             {/* LIST */}
             <div style={styles.list}>
-                {filtered.map((p, index) => {
+                {mode === "results" && !performances.some(p => (p as any).place !== undefined && (p as any).place !== null && (p as any).place !== "" || (p as any).Place !== undefined && (p as any).Place !== null && (p as any).Place !== "") ? (
+                    <div style={{ textAlign: "center", padding: "32px 16px", color: subTextColor, fontSize: 14 }}>
+                        Результаты еще не сформированы
+                    </div>
+                ) : filtered.map((p, index) => {
                     const displayScore =
                         mode === "mine"
                             ? getMyScore(p)
@@ -130,7 +156,8 @@ export function SidebarLeaderboard({ performances, onClose, theme = "dark-blue" 
                             ? getMyComment(p)
                             : null;
 
-                    const rank = index + 1;
+                    const actualPlace = (p as any).place ?? (p as any).Place;
+                    const rank = mode === "results" && actualPlace ? actualPlace : index + 1;
                     const isTop3 = rank <= 3;
 
                     return (
@@ -181,12 +208,24 @@ export function SidebarLeaderboard({ performances, onClose, theme = "dark-blue" 
                                 )}
                             </div>
 
-                            {/* Score */}
-                            <div style={{
-                                ...styles.score,
-                                color: p.qualified ? "#4ade80" : scoreColor,
-                            }}>
-                                ⭐ {Number(displayScore.toFixed(2))}
+                            {/* Score & Diff */}
+                            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 2, flexShrink: 0 }}>
+                                <div style={{
+                                    ...styles.score,
+                                    color: p.qualified ? "#4ade80" : scoreColor,
+                                }}>
+                                    ⭐ {Number(displayScore.toFixed(2))}
+                                </div>
+                                {(contestType === "final" || contestType === "Финал") && mode !== "results" && actualPlace !== undefined && actualPlace !== null && actualPlace !== "" ? (
+                                    <div style={{
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        fontFamily: "monospace",
+                                        color: (rank - actualPlace) > 0 ? "#22c55e" : (rank - actualPlace) < 0 ? "#ef4444" : subTextColor,
+                                    }}>
+                                        {(rank - actualPlace) > 0 ? `▲ ${rank - actualPlace}` : (rank - actualPlace) < 0 ? `▼ ${Math.abs(rank - actualPlace)}` : "═ 0"}
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                     );
