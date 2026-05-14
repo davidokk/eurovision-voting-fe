@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
 
@@ -13,6 +13,8 @@ type ScoreFiltered = {
     GifURL: string | null;
     Song: string;
     Artist: string;
+    Qualified?: boolean;
+    Place?: number;
 };
 
 type SortType = "time" | "score";
@@ -78,9 +80,18 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
 
     const [contests, setContests] = useState<ContestMap>({});
     const [selectedYear, setSelectedYear] = useState<string>("");
+    const [filterType, setFilterType] = useState<string>("");
 
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
     const [sort, setSort] = useState<SortType>("score");
+
+    const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
+
+    useEffect(() => {
+        const handleResize = () => setIsDesktop(window.innerWidth >= 1024);
+        window.addEventListener("resize", handleResize);
+        return () => window.removeEventListener("resize", handleResize);
+    }, []);
 
     useEffect(() => {
         if (!API_URL) return;
@@ -126,9 +137,14 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
         }
     }
 
+    const filteredData = useMemo(() => {
+        if (!filterType) return data;
+        return data.filter(item => item.ContestType === filterType);
+    }, [data, filterType]);
+
     const avgScore =
-        data.length > 0
-            ? data.reduce((sum, i) => sum + (i.Score || 0), 0) / data.length
+        filteredData.length > 0
+            ? filteredData.reduce((sum, i) => sum + (i.Score || 0), 0) / filteredData.length
             : 0;
 
     const isLight = theme === "light";
@@ -160,8 +176,8 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const activePrimaryBg = isLight ? "#1f2937" : isGray ? "#4b5563" : "#4f7cff";
     const activePrimaryShadow = isLight ? "0 4px 12px rgba(31, 41, 55, 0.2)" : isGray ? "0 4px 12px rgba(0,0,0,0.3)" : "0 4px 12px rgba(79, 124, 255, 0.3)";
 
-    const cardBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "rgba(30, 41, 59, 0.4)";
-    const cardBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2d2d2d" : "1px solid rgba(255, 255, 255, 0.06)";
+    const baseCardBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "rgba(30, 41, 59, 0.4)";
+    const baseCardBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2d2d2d" : "1px solid rgba(255, 255, 255, 0.06)";
 
     const contestTagColor = isLight ? "#1f2937" : isGray ? "#9ca3af" : "#7aa2ff";
     const artistColor = isLight ? "#0f172a" : "#e2e8f0";
@@ -174,12 +190,22 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const commentBorder = isLight ? "4px solid #374151" : isGray ? "4px solid #6b7280" : "4px solid #4f7cff";
     const commentTextColor = isLight ? "#374151" : isGray ? "#e5e7eb" : "#7aa2ff";
 
+    const placeWords: Record<number, string> = {
+        1: "Первое место",
+        2: "Второе место",
+        3: "Третье место",
+    };
+
     return (
         <div style={{ ...styles.page, background: pageBg, color: textColor }}>
             <div style={styles.container}>
                 <header style={styles.header}>
                     <h2 style={{ ...styles.title, textShadow: titleShadow }}>
-                        Оценки пользователя <span style={{ ...styles.usernameHighlight, color: highlightColor }}>{data?.[0]?.Username || userId}</span>
+                        {data?.[0]?.Username ? (
+                            <>Оценки пользователя <span style={{ ...styles.usernameHighlight, color: highlightColor }}>{data[0].Username}</span></>
+                        ) : (
+                            "У пользователя нет оценок"
+                        )}
                     </h2>
                 </header>
 
@@ -206,7 +232,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             >
                                 Все страны
                             </button>
-                            {countries.map((c) => (
+                            {[...countries].sort((a, b) => a.name_ru.localeCompare(b.name_ru, "ru")).map((c) => (
                                 <button
                                     key={c.id}
                                     onClick={() => setSelectedCountry(c.id)}
@@ -261,6 +287,60 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                     </div>
 
                     <div style={styles.block}>
+                        <div style={{ ...styles.label, color: subTextColor }}>Этап</div>
+                        <div style={styles.row}>
+                            <button
+                                onClick={() => setFilterType("")}
+                                style={{
+                                    ...styles.btn,
+                                    background: filterType === "" ? "#ec4899" : btnBg,
+                                    color: filterType === "" ? "#fff" : btnColor,
+                                    border: filterType === "" ? "none" : btnBorder,
+                                    boxShadow: filterType === "" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                                }}
+                            >
+                                Все этапы
+                            </button>
+                            <button
+                                onClick={() => setFilterType("final")}
+                                style={{
+                                    ...styles.btn,
+                                    background: filterType === "final" ? "#ec4899" : btnBg,
+                                    color: filterType === "final" ? "#fff" : btnColor,
+                                    border: filterType === "final" ? "none" : btnBorder,
+                                    boxShadow: filterType === "final" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                                }}
+                            >
+                                Финал
+                            </button>
+                            <button
+                                onClick={() => setFilterType("first-semifinal")}
+                                style={{
+                                    ...styles.btn,
+                                    background: filterType === "first-semifinal" ? "#ec4899" : btnBg,
+                                    color: filterType === "first-semifinal" ? "#fff" : btnColor,
+                                    border: filterType === "first-semifinal" ? "none" : btnBorder,
+                                    boxShadow: filterType === "first-semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                                }}
+                            >
+                                Первый полуфинал
+                            </button>
+                            <button
+                                onClick={() => setFilterType("second-semifinal")}
+                                style={{
+                                    ...styles.btn,
+                                    background: filterType === "second-semifinal" ? "#ec4899" : btnBg,
+                                    color: filterType === "second-semifinal" ? "#fff" : btnColor,
+                                    border: filterType === "second-semifinal" ? "none" : btnBorder,
+                                    boxShadow: filterType === "second-semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
+                                }}
+                            >
+                                Второй полуфинал
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style={styles.block}>
                         <div style={{ ...styles.label, color: subTextColor }}>Сортировка</div>
                         <div style={styles.row}>
                             <button
@@ -294,13 +374,44 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                 {loading && <div style={{ ...styles.loading, color: highlightColor }}>Обновление данных...</div>}
 
                 {/* LIST */}
-                <div style={styles.list}>
-                    {data.map((item, i) => {
+                <div style={{
+                    ...styles.list,
+                    gridTemplateColumns: `repeat(auto-fill, minmax(${isDesktop ? "360px" : "280px"}, 1fr))`,
+                }}>
+                    {filteredData.map((item, i) => {
                         const youtubeId = item.YoutubeLink ? getYouTubeId(item.YoutubeLink) : null;
                         const country = countries.find((c) => c.name_ru === item.CountryName);
 
+                        const isSemifinal = item.ContestType?.includes("semifinal");
+                        const hasPlace = item.Place !== undefined && item.Place !== null;
+                        const isQualified = item.Qualified === true;
+
+                        let itemCardBg = baseCardBg;
+                        let itemCardBorder = baseCardBorder;
+
+                        if (hasPlace && item.Place! <= 3) {
+                            if (item.Place === 1) {
+                                itemCardBg = isLight ? "rgba(250, 204, 21, 0.15)" : "rgba(250, 204, 21, 0.12)";
+                                itemCardBorder = "1px solid rgba(250, 204, 21, 0.4)";
+                            } else if (item.Place === 2) {
+                                itemCardBg = isLight ? "rgba(148, 163, 184, 0.15)" : "rgba(148, 163, 184, 0.12)";
+                                itemCardBorder = "1px solid rgba(148, 163, 184, 0.4)";
+                            } else {
+                                itemCardBg = isLight ? "rgba(217, 119, 6, 0.15)" : "rgba(217, 119, 6, 0.12)";
+                                itemCardBorder = "1px solid rgba(217, 119, 6, 0.4)";
+                            }
+                        } else if (isSemifinal) {
+                            if (isQualified) {
+                                itemCardBg = isLight ? "rgba(34, 197, 94, 0.08)" : "rgba(34, 197, 94, 0.12)";
+                                itemCardBorder = "1px solid rgba(34, 197, 94, 0.3)";
+                            } else {
+                                itemCardBg = isLight ? "rgba(239, 68, 68, 0.08)" : "rgba(239, 68, 68, 0.12)";
+                                itemCardBorder = "1px solid rgba(239, 68, 68, 0.3)";
+                            }
+                        }
+
                         return (
-                            <div key={i} style={{ ...styles.card, background: cardBg, border: cardBorder }}>
+                            <div key={i} style={{ ...styles.card, background: itemCardBg, border: itemCardBorder }}>
                                 <div style={styles.cardMain}>
                                     <div style={styles.meta}>
                                         <div style={{ ...styles.contestTag, color: contestTagColor }}>
@@ -310,7 +421,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                             {supportsEmoji && country?.flag_emoji && (
                                                 <span style={styles.flagLarge}>{country.flag_emoji}</span>
                                             )}
-                                            <div style={{ ...styles.countryName, color: textColor }}>{item.CountryName}</div>
+                                            <div style={{ ...styles.countryName, color: textColor, wordBreak: "break-word" }}>{item.CountryName}</div>
                                         </div>
                                         <div style={{ ...styles.artistInfo, color: subTextColor }}>
                                             <span style={{ ...styles.artist, color: artistColor }}>{item.Artist}</span>
@@ -339,6 +450,42 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                             />
                                             <div style={styles.playOverlay}>▶ YouTube</div>
                                         </a>
+                                    </div>
+                                )}
+
+                                {/* Подписи статуса (Qualified / Place) */}
+                                {(hasPlace || isSemifinal) && (
+                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "auto", paddingTop: 12, borderTop: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)" }}>
+                                        {hasPlace && (
+                                            <span style={{
+                                                padding: "4px 12px",
+                                                borderRadius: 10,
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                textTransform: "uppercase",
+                                                ...(item.Place! === 1 ? { background: "#facc15", color: "#000" } :
+                                                    item.Place! === 2 ? { background: "#94a3b8", color: "#fff" } :
+                                                    item.Place! === 3 ? { background: "#d97706", color: "#fff" } :
+                                                    { background: isLight ? "#1f2937" : isGray ? "#374151" : "#4f7cff", color: "#fff" })
+                                            }}>
+                                                {item.Place! <= 3 ? placeWords[item.Place!] : `${item.Place} место`}
+                                            </span>
+                                        )}
+
+                                        {isSemifinal && (
+                                            <span style={{
+                                                padding: "4px 12px",
+                                                borderRadius: 10,
+                                                fontSize: 13,
+                                                fontWeight: 800,
+                                                textTransform: "uppercase",
+                                                ...(isQualified 
+                                                    ? { background: "rgba(34, 197, 94, 0.15)", color: isLight ? "#166534" : "#4ade80", border: "1px solid rgba(34, 197, 94, 0.3)" } 
+                                                    : { background: "rgba(239, 68, 68, 0.15)", color: isLight ? "#991b1b" : "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)" })
+                                            }}>
+                                                {isQualified ? "В финале" : "Не прошла"}
+                                            </span>
+                                        )}
                                     </div>
                                 )}
                             </div>
@@ -449,7 +596,6 @@ const styles: Record<string, React.CSSProperties> = {
     list: {
         display: "grid",
         gap: 20,
-        gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     },
 
     card: {
@@ -474,6 +620,7 @@ const styles: Record<string, React.CSSProperties> = {
         flexDirection: "column",
         gap: 6,
         flex: 1,
+        minWidth: 0,
     },
 
     contestTag: {
@@ -491,6 +638,7 @@ const styles: Record<string, React.CSSProperties> = {
 
     flagLarge: {
         fontSize: 28,
+        flexShrink: 0,
     },
 
     countryName: {
@@ -505,10 +653,19 @@ const styles: Record<string, React.CSSProperties> = {
         lineHeight: "1.4",
     },
 
+    artist: {
+        fontWeight: 700,
+    },
+
+    song: {
+        fontStyle: "italic",
+    },
+
     scoreContainer: {
         textAlign: "center",
         padding: "10px 16px",
         borderRadius: "18px",
+        flexShrink: 0,
     },
 
     scoreBig: {

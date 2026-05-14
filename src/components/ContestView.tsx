@@ -283,8 +283,124 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
 
     if (!contest) {
         return (
-            <div style={{ ...styles.empty, color: isLight ? "#64748b" : "#64748b" }}>
-                Выберите год в меню
+            <div style={{ ...styles.layout, background: layoutBg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
+                <div style={{
+                    width: "100%",
+                    maxWidth: 760,
+                    background: isLight 
+                        ? "linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.9) 100%)" 
+                        : isGray 
+                        ? "linear-gradient(135deg, rgba(30, 30, 30, 0.8) 0%, rgba(18, 18, 18, 0.95) 100%)" 
+                        : "linear-gradient(135deg, rgba(30, 41, 59, 0.6) 0%, rgba(15, 23, 42, 0.85) 100%)",
+                    border: isLight ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)",
+                    borderRadius: 32,
+                    padding: isMobile ? "36px 24px" : "56px 48px",
+                    boxShadow: isLight ? "0 20px 40px rgba(0,0,0,0.05)" : "0 20px 60px rgba(0,0,0,0.5), inset 0 1px rgba(255,255,255,0.08)",
+                    backdropFilter: "blur(24px)",
+                    WebkitBackdropFilter: "blur(24px)",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    textAlign: "center",
+                    gap: 28,
+                    margin: "auto",
+                }}>
+                    <div style={{
+                        fontSize: isMobile ? 36 : 56,
+                        fontWeight: 1000,
+                        letterSpacing: "0.18em",
+                        background: isLight ? "linear-gradient(135deg, #1f2937, #4b5563)" : isGray ? "linear-gradient(135deg, #e5e7eb, #9ca3af)" : "linear-gradient(135deg, #4f7cff, #a78bfa)",
+                        WebkitBackgroundClip: "text",
+                        WebkitTextFillColor: "transparent",
+                        textTransform: "uppercase",
+                        marginBottom: -10,
+                        filter: isLight ? "drop-shadow(0 4px 12px rgba(31, 41, 55, 0.15))" : isGray ? "drop-shadow(0 4px 16px rgba(255, 255, 255, 0.2))" : "drop-shadow(0 4px 20px rgba(79, 124, 255, 0.4))",
+                    }}>
+                        EUROVISION
+                    </div>
+
+                    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        <h1 style={{ margin: 0, color: titleColor, fontSize: isMobile ? 24 : 32, fontWeight: 950, letterSpacing: "-0.03em" }}>
+                            Привет!
+                        </h1>
+                        <p style={{ margin: 0, color: isLight ? "#64748b" : "#94a3b8", fontSize: isMobile ? 14 : 16, lineHeight: 1.6, maxWidth: 600 }}>
+                            Здесь вы можете следить за прямыми трансляциями полуфиналов и финалов, выставлять оценки участникам в реальном времени и общаться.
+                        </p>
+                    </div>
+
+                    <div style={{
+                        width: "100%",
+                        display: "grid",
+                        gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr",
+                        gap: 16,
+                        marginTop: 8,
+                        textAlign: "left",
+                    }}>
+                        <div style={{
+                            background: isLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)",
+                            border: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 20,
+                            padding: 20,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                        }}>
+                            <span style={{ fontSize: 22 }}>📅</span>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: titleColor }}>Выберите конкурс</h3>
+                            <p style={{ margin: 0, fontSize: 13, color: isLight ? "#64748b" : "#94a3b8", lineHeight: 1.4 }}>
+                                Используйте навигацию в верхней панели для выбора полуфинала или финала нужного года.
+                            </p>
+                        </div>
+
+                        <div style={{
+                            background: isLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)",
+                            border: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 20,
+                            padding: 20,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                        }}>
+                            <span style={{ fontSize: 22 }}>⭐</span>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: titleColor }}>Оценивайте вживую</h3>
+                            <p style={{ margin: 0, fontSize: 13, color: isLight ? "#64748b" : "#94a3b8", lineHeight: 1.4 }}>
+                                Ставьте баллы от 1 до 10, делитесь комментариями и прикрепляйте гифки-реакции.
+                            </p>
+                        </div>
+
+                        <div style={{
+                            background: isLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)",
+                            border: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 20,
+                            padding: 20,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                        }}>
+                            <span style={{ fontSize: 22 }}>💬</span>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: titleColor }}>Общайтесь в чате</h3>
+                            <p style={{ margin: 0, fontSize: 13, color: isLight ? "#64748b" : "#94a3b8", lineHeight: 1.4 }}>
+                                Делитесь впечатлениями и следите за уведомлениями об оценках других зрителей.
+                            </p>
+                        </div>
+
+                        <div style={{
+                            background: isLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.03)",
+                            border: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)",
+                            borderRadius: 20,
+                            padding: 20,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                        }}>
+                            <span style={{ fontSize: 22 }}>📊</span>
+                            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 800, color: titleColor }}>Изучайте статистику</h3>
+                            <p style={{ margin: 0, fontSize: 13, color: isLight ? "#64748b" : "#94a3b8", lineHeight: 1.4 }}>
+                                Кликайте по именам пользователей или странам, чтобы узнать их подробную историю.
+                            </p>
+                        </div>
+                    </div>
+                </div>
             </div>
         );
     }

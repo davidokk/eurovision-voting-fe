@@ -63,10 +63,10 @@ export default function App() {
         });
 
         if (res.status === 401) {
-          const savedContestId = localStorage.getItem("selectedContestId");
+          // const savedContestId = localStorage.getItem("selectedContestId");
           const savedTheme = localStorage.getItem("theme");
           localStorage.clear();
-          if (savedContestId) localStorage.setItem("selectedContestId", savedContestId);
+          // if (savedContestId) localStorage.setItem("selectedContestId", savedContestId);
           if (savedTheme) localStorage.setItem("theme", savedTheme);
           window.location.reload();
         }

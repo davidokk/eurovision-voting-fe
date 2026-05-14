@@ -15,6 +15,7 @@ type Props = {
 type EditablePerformance = any & {
     editedQualified: boolean;
     editedYoutube: string;
+    editedPlace?: number | null;
 
     saving: boolean;
 
@@ -22,8 +23,8 @@ type EditablePerformance = any & {
     saveError: boolean;
 };
 
-const YOUTUBE_API_KEY = import.meta.env.VITE_YOUTUBE_API_KEY;
-const API_URL = import.meta.env.VITE_API_URL;
+const YOUTUBE_API_KEY = (import.meta as any).env?.VITE_YOUTUBE_API_KEY || "";
+const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 
 function getYouTubeId(url: string) {
     const match = url.match(
@@ -47,6 +48,7 @@ export function AdminPage({ initialContest }: Props) {
             ...p,
             editedQualified: p.qualified,
             editedYoutube: p.youtube_link || "",
+            editedPlace: (p as any).place ?? null,
             saving: false,
             saveMessage: "",
             saveError: false,
@@ -72,6 +74,7 @@ export function AdminPage({ initialContest }: Props) {
                 ...p,
                 editedQualified: p.qualified,
                 editedYoutube: p.youtube_link || "",
+                editedPlace: (p as any).place ?? null,
                 saving: false,
                 saveMessage: "",
                 saveError: false,
@@ -101,8 +104,19 @@ export function AdminPage({ initialContest }: Props) {
         );
     }
 
+    function updatePlace(id: string, value: string) {
+        const parsed = value ? parseInt(value, 10) : null;
+        setItems((prev) =>
+            prev.map((p) =>
+                p.performance_id === id
+                    ? { ...p, editedPlace: Number.isNaN(parsed) ? null : parsed }
+                    : p
+            )
+        );
+    }
+
     async function searchYouTube(performanceId: string, query: string) {
-        if (!query) return;
+        if (!query || !YOUTUBE_API_KEY) return;
 
         try {
             const res = await fetch(
@@ -140,7 +154,7 @@ export function AdminPage({ initialContest }: Props) {
     }
 
     async function savePerformance(item: EditablePerformance) {
-        if (!token) return;
+        if (!token || !API_URL) return;
 
         setItems((prev) =>
             prev.map((p) =>
@@ -167,6 +181,7 @@ export function AdminPage({ initialContest }: Props) {
                     body: JSON.stringify({
                         qualified: item.editedQualified,
                         youtube_link: item.editedYoutube,
+                        place: item.editedPlace,
                     }),
                 }
             );
@@ -178,6 +193,7 @@ export function AdminPage({ initialContest }: Props) {
                               ...p,
                               qualified: p.editedQualified,
                               youtube_link: p.editedYoutube,
+                              place: p.editedPlace,
                               saving: false,
                               saveMessage: "✅ Сохранено",
                               saveError: false,
@@ -249,8 +265,8 @@ export function AdminPage({ initialContest }: Props) {
                                 >
                                     <div style={styles.rowTop}>
                                         <div style={styles.country}>
-                                            {p.country.flag_emoji}{" "}
-                                            {p.country.name_ru}
+                                            {p.country?.flag_emoji}{" "}
+                                            {p.country?.name_ru}
                                         </div>
 
                                         <label style={styles.switch}>
@@ -290,6 +306,26 @@ export function AdminPage({ initialContest }: Props) {
 
                                     <div style={styles.song}>
                                         {p.artist} — {p.song}
+                                    </div>
+
+                                    <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
+                                        <div style={{ fontSize: 13, color: "#9fb0d0", fontWeight: 700 }}>Место (Place):</div>
+                                        <input
+                                            type="number"
+                                            value={p.editedPlace ?? ""}
+                                            onChange={(e) => updatePlace(p.performance_id, e.target.value)}
+                                            placeholder="—"
+                                            style={{
+                                                width: 80,
+                                                padding: "8px 12px",
+                                                borderRadius: 10,
+                                                border: "1px solid #24324f",
+                                                background: "#0b1220",
+                                                color: "#fff",
+                                                fontSize: 14,
+                                                outline: "none",
+                                            }}
+                                        />
                                     </div>
 
                                     <div style={styles.youtubeSection}>
