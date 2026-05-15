@@ -456,7 +456,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                         const country = countries.find((c) => c.name_ru === item.CountryName);
 
                         const isSemifinal = item.ContestType?.includes("semifinal");
-                        const hasPlace = item.Place !== undefined && item.Place !== null;
+                        const hasPlace = item.Place !== undefined && item.Place !== null && item.Place != 0;
                         const isQualified = item.Qualified === true;
 
                         let itemCardBg = baseCardBg;

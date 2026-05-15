@@ -254,7 +254,7 @@ export function PerformanceCard({
             <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
               <span style={styles.number}>#{performance.number}</span>
 
-              {hasPlace && (
+              {!isSemifinal && hasPlace && (
                 <span style={{
                   padding: "2px 8px",
                   borderRadius: 6,
