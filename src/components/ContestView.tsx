@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ContestView as ContestViewType, Theme } from "../types/contest";
+import { useChatWebSocket } from "../hooks/useChatWebSocket";
 import { PerformanceCard } from "./PerformanceCard";
 import { YouTubeLiveSection } from "./YouTubeLiveSection";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
@@ -72,7 +73,6 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [uiReady, setUiReady] = useState(false);
 
-    const ws = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
     const myUsername = localStorage.getItem("username");
@@ -98,32 +98,41 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         return () => cancelAnimationFrame(id);
     }, []);
 
-    useEffect(() => {
+    const fetchMessages = useCallback(async () => {
         if (!contest || !API_URL) return;
-
-        async function fetchMessages() {
-            try {
-                if (!contest || !API_URL) return;
-                
-                const params = new URLSearchParams({
-                    contest_id: contest.contest.id
-                });
-
-                const res = await fetch(
-                    `${API_URL}/v1/message?${params.toString()}`
-                );
-
-                if (!res.ok) throw new Error("Failed");
-
-                const data = await res.json();
-                setMessages(data || []);
-            } catch (err) {
-                console.error(err);
-            }
+        try {
+            const params = new URLSearchParams({
+                contest_id: contest.contest.id,
+            });
+            const res = await fetch(`${API_URL}/v1/message?${params.toString()}`);
+            if (!res.ok) throw new Error("Failed");
+            const data = await res.json();
+            setMessages(data || []);
+        } catch (err) {
+            console.error(err);
         }
-
-        fetchMessages();
     }, [contest?.contest.id]);
+
+    useEffect(() => {
+        fetchMessages();
+    }, [fetchMessages]);
+
+    const messageKey = (m: ChatMessage) =>
+        `${m.createdAt}-${m.username}-${m.message.slice(0, 20)}`;
+
+    useChatWebSocket<ChatMessage>({
+        wsUrl: WS_URL,
+        token,
+        enabled: Boolean(contest && WS_URL),
+        onMessage: (msg) => {
+            setMessages((prev) => {
+                const key = messageKey(msg);
+                if (prev.some((m) => messageKey(m) === key)) return prev;
+                return [...prev, msg];
+            });
+        },
+        onConnected: fetchMessages,
+    });
 
     useEffect(() => {
         messagesEndRef.current?.scrollIntoView({
@@ -137,21 +146,6 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         }, 1000);
 
         return () => clearInterval(interval);
-    }, []);
-
-    useEffect(() => {
-        if (!WS_URL) return;
-        try {
-            ws.current = new WebSocket(`${WS_URL}/v1/ws`);
-            ws.current.onmessage = (e) => {
-                const msg: ChatMessage = JSON.parse(e.data);
-                setMessages((prev) => [...prev, msg]);
-            };
-        } catch (err) {
-            console.error("WS error", err);
-        }
-
-        return () => ws.current?.close();
     }, []);
 
     async function sendMessage() {
