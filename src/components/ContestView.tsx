@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { PerformanceCard } from "./PerformanceCard";
+import { YouTubeLiveSection } from "./YouTubeLiveSection";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type Props = {
@@ -69,6 +70,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+    const [uiReady, setUiReady] = useState(false);
 
     const ws = useRef<WebSocket | null>(null);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -90,6 +92,11 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
 
         return () => window.removeEventListener("resize", handleResize);
     }, [setChatOpen]);
+
+    useEffect(() => {
+        const id = requestAnimationFrame(() => setUiReady(true));
+        return () => cancelAnimationFrame(id);
+    }, []);
 
     useEffect(() => {
         if (!contest || !API_URL) return;
@@ -283,7 +290,8 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
 
     if (!contest) {
         return (
-            <div style={{ ...styles.layout, background: layoutBg, display: "flex", alignItems: "center", justifyContent: "center", padding: 24, overflowY: "auto" }}>
+            <div style={{ ...styles.layout, background: layoutBg, display: "flex", flexDirection: "column", padding: 24, overflowY: "auto" }}>
+                <YouTubeLiveSection theme={theme} />
                 <div style={{
                     width: "100%",
                     maxWidth: 760,
@@ -303,7 +311,8 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     alignItems: "center",
                     textAlign: "center",
                     gap: 28,
-                    margin: "auto",
+                    margin: "24px auto auto",
+                    alignSelf: "center",
                 }}>
                     <div style={{
                         fontSize: isMobile ? 36 : 56,
@@ -503,6 +512,8 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     </div>
                 </header>
 
+                <YouTubeLiveSection theme={theme} />
+
                 <div style={styles.grid}>
                     {sortedPerformances.map((p) => (
                         <PerformanceCard
@@ -551,6 +562,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                 </button>
             </div>
 
+            {(chatOpen || isMobile) && (
             <div
                 style={{
                     ...styles.chatPanel,
@@ -560,9 +572,14 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     width: chatOpen
                         ? (isMobile ? "100%" : 340)
                         : 0,
-                    transform: chatOpen
-                        ? "translateX(0)"
-                        : "translateX(100%)",
+                    transform: isMobile
+                        ? chatOpen
+                            ? "translateX(0)"
+                            : "translateX(100%)"
+                        : undefined,
+                    transition: uiReady
+                        ? "width 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)"
+                        : "none",
                     position: isMobile ? "absolute" : "relative",
                     top: 0,
                     bottom: 0,
@@ -771,6 +788,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     </>
                 )}
             </div>
+            )}
         </div>
     );
 }
@@ -877,7 +895,6 @@ const styles: Record<string, React.CSSProperties> = {
         WebkitBackdropFilter: "blur(24px)",
         display: "flex",
         flexDirection: "column",
-        transition: "all 0.35s cubic-bezier(0.4, 0, 0.2, 1)",
         overflow: "hidden",
     },
 

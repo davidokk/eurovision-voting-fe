@@ -9,6 +9,7 @@ import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
+const CHAT_OPEN_KEY = "ev_chat_open";
 
 export default function App() {
   const [theme, setTheme] = useState<Theme>(() => {
@@ -20,8 +21,14 @@ export default function App() {
 
   // Состояния интерфейса
   const [leaderboardOpen, setLeaderboardOpen] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpen, setChatOpen] = useState(
+    () => localStorage.getItem(CHAT_OPEN_KEY) === "1"
+  );
   const [isMobile, setIsMobile] = useState(window.innerWidth < 1024);
+
+  useEffect(() => {
+    localStorage.setItem(CHAT_OPEN_KEY, chatOpen ? "1" : "0");
+  }, [chatOpen]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 1024);
