@@ -3,6 +3,10 @@ import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { useChatWebSocket } from "../hooks/useChatWebSocket";
 import { PerformanceCard } from "./PerformanceCard";
 import { ScoresTableView } from "./ScoresTableView";
+import { ScoresLeaderboardView } from "./ScoresLeaderboardView";
+import { ScoresHeatmapView } from "./ScoresHeatmapView";
+import { ScoresRunningOrderView } from "./ScoresRunningOrderView";
+import type { ScoresViewMode } from "./scores/scoresViewShared";
 import { YouTubeLiveSection } from "./YouTubeLiveSection";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
@@ -97,7 +101,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
     const [input, setInput] = useState("");
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [uiReady, setUiReady] = useState(false);
-    const [scoresViewMode, setScoresViewMode] = useState<"cards" | "table">("cards");
+    const [scoresViewMode, setScoresViewMode] = useState<ScoresViewMode>("cards");
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -558,9 +562,30 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     >
                         📊 Таблица
                     </button>
+                    <button
+                        type="button"
+                        onClick={() => setScoresViewMode("leaderboard")}
+                        style={viewModeBtnStyle(scoresViewMode === "leaderboard", isLight, isGray)}
+                    >
+                        🏆 Рейтинг
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setScoresViewMode("heatmap")}
+                        style={viewModeBtnStyle(scoresViewMode === "heatmap", isLight, isGray)}
+                    >
+                        🌡 Heatmap
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setScoresViewMode("order")}
+                        style={viewModeBtnStyle(scoresViewMode === "order", isLight, isGray)}
+                    >
+                        📋 Порядок
+                    </button>
                 </div>
 
-                {scoresViewMode === "cards" ? (
+                {scoresViewMode === "cards" && (
                     <div style={styles.grid}>
                         {sortedPerformances.map((p) => (
                             <PerformanceCard
@@ -578,8 +603,46 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                             />
                         ))}
                     </div>
-                ) : (
+                )}
+
+                {scoresViewMode === "table" && (
                     <ScoresTableView
+                        performances={contest.performances}
+                        theme={theme}
+                        contestType={contest.contest.type}
+                        votingStarted={now >= new Date(contest.contest.starts).getTime()}
+                        votingEnded={now > new Date(contest.contest.ends).getTime()}
+                        isAuthenticated={isAuthenticated}
+                        onRated={onRefreshContest}
+                    />
+                )}
+
+                {scoresViewMode === "leaderboard" && (
+                    <ScoresLeaderboardView
+                        performances={contest.performances}
+                        theme={theme}
+                        contestType={contest.contest.type}
+                        votingStarted={now >= new Date(contest.contest.starts).getTime()}
+                        votingEnded={now > new Date(contest.contest.ends).getTime()}
+                        isAuthenticated={isAuthenticated}
+                        onRated={onRefreshContest}
+                    />
+                )}
+
+                {scoresViewMode === "heatmap" && (
+                    <ScoresHeatmapView
+                        performances={contest.performances}
+                        theme={theme}
+                        contestType={contest.contest.type}
+                        votingStarted={now >= new Date(contest.contest.starts).getTime()}
+                        votingEnded={now > new Date(contest.contest.ends).getTime()}
+                        isAuthenticated={isAuthenticated}
+                        onRated={onRefreshContest}
+                    />
+                )}
+
+                {scoresViewMode === "order" && (
+                    <ScoresRunningOrderView
                         performances={contest.performances}
                         theme={theme}
                         contestType={contest.contest.type}
