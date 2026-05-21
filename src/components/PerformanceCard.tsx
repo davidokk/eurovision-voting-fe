@@ -1,6 +1,7 @@
 import { useState } from "react";
-import type { PerformanceWithScores, Theme } from "../types/contest";
+import type { PerformanceWithScores, ScoreView, Theme } from "../types/contest";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
+import { RatePerformanceModal } from "./RatePerformanceModal";
 
 type Props = {
   performance: PerformanceWithScores;
@@ -8,12 +9,7 @@ type Props = {
   votingEnded: boolean;
   theme?: Theme;
   contestType?: string;
-};
-
-type GifItem = {
-  id: string;
-  title?: string;
-  url: string;
+  onRated?: () => void | Promise<void>;
 };
 
 function getYouTubeId(url: string) {
@@ -33,26 +29,22 @@ export function PerformanceCard({
   votingEnded,
   theme = "dark-blue",
   contestType,
+  onRated,
 }: Props) {
-  const ENABLE_GIFS = true;
   const token = localStorage.getItem("token");
   const myUsername = localStorage.getItem("username");
+  const myUserId = localStorage.getItem("user_id");
 
-  const [error, setError] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
 
-  const [score, setScore] = useState<number | null>(null);
-  const [comment, setComment] = useState("");
-  const [showErrorAnimation, setShowErrorAnimation] = useState(false);
+  function myScoreFor(p: PerformanceWithScores): ScoreView | undefined {
+    if (!token || !myUserId) return undefined;
+    return p.scores.find(
+      (s) => s.user_id === myUserId || (myUsername && s.username === myUsername)
+    );
+  }
 
-  const [gifSearch, setGifSearch] = useState("");
-  const [gifs, setGifs] = useState<GifItem[]>([]);
-  const [selectedGif, setSelectedGif] = useState<string | null>(null);
-  const [loadingGifs, setLoadingGifs] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const API_URL = (import.meta as any).env?.VITE_API_URL || "";
-  const GIPHY_KEY = (import.meta as any).env?.VITE_GIPHY_KEY || "";
+  const mine = myScoreFor(performance);
 
   const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
@@ -66,97 +58,6 @@ export function PerformanceCard({
 
   // Форматирование числа: убираем лишние нули после точки
   const formatScore = (num: number) => Number(num.toFixed(2));
-
-  async function loadLocalGifs() {
-    try {
-      setLoadingGifs(true);
-      const res = await fetch("/gifs.json");
-      if (res.ok) {
-        const data = await res.json();
-        const normalized: GifItem[] = (data || []).map((g: any) => ({
-          id: g.id,
-          title: g.title,
-          url: g.image,
-        }));
-        setGifs(normalized);
-      }
-    } catch (e) {
-      console.error("Failed to load local gifs", e);
-    } finally {
-      setLoadingGifs(false);
-    }
-  }
-
-  async function searchGifs(query: string) {
-    if (!query.trim() || !GIPHY_KEY) return;
-    setLoadingGifs(true);
-    try {
-      const res = await fetch(
-        `https://api.giphy.com/v1/gifs/search?api_key=${GIPHY_KEY}&q=${encodeURIComponent(
-          query
-        )}&limit=50&rating=pg`
-      );
-      const data = await res.json();
-      const normalized: GifItem[] = (data.data || []).map((g: any) => ({
-        id: g.id,
-        title: g.title,
-        url: g.images?.fixed_height_small?.url || g.images?.original?.url,
-      }));
-      setGifs(normalized);
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setLoadingGifs(false);
-    }
-  }
-
-  async function submit() {
-    if (!token) return;
-    if (score === null) {
-      setShowErrorAnimation(true);
-      setTimeout(() => setShowErrorAnimation(false), 1000);
-      return;
-    }
-    setError(null);
-    setSubmitting(true);
-    const currentScore = score;
-    setScore(null);
-    try {
-      if (API_URL) {
-        const res = await fetch(
-          `${API_URL}/v1/performance/${performance.performance_id}/rate`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify({
-              score: Number(currentScore),
-              comment: comment || "",
-              gif_url: selectedGif,
-            }),
-          }
-        );
-        if (!res.ok) {
-          const data = await res.json().catch(() => null);
-          throw new Error(data?.message || "Ошибка при отправке оценки");
-        }
-      }
-      setOpen(false);
-      setScore(null);
-      setComment("");
-      setGifSearch("");
-      setGifs([]);
-      setSelectedGif(null);
-      setError(null);
-      window.location.reload();
-    } catch (err) {
-      setError((err as Error).message);
-    } finally {
-      setSubmitting(false);
-    }
-  }
 
   const isLight = theme === "light";
   const isGray = theme === "dark-gray";
@@ -204,27 +105,6 @@ export function PerformanceCard({
   const feedUserMeColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
   const feedCommentColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#94a3b8";
   const emptyColor = isLight ? "#64748b" : isGray ? "#6b7280" : "#475569";
-
-  const modalOverlayBg = isLight ? "rgba(0, 0, 0, 0.4)" : "rgba(2, 6, 23, 0.9)";
-  const modalPaperBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "#0f172a";
-  const modalPaperBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #374151" : "1px solid #334155";
-  const modalHeadingColor = isLight ? "#0f172a" : "#fff";
-
-  const ratingBtnInactiveBg = isLight ? "#f1f5f9" : isGray ? "#282828" : "#1e293b";
-  const ratingBtnInactiveText = isLight ? "#0f172a" : "#fff";
-  const ratingBtnInactiveBorder = isLight ? "#cbd5e1" : isGray ? "#374151" : "#334155";
-
-  const textareaBg = isLight ? "#f8fafc" : isGray ? "#282828" : "#1e293b";
-  const textareaBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #374151" : "1px solid #334155";
-  const textareaColor = isLight ? "#0f172a" : "#fff";
-
-  const gifPickerBg = isLight ? "#f8fafc" : isGray ? "#282828" : "#1e293b";
-  const gifSearchColor = isLight ? "#0f172a" : "#fff";
-  const gifSearchBorder = isLight ? "2px solid #cbd5e1" : isGray ? "2px solid #374151" : "2px solid #334155";
-
-  const btnSecBg = "transparent";
-  const btnSecColor = isLight ? "#64748b" : isGray ? "#9ca3af" : "#94a3b8";
-  const btnSecBorder = isLight ? "2px solid #cbd5e1" : isGray ? "2px solid #374151" : "2px solid #334155";
 
   const placeWords: Record<number, string> = {
     1: "Первое место",
@@ -303,10 +183,7 @@ export function PerformanceCard({
         {token && votingStarted && !votingEnded && (
           <button
             style={{ ...styles.rateBtn, background: rateBtnBg, color: rateBtnColor }}
-            onClick={() => {
-              setOpen(true);
-              loadLocalGifs();
-            }}
+            onClick={() => setOpen(true)}
           >
             ОЦЕНИТЬ
           </button>
@@ -402,184 +279,16 @@ export function PerformanceCard({
         )}
       </div>
 
-      {/* RATING MODAL */}
-      {open && (
-        <div style={{ ...styles.modal, background: modalOverlayBg }}>
-          <div style={{
-            ...styles.modalPaper,
-            background: modalPaperBg,
-            border: modalPaperBorder,
-            padding: "24px 28px 20px",
-            boxShadow: "0 30px 80px rgba(0,0,0,0.5), inset 0 1px rgba(255, 255, 255, 0.06)",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            position: "relative",
-            boxSizing: "border-box",
-            maxHeight: "85vh",
-          }}>
-            <button
-              onClick={() => setOpen(false)}
-              style={{
-                position: "absolute",
-                top: 14,
-                right: 14,
-                width: 32,
-                height: 32,
-                borderRadius: 12,
-                border: "none",
-                background: isLight ? "rgba(0,0,0,0.05)" : "rgba(255,255,255,0.06)",
-                color: isLight ? "#64748b" : "#94a3b8",
-                cursor: "pointer",
-                fontSize: 15,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              ✕
-            </button>
-
-            {/* Иконка в стиле AuthModal */}
-            <div style={{
-              width: 48,
-              height: 48,
-              borderRadius: 16,
-              background: isLight ? "linear-gradient(135deg, rgba(55, 65, 81, 0.15), rgba(75, 85, 99, 0.15))" : isGray ? "linear-gradient(135deg, rgba(255, 255, 255, 0.1), rgba(255, 255, 255, 0.05))" : "linear-gradient(135deg, rgba(79, 124, 255, 0.2), rgba(124, 77, 255, 0.2))",
-              border: isLight ? "1px solid rgba(55, 65, 81, 0.2)" : isGray ? "1px solid rgba(255, 255, 255, 0.1)" : "1px solid rgba(79, 124, 255, 0.2)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              marginBottom: 12,
-              boxShadow: isLight ? "0 4px 16px rgba(55, 65, 81, 0.1)" : "0 4px 16px rgba(79, 124, 255, 0.15)",
-              fontSize: 22,
-            }}>
-              ⭐
-            </div>
-
-            <h2 style={{ margin: "0 0 4px 0", fontSize: 20, fontWeight: 900, color: modalHeadingColor, textAlign: "center", letterSpacing: "-0.02em" }}>
-              Оценка выступления
-            </h2>
-            <p style={{ margin: "0 0 16px 0", color: isLight ? "#64748b" : "#94a3b8", fontSize: 13, textAlign: "center", lineHeight: 1.4, maxWidth: 360 }}>
-              Оцените выступление по 10-балльной шкале и поделитесь впечатлениями
-            </p>
-
-            {error && <div style={styles.errorBanner}>{error}</div>}
-            
-            <div style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(10, 1fr)",
-                gap: 4,
-                marginBottom: 16,
-                width: "100%",
-            }}>
-              {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-                <button
-                  key={n}
-                  onClick={() => {
-                    setScore(n);
-                    setShowErrorAnimation(false);
-                  }}
-                  style={{
-                    aspectRatio: "1/1",
-                    borderRadius: 10,
-                    background: score === n ? getScoreColor(n) : ratingBtnInactiveBg,
-                    color: score === n ? "#fff" : ratingBtnInactiveText,
-                    fontSize: 15,
-                    fontWeight: 800,
-                    cursor: "pointer",
-                    transform: score === n ? "scale(1.12)" : "scale(1)",
-                    border: score === n ? "2px solid #fff" : showErrorAnimation ? "2px solid #ff6b6b" : `1px solid ${ratingBtnInactiveBorder}`,
-                    transition: "all 0.2s ease",
-                    padding: 0,
-                    boxShadow: score === n ? `0 4px 12px ${getScoreColor(n)}` : showErrorAnimation ? "0 0 10px rgba(255, 107, 107, 0.5)" : "none",
-                  }}
-                >
-                  {n}
-                </button>
-              ))}
-            </div>
-            <textarea
-              placeholder="Твой комментарий (необязательно)..."
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              style={{ ...styles.modalTextarea, background: textareaBg, border: textareaBorder, color: textareaColor, minHeight: 60, marginBottom: 12, padding: 12, fontSize: 16 }}
-            />
-            {ENABLE_GIFS && (
-              <div style={{ ...styles.gifPicker, background: gifPickerBg, width: "100%", padding: 10, marginBottom: 16 }}>
-                <div style={{ ...styles.gifSearchBox, marginBottom: 8 }}>
-                  <input
-                    placeholder="Найди гифку для реакции..."
-                    value={gifSearch}
-                    onChange={(e) => setGifSearch(e.target.value)}
-                    style={{ ...styles.gifSearchInput, color: gifSearchColor, borderBottom: gifSearchBorder, padding: 6, fontSize: 16 }}
-                  />
-                  <button onClick={() => searchGifs(gifSearch)} style={{ ...styles.gifSearchBtn, fontSize: 16 }}>🔍</button>
-                </div>
-                <div style={{ ...styles.gifScroll, paddingBottom: 4 }}>
-                  {loadingGifs && <div style={{textAlign: 'center', padding: 8, color: gifSearchColor, width: "100%", fontSize: 13}}>Ищем...</div>}
-                  {gifs.map((gif) => (
-                    <img
-                      key={gif.id}
-                      src={gif.url}
-                      onClick={() => setSelectedGif(gif.url)}
-                      style={{
-                        ...styles.gifThumb,
-                        height: 48,
-                        border: selectedGif === gif.url ? `3px solid ${isLight ? "#374151" : "#4f7cff"}` : "none"
-                      }}
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
-            <div style={{ ...styles.modalFooter, width: "100%" }}>
-              <button onClick={() => setOpen(false)} style={{ ...styles.btnSecondary, background: btnSecBg, color: btnSecColor, border: btnSecBorder, padding: "10px 0" }}>Закрыть</button>
-              <button
-                onClick={submit}
-                style={{
-                  ...styles.btnPrimary,
-                  padding: "10px 0",
-                  background: isLight ? "linear-gradient(135deg, #4b5563 0%, #1f2937 100%)" : isGray ? "linear-gradient(135deg, #4b5563 0%, #374151 100%)" : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)",
-                  boxShadow: isLight ? "0 8px 24px rgba(31, 41, 55, 0.25)" : isGray ? "0 8px 24px rgba(0, 0, 0, 0.4)" : "0 8px 24px rgba(79, 124, 255, 0.35)",
-                }}
-              >
-                Подтвердить
-              </button>
-            </div>
-
-            {/* Вращающийся кружочек загрузки (spinner) поверх окна */}
-            {submitting && (
-              <div style={{
-                position: "absolute",
-                inset: 0,
-                background: "rgba(0,0,0,0.6)",
-                backdropFilter: "blur(4px)",
-                borderRadius: 24,
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                zIndex: 10,
-              }}>
-                <div style={{
-                  width: 44,
-                  height: 44,
-                  border: "4px solid rgba(255,255,255,0.2)",
-                  borderTopColor: isLight ? "#1f2937" : "#4f7cff",
-                  borderRadius: "50%",
-                  animation: "spin 0.8s linear infinite",
-                }} />
-                <style>{`
-                  @keyframes spin {
-                    0% { transform: rotate(0deg); }
-                    100% { transform: rotate(360deg); }
-                  }
-                `}</style>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
+      <RatePerformanceModal
+        performance={performance}
+        theme={theme}
+        open={open}
+        onClose={() => setOpen(false)}
+        initialScore={mine?.score ?? null}
+        initialComment={mine?.comment ?? ""}
+        initialGifUrl={mine?.gif_url ?? null}
+        onSuccess={() => onRated?.()}
+      />
     </div>
   );
 }
@@ -783,21 +492,4 @@ const styles: Record<string, React.CSSProperties> = {
   },
   feedGif: { width: "100%", height: "100%", objectFit: "cover" },
   emptyFeed: { textAlign: "center", padding: "10px", fontSize: "12px" },
-
-  modal: { position: "fixed", inset: 0, backdropFilter: "blur(12px)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1000, padding: "10px" },
-  modalPaper: { width: "100%", maxWidth: "480px", borderRadius: "24px", padding: "20px", maxHeight: "95vh", overflowY: "auto", boxSizing: "border-box" },
-  modalHeading: { fontSize: "20px", fontWeight: 900, textAlign: "center", marginBottom: "20px" },
-  ratingGrid: { display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: "8px", marginBottom: "20px" },
-  ratingButton: { aspectRatio: "1/1", borderRadius: "12px", border: "2px solid transparent", fontSize: "18px", fontWeight: 900, cursor: "pointer", transition: "all 0.2s ease" },
-  modalTextarea: { width: "100%", borderRadius: "16px", padding: "16px", minHeight: "80px", marginBottom: "16px", boxSizing: "border-box", fontSize: "16px", outline: "none" },
-  gifPicker: { borderRadius: "16px", padding: "12px", marginBottom: "20px", boxSizing: "border-box" },
-  gifSearchBox: { display: "flex", gap: "8px", marginBottom: "12px" },
-  gifSearchInput: { flex: 1, background: "transparent", border: "none", padding: "8px", outline: "none", fontSize: "16px" },
-  gifSearchBtn: { background: "none", border: "none", cursor: "pointer", fontSize: "18px" },
-  gifScroll: { display: "flex", gap: "10px", overflowX: "auto", paddingBottom: "8px" },
-  gifThumb: { height: "60px", borderRadius: "8px", cursor: "pointer", flexShrink: 0 },
-  modalFooter: { display: "flex", gap: "12px" },
-  btnSecondary: { flex: 1, padding: "12px", borderRadius: "14px", fontWeight: 800, cursor: "pointer", fontSize: "12px", transition: "opacity 0.2s" },
-  btnPrimary: { flex: 2, color: "#fff", border: "none", padding: "12px", borderRadius: "14px", fontWeight: 900, cursor: "pointer", fontSize: "12px", transition: "opacity 0.2s" },
-  errorBanner: { background: "rgba(239, 68, 68, 0.15)", color: "#f87171", padding: "12px", borderRadius: "12px", marginBottom: "16px", fontSize: "14px", textAlign: "center" },
 };

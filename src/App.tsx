@@ -195,6 +195,12 @@ export default function App() {
             contest={selectedContest}
             chatOpen={chatOpen}
             setChatOpen={setChatOpen}
+            onRefreshContest={async () => {
+              if (selectedContest) {
+                const data = await getContest(selectedContest.contest.id);
+                setSelectedContest(data);
+              }
+            }}
           />
         </div>
       </div>

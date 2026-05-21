@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { useChatWebSocket } from "../hooks/useChatWebSocket";
 import { PerformanceCard } from "./PerformanceCard";
+import { ScoresTableView } from "./ScoresTableView";
 import { YouTubeLiveSection } from "./YouTubeLiveSection";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
@@ -10,6 +11,7 @@ type Props = {
     chatOpen: boolean;
     setChatOpen: (open: boolean) => void;
     theme?: Theme;
+    onRefreshContest?: () => void | Promise<void>;
 };
 
 type ChatMessage = {
@@ -47,6 +49,29 @@ function plural(value: number, one: string, few: string, many: string) {
     return many;
 }
 
+function viewModeBtnStyle(active: boolean, isLight: boolean, isGray: boolean): CSSProperties {
+    return {
+        padding: "8px 16px",
+        borderRadius: 10,
+        border: active
+            ? "1px solid rgba(79,124,255,0.5)"
+            : isLight
+              ? "1px solid rgba(0,0,0,0.1)"
+              : "1px solid rgba(255,255,255,0.12)",
+        background: active
+            ? "rgba(79,124,255,0.2)"
+            : isLight
+              ? "rgba(255,255,255,0.7)"
+              : isGray
+                ? "rgba(40,40,40,0.8)"
+                : "rgba(15,23,42,0.6)",
+        color: active ? (isLight ? "#3b5bdb" : "#93b4ff") : isLight ? "#475569" : "#cbd5e1",
+        fontWeight: 700,
+        fontSize: 13,
+        cursor: "pointer",
+    };
+}
+
 function formatTime(ms: number) {
     const totalSeconds = Math.floor(ms / 1000);
 
@@ -65,13 +90,14 @@ function formatTime(ms: number) {
     return parts.join(" ");
 }
 
-export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue" }: Props) {
+export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue", onRefreshContest }: Props) {
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
     const [now, setNow] = useState(Date.now());
     const [messages, setMessages] = useState<ChatMessage[]>([]);
     const [input, setInput] = useState("");
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [uiReady, setUiReady] = useState(false);
+    const [scoresViewMode, setScoresViewMode] = useState<"cards" | "table">("cards");
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -508,22 +534,61 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
 
                 <YouTubeLiveSection theme={theme} />
 
-                <div style={styles.grid}>
-                    {sortedPerformances.map((p) => (
-                        <PerformanceCard
-                            key={p.performance_id}
-                            performance={p}
-                            votingStarted={
-                                now >= new Date(contest.contest.starts).getTime()
-                            }
-                            votingEnded={
-                                now > new Date(contest.contest.ends).getTime()
-                            }
-                            theme={theme}
-                            contestType={contest.contest.type}
-                        />
-                    ))}
+                <div
+                    style={{
+                        maxWidth: 1200,
+                        margin: "0 auto 16px",
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 8,
+                        flexWrap: "wrap",
+                    }}
+                >
+                    <button
+                        type="button"
+                        onClick={() => setScoresViewMode("cards")}
+                        style={viewModeBtnStyle(scoresViewMode === "cards", isLight, isGray)}
+                    >
+                        🃏 Карточки
+                    </button>
+                    <button
+                        type="button"
+                        onClick={() => setScoresViewMode("table")}
+                        style={viewModeBtnStyle(scoresViewMode === "table", isLight, isGray)}
+                    >
+                        📊 Таблица
+                    </button>
                 </div>
+
+                {scoresViewMode === "cards" ? (
+                    <div style={styles.grid}>
+                        {sortedPerformances.map((p) => (
+                            <PerformanceCard
+                                key={p.performance_id}
+                                performance={p}
+                                votingStarted={
+                                    now >= new Date(contest.contest.starts).getTime()
+                                }
+                                votingEnded={
+                                    now > new Date(contest.contest.ends).getTime()
+                                }
+                                theme={theme}
+                                contestType={contest.contest.type}
+                                onRated={onRefreshContest}
+                            />
+                        ))}
+                    </div>
+                ) : (
+                    <ScoresTableView
+                        performances={contest.performances}
+                        theme={theme}
+                        contestType={contest.contest.type}
+                        votingStarted={now >= new Date(contest.contest.starts).getTime()}
+                        votingEnded={now > new Date(contest.contest.ends).getTime()}
+                        isAuthenticated={isAuthenticated}
+                        onRated={onRefreshContest}
+                    />
+                )}
 
                 <button
                     onClick={(e) => {
