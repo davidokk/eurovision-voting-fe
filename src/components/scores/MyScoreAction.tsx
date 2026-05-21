@@ -13,9 +13,10 @@ type Props = {
   colors: Colors;
   /** В heatmap: наследовать цвет ячейки вместо золотого */
   inheritCellColor?: boolean;
+  compact?: boolean;
 };
 
-export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor }: Props) {
+export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor, compact }: Props) {
   const scoreColor = inheritCellColor ? "inherit" : colors.gold;
 
   if (canVote) {
@@ -30,13 +31,13 @@ export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor 
             background: "transparent",
             cursor: "pointer",
             fontWeight: 800,
-            fontSize: 15,
-            color: scoreColor,
-          }}
-        >
-          {mine.score}
-        </button>
-      );
+          fontSize: compact ? 14 : 15,
+          color: scoreColor,
+        }}
+      >
+        {mine.score}
+      </button>
+    );
     }
     return (
       <button
@@ -45,13 +46,14 @@ export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor 
         style={{
           border: "none",
           borderRadius: 8,
-          padding: "5px 10px",
-          fontSize: 11,
+          padding: compact ? "4px 8px" : "5px 10px",
+          fontSize: compact ? 10 : 11,
           fontWeight: 800,
           color: "#fff",
           cursor: "pointer",
           background: colors.rateBtn,
           whiteSpace: "nowrap",
+          flexShrink: 0,
         }}
       >
         Оценить
@@ -61,7 +63,7 @@ export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor 
 
   if (mine) {
     return (
-      <span style={{ fontWeight: 800, fontSize: 15, color: scoreColor }}>
+      <span style={{ fontWeight: 800, fontSize: compact ? 14 : 15, color: scoreColor }}>
         {mine.score}
       </span>
     );

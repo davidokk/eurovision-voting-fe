@@ -10,6 +10,8 @@ type Props = {
   textColor: string;
   subColor: string;
   compact?: boolean;
+  /** Узкий экран: без бейджей места, имя с ellipsis */
+  narrow?: boolean;
 };
 
 export function CountryScoresCell({
@@ -20,6 +22,7 @@ export function CountryScoresCell({
   textColor,
   subColor,
   compact,
+  narrow,
 }: Props) {
   const isLight = theme === "light";
   const isGray = theme === "dark-gray";
@@ -44,28 +47,40 @@ export function CountryScoresCell({
         </span>
       )}
       <div style={{ minWidth: 0, flex: 1 }}>
+        {!narrow && (
+          <div
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              gap: 6,
+              marginBottom: compact ? 2 : 4,
+            }}
+          >
+            <span style={numberBadge}>#{p.number}</span>
+            {!isSemifinal && hasPlace && (
+              <span style={placeBadgeStyle(p.place, isLight, isGray)}>
+                {p.place <= 3 ? PLACE_WORDS[p.place] : `${p.place} место`}
+              </span>
+            )}
+            {isSemifinal && (
+              <span style={qualifiedBadgeStyle(p.qualified, isLight)}>
+                {p.qualified ? "В финале" : "Не прошла"}
+              </span>
+            )}
+          </div>
+        )}
         <div
           style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: 6,
-            marginBottom: compact ? 2 : 4,
+            fontWeight: 700,
+            color: textColor,
+            lineHeight: 1.25,
+            fontSize: narrow ? 13 : compact ? 14 : undefined,
+            overflow: narrow ? "hidden" : undefined,
+            textOverflow: narrow ? "ellipsis" : undefined,
+            whiteSpace: narrow ? "nowrap" : undefined,
           }}
         >
-          <span style={numberBadge}>#{p.number}</span>
-          {!isSemifinal && hasPlace && (
-            <span style={placeBadgeStyle(p.place, isLight, isGray)}>
-              {p.place <= 3 ? PLACE_WORDS[p.place] : `${p.place} место`}
-            </span>
-          )}
-          {isSemifinal && (
-            <span style={qualifiedBadgeStyle(p.qualified, isLight)}>
-              {p.qualified ? "В финале" : "Не прошла"}
-            </span>
-          )}
-        </div>
-        <div style={{ fontWeight: 700, color: textColor, lineHeight: 1.25, fontSize: compact ? 14 : undefined }}>
           {p.country.name_ru}
         </div>
         {!compact && (

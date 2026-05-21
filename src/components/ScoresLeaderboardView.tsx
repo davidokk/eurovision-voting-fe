@@ -4,6 +4,7 @@ import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { CountryScoresCell } from "./scores/CountryScoresCell";
 import { MyScoreAction } from "./scores/MyScoreAction";
 import { ScoresRateModal } from "./scores/ScoresRateModal";
+import { useNarrowScreen } from "./scores/useNarrowScreen";
 import {
   formatTotal,
   getScoreColor,
@@ -25,6 +26,7 @@ export function ScoresLeaderboardView({
 }: ScoresViewProps) {
   const supportsEmoji = getDoesBrowserSupportFlagEmojis();
   const colors = getScoresViewColors(theme);
+  const isNarrow = useNarrowScreen();
   const { canVote, showMyColumn, myScoreFor } = useScoresViewAuth({
     isAuthenticated,
     votingStarted,
@@ -58,11 +60,16 @@ export function ScoresLeaderboardView({
     );
   }
 
+  const rowPad = isNarrow ? "10px 12px" : "12px 16px";
+  const indent = isNarrow ? 36 : 46;
+
   return (
     <div
       style={{
+        width: "100%",
         maxWidth: 720,
         margin: "0 auto",
+        boxSizing: "border-box",
         borderRadius: 16,
         border: colors.wrapBorder,
         background: colors.wrapBg,
@@ -75,7 +82,7 @@ export function ScoresLeaderboardView({
         style={{
           display: "flex",
           gap: 8,
-          padding: "12px 16px",
+          padding: isNarrow ? "10px 12px" : "12px 16px",
           borderBottom: `1px solid ${colors.border}`,
           flexWrap: "wrap",
         }}
@@ -85,12 +92,14 @@ export function ScoresLeaderboardView({
           label="По баллу"
           onClick={() => setSortMode("score")}
           colors={colors}
+          compact={isNarrow}
         />
         <SortChip
           active={sortMode === "number"}
           label="По порядку"
           onClick={() => setSortMode("number")}
           colors={colors}
+          compact={isNarrow}
         />
       </div>
 
@@ -101,6 +110,7 @@ export function ScoresLeaderboardView({
           const barPct = Math.min(100, (p.total_score / maxScore) * 100);
           const rank = sortMode === "score" ? index + 1 : null;
           const rowBg = index % 2 === 0 ? colors.cellBg : colors.cellAlt;
+          const totalColor = getScoreColor(Math.max(1, Math.min(10, p.total_score)));
 
           return (
             <li
@@ -112,83 +122,195 @@ export function ScoresLeaderboardView({
             >
               <div
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: showMyColumn
-                    ? "36px 1fr 72px 88px"
-                    : "36px 1fr 72px",
-                  gap: 10,
-                  alignItems: "center",
-                  padding: "12px 16px",
+                  padding: rowPad,
                   cursor: "pointer",
+                  boxSizing: "border-box",
+                  minWidth: 0,
                 }}
                 onClick={() =>
                   setExpandedId(expanded ? null : p.performance_id)
                 }
               >
-                <div
-                  style={{
-                    fontWeight: 900,
-                    fontSize: 18,
-                    color: rank && rank <= 3 ? getScoreColor(10 - rank + 1) : colors.sub,
-                    textAlign: "center",
-                  }}
-                >
-                  {rank ?? `#${p.number}`}
-                </div>
+                {isNarrow ? (
+                  <>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "flex-start",
+                        gap: 8,
+                        minWidth: 0,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: 28,
+                          flexShrink: 0,
+                          fontWeight: 900,
+                          fontSize: 15,
+                          lineHeight: 1.3,
+                          color: rank && rank <= 3 ? getScoreColor(10 - rank + 1) : colors.sub,
+                          textAlign: "center",
+                        }}
+                      >
+                        {rank ?? `#${p.number}`}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <CountryScoresCell
+                          performance={p}
+                          theme={theme}
+                          contestType={contestType}
+                          supportsEmoji={supportsEmoji}
+                          textColor={colors.text}
+                          subColor={colors.sub}
+                          compact
+                          narrow
+                        />
+                      </div>
+                      <div
+                        style={{
+                          flexShrink: 0,
+                          fontWeight: 900,
+                          fontSize: 15,
+                          lineHeight: 1.3,
+                          color: totalColor,
+                          textAlign: "right",
+                          minWidth: 40,
+                        }}
+                      >
+                        {formatTotal(p.total_score)}
+                      </div>
+                    </div>
 
-                <div style={{ minWidth: 0 }}>
-                  <CountryScoresCell
-                    performance={p}
-                    theme={theme}
-                    contestType={contestType}
-                    supportsEmoji={supportsEmoji}
-                    textColor={colors.text}
-                    subColor={colors.sub}
-                    compact
-                  />
+                    <div
+                      style={{
+                        marginTop: 8,
+                        marginLeft: indent,
+                        height: 5,
+                        borderRadius: 4,
+                        background: colors.isLight ? "#e2e8f0" : "rgba(255,255,255,0.08)",
+                        overflow: "hidden",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${barPct}%`,
+                          height: "100%",
+                          borderRadius: 4,
+                          background: totalColor,
+                        }}
+                      />
+                    </div>
+
+                    {showMyColumn && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          marginLeft: indent,
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          gap: 8,
+                          minWidth: 0,
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 600,
+                            color: colors.sub,
+                            flexShrink: 0,
+                          }}
+                        >
+                          Моя оценка
+                        </span>
+                        <MyScoreAction
+                          mine={mine}
+                          canVote={canVote}
+                          onRate={() => canVote && setRateTarget(p)}
+                          colors={colors}
+                          compact
+                        />
+                      </div>
+                    )}
+                  </>
+                ) : (
                   <div
                     style={{
-                      marginTop: 8,
-                      height: 6,
-                      borderRadius: 4,
-                      background: colors.isLight ? "#e2e8f0" : "rgba(255,255,255,0.08)",
-                      overflow: "hidden",
+                      display: "grid",
+                      gridTemplateColumns: showMyColumn
+                        ? "36px 1fr 72px 88px"
+                        : "36px 1fr 72px",
+                      gap: 10,
+                      alignItems: "center",
                     }}
                   >
                     <div
                       style={{
-                        width: `${barPct}%`,
-                        height: "100%",
-                        borderRadius: 4,
-                        background: getScoreColor(Math.max(1, Math.min(10, p.total_score))),
-                        transition: "width 0.3s ease",
+                        fontWeight: 900,
+                        fontSize: 18,
+                        color: rank && rank <= 3 ? getScoreColor(10 - rank + 1) : colors.sub,
+                        textAlign: "center",
                       }}
-                    />
-                  </div>
-                </div>
+                    >
+                      {rank ?? `#${p.number}`}
+                    </div>
 
-                <div
-                  style={{
-                    textAlign: "center",
-                    fontWeight: 900,
-                    fontSize: 18,
-                    color: getScoreColor(Math.max(1, Math.min(10, p.total_score))),
-                  }}
-                >
-                  {formatTotal(p.total_score)}
-                </div>
+                    <div style={{ minWidth: 0 }}>
+                      <CountryScoresCell
+                        performance={p}
+                        theme={theme}
+                        contestType={contestType}
+                        supportsEmoji={supportsEmoji}
+                        textColor={colors.text}
+                        subColor={colors.sub}
+                        compact
+                      />
+                      <div
+                        style={{
+                          marginTop: 8,
+                          height: 6,
+                          borderRadius: 4,
+                          background: colors.isLight ? "#e2e8f0" : "rgba(255,255,255,0.08)",
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${barPct}%`,
+                            height: "100%",
+                            borderRadius: 4,
+                            background: totalColor,
+                            transition: "width 0.3s ease",
+                          }}
+                        />
+                      </div>
+                    </div>
 
-                {showMyColumn && (
-                  <div
-                    style={{ textAlign: "center" }}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <MyScoreAction
-                      mine={mine}
-                      canVote={canVote}
-                      onRate={() => canVote && setRateTarget(p)}
-                      colors={colors}
-                    />
+                    <div
+                      style={{
+                        textAlign: "center",
+                        fontWeight: 900,
+                        fontSize: 18,
+                        color: totalColor,
+                      }}
+                    >
+                      {formatTotal(p.total_score)}
+                    </div>
+
+                    {showMyColumn && (
+                      <div
+                        style={{ textAlign: "center" }}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <MyScoreAction
+                          mine={mine}
+                          canVote={canVote}
+                          onRate={() => canVote && setRateTarget(p)}
+                          colors={colors}
+                        />
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -196,9 +318,11 @@ export function ScoresLeaderboardView({
               {expanded && (
                 <div
                   style={{
-                    padding: "0 16px 14px 62px",
+                    padding: isNarrow ? "0 12px 12px" : `0 16px 14px ${indent}px`,
                     fontSize: 13,
                     color: colors.sub,
+                    boxSizing: "border-box",
+                    wordBreak: "break-word",
                   }}
                 >
                   <div style={{ marginBottom: 6, color: colors.text, fontWeight: 600 }}>
@@ -255,11 +379,13 @@ function SortChip({
   label,
   onClick,
   colors,
+  compact,
 }: {
   active: boolean;
   label: string;
   onClick: () => void;
   colors: ReturnType<typeof getScoresViewColors>;
+  compact?: boolean;
 }) {
   return (
     <button
@@ -268,8 +394,8 @@ function SortChip({
       style={{
         border: active ? colors.chipActiveBorder : colors.chipBorder,
         borderRadius: 8,
-        padding: "6px 12px",
-        fontSize: 12,
+        padding: compact ? "5px 10px" : "6px 12px",
+        fontSize: compact ? 11 : 12,
         fontWeight: 700,
         cursor: "pointer",
         background: active ? colors.chipActive : colors.chipBg,
