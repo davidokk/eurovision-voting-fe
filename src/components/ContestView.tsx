@@ -9,6 +9,7 @@ import { ScoresRunningOrderView } from "./ScoresRunningOrderView";
 import type { ScoresViewMode } from "./scores/scoresViewShared";
 import { YouTubeLiveSection } from "./YouTubeLiveSection";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
+import { isScoreSystemMessage } from "../utils/chatMessage";
 
 type Props = {
     contest: ContestViewType | null;
@@ -104,6 +105,26 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
     const [scoresViewMode, setScoresViewMode] = useState<ScoresViewMode>("cards");
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
+    const contestRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+    const scheduleContestRefresh = useCallback(() => {
+        if (!onRefreshContest) return;
+        if (contestRefreshTimerRef.current) {
+            clearTimeout(contestRefreshTimerRef.current);
+        }
+        contestRefreshTimerRef.current = setTimeout(() => {
+            contestRefreshTimerRef.current = null;
+            void onRefreshContest();
+        }, 400);
+    }, [onRefreshContest]);
+
+    useEffect(() => {
+        return () => {
+            if (contestRefreshTimerRef.current) {
+                clearTimeout(contestRefreshTimerRef.current);
+            }
+        };
+    }, []);
 
     const myUsername = localStorage.getItem("username");
     const myUserId = localStorage.getItem("user_id");
@@ -160,6 +181,9 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                 if (prev.some((m) => messageKey(m) === key)) return prev;
                 return [...prev, msg];
             });
+            if (isScoreSystemMessage(msg)) {
+                scheduleContestRefresh();
+            }
         },
         onConnected: fetchMessages,
     });
