@@ -1,10 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
-    signin,
-    signupConfirm,
-    signupStart,
-    passwordForgot,
-    passwordReset,
+    telegramSigninConfirm,
+    telegramSigninStart,
+    telegramSessionStatus,
     type ApiError,
 } from "../api/auth";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
@@ -19,7 +17,7 @@ type Props = {
     theme?: Theme;
 };
 
-type Mode = "signin" | "signup" | "forgot";
+type Step = "intro" | "telegram";
 
 async function persistSession(token: string) {
     setStoredAvatarUrl(null);
@@ -41,57 +39,78 @@ export function AuthModal({
     onSuccess,
     theme = "dark-blue",
 }: Props) {
-    const [mode, setMode] = useState<Mode>("signin");
-    const [signupStep, setSignupStep] = useState<"form" | "code">("form");
-    const [forgotStep, setForgotStep] = useState<"email" | "code">("email");
-
-    const [email, setEmail] = useState("");
-    const [username, setUsername] = useState("");
-    const [password, setPassword] = useState("");
+    const [step, setStep] = useState<Step>("intro");
     const [code, setCode] = useState("");
+    const [linkToken, setLinkToken] = useState("");
+    const [botURL, setBotURL] = useState("");
+    const [botConnected, setBotConnected] = useState(false);
+    const [codeSent, setCodeSent] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
     const [info, setInfo] = useState<string | null>(null);
-    const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
     const [signupClosed, setSignupClosed] = useState(false);
     const [loading, setLoading] = useState(false);
 
     function resetFlow() {
         setError(null);
         setInfo(null);
-        setSignupStep("form");
-        setForgotStep("email");
+        setStep("intro");
         setCode("");
+        setLinkToken("");
+        setBotURL("");
+        setBotConnected(false);
+        setCodeSent(false);
+        setSignupClosed(false);
     }
 
-    async function handleSignin() {
+    useEffect(() => {
+        if (step !== "telegram" || !linkToken) return;
+
+        const id = window.setInterval(() => {
+            void telegramSessionStatus(linkToken)
+                .then((st) => {
+                    setBotConnected(st.telegram_connected);
+                    if (st.code_sent) {
+                        setCodeSent(true);
+                        setInfo("Код отправлен в Telegram");
+                    }
+                })
+                .catch(() => {});
+        }, 2000);
+
+        return () => window.clearInterval(id);
+    }, [step, linkToken]);
+
+    async function startTelegramFlow() {
         setLoading(true);
         setError(null);
-        setShowRegisterPrompt(false);
+        setInfo(null);
+        setSignupClosed(false);
         try {
-            const res = await signin(email.trim(), password);
-            await persistSession(res.token);
-            onSuccess(res.token);
+            const res = await telegramSigninStart();
+            setLinkToken(res.link_token);
+            setBotURL(res.bot_url);
+            setStep("telegram");
+            setInfo("Откройте бота в Telegram — он пришлёт 6-значный код");
         } catch (err) {
-            const e = err as ApiError;
-            if (e.code === "USER_NOT_EXISTS") {
-                setShowRegisterPrompt(true);
-                setError(null);
-            } else {
-                setError(formatAuthError(e));
-            }
+            setError(formatAuthError(err as ApiError));
         } finally {
             setLoading(false);
         }
     }
 
-    async function handleSignupStart() {
+    async function confirmCode() {
+        if (code.length !== 6) {
+            setError("Введите все 6 цифр кода");
+            return;
+        }
         setLoading(true);
         setError(null);
+        setSignupClosed(false);
         try {
-            await signupStart(email.trim(), username.trim(), password);
-            setInfo("Код отправлен на почту");
-            setSignupStep("code");
+            const res = await telegramSigninConfirm(linkToken, code.trim());
+            await persistSession(res.token);
+            onSuccess(res.token);
         } catch (err) {
             const e = err as ApiError;
             if (e.code === "SIGNUP_CLOSED") {
@@ -103,66 +122,6 @@ export function AuthModal({
         } finally {
             setLoading(false);
         }
-    }
-
-    async function handleSignupConfirm() {
-        setLoading(true);
-        setError(null);
-        try {
-            const res = await signupConfirm(email.trim(), code.trim());
-            await persistSession(res.token);
-            onSuccess(res.token);
-        } catch (err) {
-            const e = err as ApiError;
-            setError(formatAuthError(e));
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function handleForgotSend() {
-        setLoading(true);
-        setError(null);
-        try {
-            await passwordForgot(email.trim());
-            setInfo("Если аккаунт существует, код отправлен на почту");
-            setForgotStep("code");
-        } catch (err) {
-            const e = err as ApiError;
-            setError(formatAuthError(e));
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    async function handleForgotReset() {
-        setLoading(true);
-        setError(null);
-        try {
-            await passwordReset(email.trim(), code.trim(), password);
-            setInfo("Пароль обновлён. Войдите с новым паролем.");
-            setMode("signin");
-            setForgotStep("email");
-            setPassword("");
-            setCode("");
-        } catch (err) {
-            const e = err as ApiError;
-            setError(formatAuthError(e));
-        } finally {
-            setLoading(false);
-        }
-    }
-
-    const codeStepActive =
-        (mode === "signup" && signupStep === "code") || (mode === "forgot" && forgotStep === "code");
-
-    async function handlePrimary() {
-        if (mode === "signin") await handleSignin();
-        else if (mode === "signup") {
-            if (signupStep === "form") await handleSignupStart();
-            else await handleSignupConfirm();
-        } else if (forgotStep === "email") await handleForgotSend();
-        else await handleForgotReset();
     }
 
     const isLight = theme === "light";
@@ -197,9 +156,6 @@ export function AuthModal({
           ? "0 8px 24px rgba(0, 0, 0, 0.4)"
           : "0 8px 24px rgba(79, 124, 255, 0.35), inset 0 1px rgba(255,255,255,0.15)";
 
-    const tabsWrapperBg = isLight ? "rgba(0, 0, 0, 0.04)" : isGray ? "rgba(0, 0, 0, 0.2)" : "rgba(15, 23, 42, 0.6)";
-    const inputBg = isLight ? "rgba(0, 0, 0, 0.03)" : isGray ? "rgba(0, 0, 0, 0.2)" : "rgba(15, 23, 42, 0.6)";
-    const inputTextColor = isLight ? "#0f172a" : isGray ? "#f3f4f6" : "#e6edf7";
     const inputBorderColor = isLight ? "rgba(0, 0, 0, 0.1)" : "rgba(255, 255, 255, 0.08)";
 
     const promptBg = isLight
@@ -211,51 +167,17 @@ export function AuthModal({
     const promptBorder = isLight ? "1px solid rgba(55, 65, 81, 0.2)" : isGray ? "1px solid rgba(255, 255, 255, 0.15)" : "1px solid rgba(79, 124, 255, 0.2)";
     const promptHighlightColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
 
-    const inputStyle: React.CSSProperties = {
-        width: "100%",
-        padding: "16px 18px",
-        borderRadius: 16,
-        border: `1px solid ${inputBorderColor}`,
-        background: inputBg,
-        color: inputTextColor,
-        outline: "none",
-        fontSize: 15,
-        boxSizing: "border-box",
-        transition: "border-color 0.2s ease, box-shadow 0.2s ease",
-    };
-
-    const title =
-        mode === "forgot"
-            ? "Восстановление пароля"
-            : mode === "signin"
-              ? "Вход в систему"
-              : signupStep === "code"
-                ? "Подтверждение почты"
-                : "Регистрация";
-
+    const title = step === "telegram" ? "Код из Telegram" : "Вход";
     const subtitle =
-        mode === "forgot"
-            ? forgotStep === "email"
-                ? "Укажите email — отправим код для сброса пароля"
-                : "Введите код из письма и новый пароль"
-            : mode === "signin"
-              ? "Войдите по email (старые аккаунты — можно по имени пользователя)"
-              : signupStep === "code"
-                ? `Код отправлен на ${email}`
-                : "Создайте аккаунт — на почту придёт код подтверждения";
+        step === "telegram"
+            ? "Новый Telegram — аккаунт создастся сам после ввода кода"
+            : "Войдите через Telegram";
 
-    const primaryLabel =
-        loading
-            ? "Загрузка..."
-            : mode === "signin"
-              ? "Войти"
-              : mode === "signup"
-                ? signupStep === "form"
-                  ? "Отправить код"
-                  : "Подтвердить и войти"
-                : forgotStep === "email"
-                  ? "Отправить код"
-                  : "Сохранить пароль";
+    const primaryLabel = loading
+        ? "Загрузка..."
+        : step === "intro"
+          ? "Войти через Telegram"
+          : "Продолжить";
 
     return (
         <div style={styles.overlay} onClick={onClose}>
@@ -286,99 +208,64 @@ export function AuthModal({
                               : styles.iconWrap.background,
                     }}
                 >
-                    <span style={styles.icon}>🎤</span>
+                    <span style={styles.icon}>✈️</span>
                 </div>
 
                 <h2 style={{ ...styles.title, color: titleColor }}>{title}</h2>
                 <p style={{ ...styles.subtitle, color: subtitleColor }}>{subtitle}</p>
 
-                {mode !== "forgot" && (
-                    <div style={{ ...styles.tabs, background: tabsWrapperBg, borderColor: inputBorderColor }}>
-                        <button
-                            type="button"
+                {step === "telegram" && (
+                    <div style={styles.form}>
+                        <a
+                            href={botURL}
+                            target="_blank"
+                            rel="noopener noreferrer"
                             style={{
-                                ...styles.tab,
-                                color: mode === "signin" ? "#fff" : subtitleColor,
-                                background: mode === "signin" ? primaryGradient : "transparent",
-                            }}
-                            onClick={() => {
-                                setMode("signin");
-                                resetFlow();
-                                setSignupClosed(false);
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: 10,
+                                width: "100%",
+                                padding: "14px 18px",
+                                borderRadius: 16,
+                                background: "#229ED9",
+                                color: "#fff",
+                                fontWeight: 800,
+                                fontSize: 15,
+                                textDecoration: "none",
+                                boxSizing: "border-box",
                             }}
                         >
-                            Вход
-                        </button>
-                        <button
-                            type="button"
+                            Открыть Telegram-бота
+                        </a>
+
+                        <div
                             style={{
-                                ...styles.tab,
-                                color: mode === "signup" ? "#fff" : subtitleColor,
-                                background: mode === "signup" ? primaryGradient : "transparent",
-                            }}
-                            onClick={() => {
-                                setMode("signup");
-                                resetFlow();
-                                setSignupClosed(false);
+                                fontSize: 12,
+                                color: subtitleColor,
+                                textAlign: "center",
+                                lineHeight: 1.5,
                             }}
                         >
-                            Регистрация
-                        </button>
+                            {botConnected
+                                ? codeSent
+                                    ? "Проверьте личные сообщения от бота"
+                                    : "Бот подключён — ждём код…"
+                                : "После открытия нажмите Start / Запустить"}
+                        </div>
+
+                        <CodeInput
+                            value={code}
+                            onChange={(v) => {
+                                setCode(v);
+                                if (error) setError(null);
+                            }}
+                            disabled={loading}
+                            theme={theme}
+                            hasError={!!error && code.length === 6}
+                        />
                     </div>
                 )}
-
-                <div style={styles.form}>
-                    {(mode === "signin" || mode === "signup" || mode === "forgot") &&
-                        (mode !== "signup" || signupStep === "form") &&
-                        (mode !== "forgot" || forgotStep === "email") && (
-                            <input
-                                type="email"
-                                placeholder="Email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
-                                style={inputStyle}
-                            />
-                        )}
-
-                    {mode === "signup" && signupStep === "form" && (
-                        <input
-                            placeholder="Твое имя"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            style={inputStyle}
-                        />
-                    )}
-
-                    {(mode === "signin" ||
-                        (mode === "signup" && signupStep === "form") ||
-                        (mode === "forgot" && forgotStep === "code")) && (
-                        <input
-                            type="password"
-                            placeholder={
-                                mode === "forgot" && forgotStep === "code" ? "Новый пароль" : "Пароль"
-                            }
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            onKeyDown={(e) => e.key === "Enter" && void handlePrimary()}
-                            style={inputStyle}
-                        />
-                    )}
-
-                    {codeStepActive && (
-                        <div style={{ marginTop: 4 }}>
-                            <CodeInput
-                                value={code}
-                                onChange={(v) => {
-                                    setCode(v);
-                                    if (error) setError(null);
-                                }}
-                                disabled={loading}
-                                theme={theme}
-                                hasError={!!error && code.length === 6}
-                            />
-                        </div>
-                    )}
-                </div>
 
                 {info && <div style={{ ...styles.info, width: "100%" }}>{info}</div>}
                 {error && (
@@ -399,20 +286,12 @@ export function AuthModal({
                     </div>
                 )}
 
-                {showRegisterPrompt && (
-                    <div style={{ ...styles.registerPrompt, background: promptBg, border: promptBorder }}>
-                        <div style={{ ...styles.promptTitle, color: promptHighlightColor }}>
-                            Аккаунт не найден
-                        </div>
-                        <div style={{ ...styles.promptText, color: subtitleColor }}>
-                            Перейдите на вкладку «Регистрация», чтобы создать аккаунт по email.
-                        </div>
-                    </div>
-                )}
-
                 <button
                     type="button"
-                    onClick={() => void handlePrimary()}
+                    onClick={() => {
+                        if (step === "intro") void startTelegramFlow();
+                        else void confirmCode();
+                    }}
                     disabled={loading}
                     style={{
                         ...styles.button,
@@ -424,33 +303,10 @@ export function AuthModal({
                     {primaryLabel}
                 </button>
 
-                {mode === "signin" && (
+                {step === "telegram" && (
                     <button
                         type="button"
-                        onClick={() => {
-                            setMode("forgot");
-                            resetFlow();
-                        }}
-                        style={{
-                            border: "none",
-                            background: "transparent",
-                            color: promptHighlightColor,
-                            fontSize: 13,
-                            fontWeight: 700,
-                            cursor: "pointer",
-                        }}
-                    >
-                        Забыли пароль?
-                    </button>
-                )}
-
-                {mode === "forgot" && (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            setMode("signin");
-                            resetFlow();
-                        }}
+                        onClick={resetFlow}
                         style={{
                             border: "none",
                             background: "transparent",
@@ -459,7 +315,7 @@ export function AuthModal({
                             cursor: "pointer",
                         }}
                     >
-                        ← Назад ко входу
+                        ← Назад
                     </button>
                 )}
 
@@ -527,24 +383,6 @@ const styles: Record<string, React.CSSProperties> = {
     icon: { fontSize: 28 },
     title: { margin: 0, fontSize: 24, fontWeight: 900, textAlign: "center" },
     subtitle: { margin: 0, fontSize: 14, lineHeight: 1.5, textAlign: "center", maxWidth: 320 },
-    tabs: {
-        display: "flex",
-        gap: 4,
-        width: "100%",
-        borderRadius: 16,
-        padding: 4,
-        border: "1px solid rgba(255, 255, 255, 0.06)",
-        boxSizing: "border-box",
-    },
-    tab: {
-        flex: 1,
-        padding: "12px 0",
-        border: "none",
-        cursor: "pointer",
-        borderRadius: 13,
-        fontSize: 14,
-        fontWeight: 700,
-    },
     form: { width: "100%", display: "flex", flexDirection: "column", gap: 12 },
     button: {
         width: "100%",

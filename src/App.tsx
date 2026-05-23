@@ -9,7 +9,6 @@ import { AppShell } from "./components/AppShell";
 import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
 import { fetchMe, setStoredAvatarUrl } from "./api/user";
-import { EmailVerifyGate } from "./components/EmailVerifyGate";
 import { applyAuthSession } from "./utils/jwt";
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
@@ -139,18 +138,11 @@ export default function App() {
   }
 
   if (isAdmin) {
-    return (
-      <>
-        <EmailVerifyGate theme={theme} />
-        <AdminPage initialContest={selectedContest} />
-      </>
-    );
+    return <AdminPage initialContest={selectedContest} />;
   }
   if (isUserPage && userId) {
     return (
-      <>
-        <EmailVerifyGate theme={theme} />
-        <AppShell
+      <AppShell
           theme={theme}
           onSelectTheme={handleSelectTheme}
           contests={contests}
@@ -159,16 +151,10 @@ export default function App() {
         >
           <UserStatsPage userId={userId} theme={theme} />
         </AppShell>
-      </>
     );
   }
   if (isCountryPage && countryId) {
-    return (
-      <>
-        <EmailVerifyGate theme={theme} />
-        <CountryStatsPage countryId={countryId} theme={theme} />
-      </>
-    );
+    return <CountryStatsPage countryId={countryId} theme={theme} />;
   }
 
   const isLight = theme === "light";
@@ -181,8 +167,6 @@ export default function App() {
   const toggleBtnShadow = isLight ? "0 10px 30px rgba(0,0,0,0.15)" : "0 10px 30px rgba(79, 124, 255, 0.35), inset 0 1px rgba(255, 255, 255, 0.15)";
 
   return (
-    <>
-    <EmailVerifyGate theme={theme} />
     <div style={{
       height: "100vh",
       width: "100vw",
@@ -280,6 +264,5 @@ export default function App() {
         </button>
       )}
     </div>
-    </>
   );
 }
