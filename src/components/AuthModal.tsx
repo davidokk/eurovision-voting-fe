@@ -47,13 +47,11 @@ export function AuthModal({
     const [codeSent, setCodeSent] = useState(false);
 
     const [error, setError] = useState<string | null>(null);
-    const [info, setInfo] = useState<string | null>(null);
     const [signupClosed, setSignupClosed] = useState(false);
     const [loading, setLoading] = useState(false);
 
     function resetFlow() {
         setError(null);
-        setInfo(null);
         setStep("intro");
         setCode("");
         setLinkToken("");
@@ -72,7 +70,6 @@ export function AuthModal({
                     setBotConnected(st.telegram_connected);
                     if (st.code_sent) {
                         setCodeSent(true);
-                        setInfo("Код отправлен в Telegram");
                     }
                 })
                 .catch(() => {});
@@ -84,14 +81,12 @@ export function AuthModal({
     async function startTelegramFlow() {
         setLoading(true);
         setError(null);
-        setInfo(null);
         setSignupClosed(false);
         try {
             const res = await telegramSigninStart();
             setLinkToken(res.link_token);
             setBotURL(res.bot_url);
             setStep("telegram");
-            setInfo("Откройте бота в Telegram — он пришлёт 6-значный код");
         } catch (err) {
             setError(formatAuthError(err as ApiError));
         } finally {
@@ -179,6 +174,39 @@ export function AuthModal({
           ? "Войти через Telegram"
           : "Продолжить";
 
+    const telegramStatus = codeSent
+        ? { text: "Код отправлен в Telegram", tone: "success" as const }
+        : botConnected
+          ? { text: "Бот подключён — ждём код…", tone: "pending" as const }
+          : { text: "После открытия нажмите Start / Запустить", tone: "muted" as const };
+
+    const statusBannerBg =
+        telegramStatus.tone === "success"
+            ? isLight
+                ? "rgba(34, 158, 217, 0.1)"
+                : "rgba(34, 158, 217, 0.15)"
+            : isLight
+              ? "rgba(0, 0, 0, 0.04)"
+              : isGray
+                ? "rgba(255, 255, 255, 0.06)"
+                : "rgba(255, 255, 255, 0.05)";
+
+    const statusBannerBorder =
+        telegramStatus.tone === "success"
+            ? isLight
+                ? "1px solid rgba(34, 158, 217, 0.35)"
+                : "1px solid rgba(34, 158, 217, 0.4)"
+            : isLight
+              ? "1px solid rgba(0, 0, 0, 0.08)"
+              : "1px solid rgba(255, 255, 255, 0.1)";
+
+    const statusTextColor =
+        telegramStatus.tone === "success"
+            ? isLight
+                ? "#0c4a6e"
+                : "#7dd3fc"
+            : subtitleColor;
+
     return (
         <div style={styles.overlay} onClick={onClose}>
             <div
@@ -241,17 +269,19 @@ export function AuthModal({
 
                         <div
                             style={{
-                                fontSize: 12,
-                                color: subtitleColor,
-                                textAlign: "center",
-                                lineHeight: 1.5,
+                                ...styles.statusBanner,
+                                background: statusBannerBg,
+                                border: statusBannerBorder,
+                                color: statusTextColor,
                             }}
+                            role="status"
                         >
-                            {botConnected
-                                ? codeSent
-                                    ? "Проверьте личные сообщения от бота"
-                                    : "Бот подключён — ждём код…"
-                                : "После открытия нажмите Start / Запустить"}
+                            {telegramStatus.tone === "success" && (
+                                <span style={styles.statusIcon} aria-hidden>
+                                    ✓
+                                </span>
+                            )}
+                            <span style={styles.statusText}>{telegramStatus.text}</span>
                         </div>
 
                         <CodeInput
@@ -267,7 +297,6 @@ export function AuthModal({
                     </div>
                 )}
 
-                {info && <div style={{ ...styles.info, width: "100%" }}>{info}</div>}
                 {error && (
                     <div style={styles.error}>
                         <span>⚠</span>
@@ -414,11 +443,34 @@ const styles: Record<string, React.CSSProperties> = {
         borderRadius: 14,
         boxSizing: "border-box",
     },
-    info: {
-        color: "#4ade80",
-        fontSize: 13,
-        padding: "8px 12px",
+    statusBanner: {
+        width: "100%",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 8,
+        padding: "12px 16px",
+        borderRadius: 14,
         boxSizing: "border-box",
+        textAlign: "center",
+    },
+    statusIcon: {
+        flexShrink: 0,
+        width: 22,
+        height: 22,
+        borderRadius: "50%",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 12,
+        fontWeight: 800,
+        background: "rgba(34, 158, 217, 0.25)",
+        color: "#229ED9",
+    },
+    statusText: {
+        fontSize: 14,
+        fontWeight: 600,
+        lineHeight: 1.4,
     },
     registerPrompt: {
         width: "100%",
