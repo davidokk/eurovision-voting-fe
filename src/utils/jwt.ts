@@ -13,9 +13,20 @@ export function parseJwt(token: string): Record<string, unknown> | null {
   }
 }
 
+function readVerified(
+  payload: Record<string, unknown> | null,
+  extras?: { verified?: boolean; email_verified?: boolean }
+): boolean | undefined {
+  if (typeof extras?.verified === "boolean") return extras.verified;
+  if (typeof extras?.email_verified === "boolean") return extras.email_verified;
+  if (typeof payload?.verified === "boolean") return payload.verified;
+  if (typeof payload?.email_verified === "boolean") return payload.email_verified;
+  return undefined;
+}
+
 export function applyAuthSession(
   token: string,
-  extras?: { avatar_url?: string | null; email_verified?: boolean }
+  extras?: { avatar_url?: string | null; verified?: boolean; email_verified?: boolean }
 ) {
   localStorage.setItem("token", token);
   const payload = parseJwt(token);
@@ -25,11 +36,9 @@ export function applyAuthSession(
   if (payload?.user_id && typeof payload.user_id === "string") {
     localStorage.setItem("user_id", payload.user_id);
   }
-  const verified =
-    extras?.email_verified ??
-    (typeof payload?.email_verified === "boolean" ? payload.email_verified : undefined);
+  const verified = readVerified(payload, extras);
   if (typeof verified === "boolean") {
-    localStorage.setItem("email_verified", verified ? "1" : "0");
+    localStorage.setItem("account_verified", verified ? "1" : "0");
   }
   if (extras && "avatar_url" in extras) {
     if (extras.avatar_url) {
@@ -44,6 +53,6 @@ export function applyAuthSession(
   window.dispatchEvent(new CustomEvent("ev-auth-updated"));
 }
 
-export function isEmailVerifiedLocally(): boolean {
-  return localStorage.getItem("email_verified") === "1";
+export function isAccountVerifiedLocally(): boolean {
+  return localStorage.getItem("account_verified") === "1";
 }

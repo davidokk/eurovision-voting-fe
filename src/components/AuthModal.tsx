@@ -26,7 +26,7 @@ async function persistSession(token: string) {
         const me = await fetchMe(token);
         setStoredAvatarUrl(me.avatar_url ?? null);
         applyAuthSession(token, {
-            email_verified: me.email_verified,
+            verified: me.telegram_linked,
             avatar_url: me.avatar_url ?? null,
         });
     } catch {

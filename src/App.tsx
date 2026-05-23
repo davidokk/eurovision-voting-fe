@@ -81,7 +81,7 @@ export default function App() {
         }
         const me = await fetchMe(token);
         applyAuthSession(token, {
-          email_verified: me.email_verified,
+          verified: me.telegram_linked,
           avatar_url: me.avatar_url,
         });
         setStoredAvatarUrl(me.avatar_url ?? null);
