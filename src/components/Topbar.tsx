@@ -210,9 +210,11 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
     if (t) {
       fetchMe(t)
         .then((me) => {
-          if (me.avatar_url) setStoredAvatarUrl(me.avatar_url);
+          setStoredAvatarUrl(me.avatar_url ?? null);
         })
-        .catch(() => {});
+        .catch(() => {
+          setStoredAvatarUrl(null);
+        });
     }
   }, []);
 
@@ -240,6 +242,7 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   }, [userMenuOpen, guestThemeOpen]);
 
   function handleLogin(token: string) {
+    setStoredAvatarUrl(null);
     localStorage.setItem("token", token);
     setToken(token);
     const savedUsername = localStorage.getItem("username");

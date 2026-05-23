@@ -1,8 +1,15 @@
-import { useEffect, useRef, useState, useMemo, type CSSProperties, type ReactNode } from "react";
-import { Camera, ChevronDown, Loader2, Search, Star, Trash2, X } from "lucide-react";
+import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
+import { Camera, Check, ChevronDown, Loader2, Pencil, Search, Star, Trash2, X } from "lucide-react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
-import { deleteAvatar, fetchUserPublic, setStoredAvatarUrl, uploadAvatar } from "../api/user";
+import {
+    changeUsername,
+    deleteAvatar,
+    fetchUserPublic,
+    setStoredAvatarUrl,
+    uploadAvatar,
+} from "../api/user";
+import { applyAuthSession } from "../utils/jwt";
 import { UserAvatar } from "./UserAvatar";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
@@ -406,6 +413,10 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const [cropOpen, setCropOpen] = useState(false);
     const [avatarUploading, setAvatarUploading] = useState(false);
     const [avatarDeleting, setAvatarDeleting] = useState(false);
+    const [usernameDraft, setUsernameDraft] = useState("");
+    const [editingUsername, setEditingUsername] = useState(false);
+    const [usernameSaving, setUsernameSaving] = useState(false);
+    const [usernameError, setUsernameError] = useState<string | null>(null);
 
     const [countries, setCountries] = useState<Country[]>([]);
     const [selectedCountry, setSelectedCountry] = useState("");
@@ -596,6 +607,10 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const displayUsername = profileUsername ?? data?.[0]?.Username;
     const displayAvatar = isOwnProfile ? profileAvatar ?? myAvatarUrl : profileAvatar;
 
+    useEffect(() => {
+        if (displayUsername) setUsernameDraft(displayUsername);
+    }, [displayUsername]);
+
     async function handleAvatarConfirm(blob: Blob) {
         setAvatarUploading(true);
         try {
@@ -605,6 +620,29 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
         } finally {
             setAvatarUploading(false);
         }
+    }
+
+    async function handleUsernameSave() {
+        const next = usernameDraft.trim();
+        if (!next || next === displayUsername) return;
+        setUsernameSaving(true);
+        setUsernameError(null);
+        try {
+            const res = await changeUsername(next);
+            applyAuthSession(res.token);
+            setProfileUsername(next);
+            setEditingUsername(false);
+        } catch {
+            setUsernameError("Не удалось сохранить имя (возможно, занято)");
+        } finally {
+            setUsernameSaving(false);
+        }
+    }
+
+    function cancelUsernameEdit() {
+        setEditingUsername(false);
+        setUsernameDraft(displayUsername ?? "");
+        setUsernameError(null);
     }
 
     async function handleAvatarDelete() {
@@ -618,20 +656,6 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
             setAvatarDeleting(false);
         }
     }
-
-    const profileActionBtn: CSSProperties = {
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        padding: "9px 14px",
-        borderRadius: 12,
-        border: btnBorder,
-        background: btnGhostBg,
-        color: textColor,
-        fontWeight: 700,
-        fontSize: 13,
-        cursor: "pointer",
-    };
 
     return (
         <div style={{ ...styles.page, background: pageBg, color: textColor }}>
@@ -681,57 +705,95 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             gap: isDesktop ? 28 : 20,
                         }}
                     >
-                        <div style={{ position: "relative", flexShrink: 0 }}>
-                            <div
-                                style={{
-                                    padding: 4,
-                                    borderRadius: "50%",
-                                    background: isLight
-                                        ? "linear-gradient(135deg, #4f46e5, #7c3aed)"
-                                        : "linear-gradient(135deg, #4f7cff, #7c4dff)",
-                                    boxShadow: isLight
-                                        ? "0 8px 24px rgba(79, 70, 229, 0.25)"
-                                        : "0 8px 28px rgba(79, 124, 255, 0.35)",
-                                }}
-                            >
-                                <UserAvatar
-                                    username={displayUsername}
-                                    avatarUrl={displayAvatar}
-                                    size={isDesktop ? 104 : 88}
-                                    theme={theme}
+                        <div
+                            style={{
+                                display: "flex",
+                                flexDirection: "column",
+                                alignItems: "center",
+                                gap: 10,
+                                flexShrink: 0,
+                            }}
+                        >
+                            <div style={{ position: "relative" }}>
+                                <div
                                     style={{
+                                        padding: 4,
                                         borderRadius: "50%",
-                                        width: isDesktop ? 104 : 88,
-                                        height: isDesktop ? 104 : 88,
-                                        boxShadow: "none",
-                                    }}
-                                />
-                            </div>
-                            {isOwnProfile && (
-                                <button
-                                    type="button"
-                                    title="Сменить аватар"
-                                    disabled={avatarUploading || avatarDeleting}
-                                    onClick={() => fileInputRef.current?.click()}
-                                    style={{
-                                        position: "absolute",
-                                        right: 0,
-                                        bottom: 0,
-                                        width: 36,
-                                        height: 36,
-                                        borderRadius: "50%",
-                                        border: "2px solid " + (isLight ? "#fff" : isGray ? "#1a1a1a" : "#0f172a"),
-                                        background: accentSolid,
-                                        color: "#fff",
-                                        display: "flex",
-                                        alignItems: "center",
-                                        justifyContent: "center",
-                                        cursor: avatarUploading ? "wait" : "pointer",
-                                        opacity: avatarUploading ? 0.7 : 1,
+                                        background: isLight
+                                            ? "linear-gradient(135deg, #4f46e5, #7c3aed)"
+                                            : "linear-gradient(135deg, #4f7cff, #7c4dff)",
+                                        boxShadow: isLight
+                                            ? "0 8px 24px rgba(79, 70, 229, 0.25)"
+                                            : "0 8px 28px rgba(79, 124, 255, 0.35)",
                                     }}
                                 >
-                                    <Camera size={16} strokeWidth={2.5} />
+                                    <UserAvatar
+                                        username={displayUsername}
+                                        avatarUrl={displayAvatar}
+                                        size={isDesktop ? 104 : 88}
+                                        theme={theme}
+                                        style={{
+                                            borderRadius: "50%",
+                                            width: isDesktop ? 104 : 88,
+                                            height: isDesktop ? 104 : 88,
+                                            boxShadow: "none",
+                                        }}
+                                    />
+                                </div>
+                                {isOwnProfile && (
+                                    <button
+                                        type="button"
+                                        title="Сменить аватар"
+                                        disabled={avatarUploading || avatarDeleting}
+                                        onClick={() => fileInputRef.current?.click()}
+                                        style={{
+                                            position: "absolute",
+                                            right: 0,
+                                            bottom: 0,
+                                            width: 36,
+                                            height: 36,
+                                            borderRadius: "50%",
+                                            border:
+                                                "2px solid " +
+                                                (isLight ? "#fff" : isGray ? "#1a1a1a" : "#0f172a"),
+                                            background: accentSolid,
+                                            color: "#fff",
+                                            display: "flex",
+                                            alignItems: "center",
+                                            justifyContent: "center",
+                                            cursor: avatarUploading ? "wait" : "pointer",
+                                            opacity: avatarUploading ? 0.7 : 1,
+                                        }}
+                                    >
+                                        <Camera size={16} strokeWidth={2.5} />
+                                    </button>
+                                )}
+                            </div>
+                            {isOwnProfile && displayAvatar && (
+                                <button
+                                    type="button"
+                                    disabled={avatarUploading || avatarDeleting}
+                                    onClick={() => void handleAvatarDelete()}
+                                    style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        color: isLight ? "#b91c1c" : "#f87171",
+                                        fontSize: 12,
+                                        fontWeight: 600,
+                                        cursor: avatarDeleting ? "wait" : "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 5,
+                                        opacity: avatarDeleting ? 0.6 : 1,
+                                        padding: "4px 8px",
+                                    }}
+                                >
+                                    <Trash2 size={14} strokeWidth={2} />
+                                    {avatarDeleting ? "Удаление…" : "Удалить фото"}
                                 </button>
+                            )}
+                            {isOwnProfile && avatarUploading && (
+                                <span style={{ fontSize: 11, color: subTextColor }}>Загрузка…</span>
                             )}
                         </div>
 
@@ -754,84 +816,139 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                     Мой профиль
                                 </span>
                             )}
-                            <h1
+                            <div
                                 style={{
-                                    margin: 0,
-                                    fontSize: isDesktop ? "2rem" : "1.65rem",
-                                    fontWeight: 900,
-                                    letterSpacing: "-0.03em",
-                                    lineHeight: 1.15,
-                                    wordBreak: "break-word",
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    alignItems: "center",
+                                    gap: 8,
+                                    justifyContent: isDesktop ? "flex-start" : "center",
                                 }}
                             >
-                                {displayUsername || "Пользователь"}
-                            </h1>
-                            <p style={{ margin: "8px 0 0", color: subTextColor, fontSize: 15, fontWeight: 500 }}>
-                                Оценки на Eurovision Voting
-                            </p>
-
-                            {participationYears.length > 0 && (
-                                <div
+                                {editingUsername && isOwnProfile ? (
+                                    <>
+                                        <input
+                                            value={usernameDraft}
+                                            onChange={(e) => setUsernameDraft(e.target.value)}
+                                            maxLength={32}
+                                            autoFocus
+                                            onKeyDown={(e) => {
+                                                if (e.key === "Enter") void handleUsernameSave();
+                                                if (e.key === "Escape") cancelUsernameEdit();
+                                            }}
+                                            style={{
+                                                flex: "1 1 180px",
+                                                minWidth: 140,
+                                                maxWidth: 280,
+                                                padding: "8px 12px",
+                                                borderRadius: 12,
+                                                border: surfaceBorder,
+                                                background: inputBg,
+                                                color: textColor,
+                                                fontSize: isDesktop ? 22 : 18,
+                                                fontWeight: 800,
+                                            }}
+                                        />
+                                        <button
+                                            type="button"
+                                            title="Сохранить"
+                                            disabled={usernameSaving || !usernameDraft.trim()}
+                                            onClick={() => void handleUsernameSave()}
+                                            style={{
+                                                width: 36,
+                                                height: 36,
+                                                borderRadius: 10,
+                                                border: "none",
+                                                background: accentSolid,
+                                                color: "#fff",
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                cursor: usernameSaving ? "wait" : "pointer",
+                                                opacity: usernameSaving ? 0.6 : 1,
+                                            }}
+                                        >
+                                            <Check size={18} strokeWidth={2.5} />
+                                        </button>
+                                        <button
+                                            type="button"
+                                            title="Отмена"
+                                            disabled={usernameSaving}
+                                            onClick={cancelUsernameEdit}
+                                            style={{
+                                                width: 36,
+                                                height: 36,
+                                                borderRadius: 10,
+                                                border: btnBorder,
+                                                background: btnGhostBg,
+                                                color: subTextColor,
+                                                display: "flex",
+                                                alignItems: "center",
+                                                justifyContent: "center",
+                                                cursor: "pointer",
+                                            }}
+                                        >
+                                            <X size={18} />
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <h1
+                                            style={{
+                                                margin: 0,
+                                                fontSize: isDesktop ? "2rem" : "1.65rem",
+                                                fontWeight: 900,
+                                                letterSpacing: "-0.03em",
+                                                lineHeight: 1.15,
+                                                wordBreak: "break-word",
+                                            }}
+                                        >
+                                            {displayUsername || "Пользователь"}
+                                        </h1>
+                                        {isOwnProfile && (
+                                            <button
+                                                type="button"
+                                                title="Изменить имя"
+                                                onClick={() => {
+                                                    setUsernameDraft(displayUsername ?? "");
+                                                    setUsernameError(null);
+                                                    setEditingUsername(true);
+                                                }}
+                                                style={{
+                                                    width: 34,
+                                                    height: 34,
+                                                    borderRadius: 10,
+                                                    border: btnBorder,
+                                                    background: btnGhostBg,
+                                                    color: subTextColor,
+                                                    display: "flex",
+                                                    alignItems: "center",
+                                                    justifyContent: "center",
+                                                    cursor: "pointer",
+                                                    flexShrink: 0,
+                                                }}
+                                            >
+                                                <Pencil size={16} strokeWidth={2.2} />
+                                            </button>
+                                        )}
+                                    </>
+                                )}
+                            </div>
+                            {usernameError && (
+                                <p
                                     style={{
-                                        marginTop: 16,
+                                        margin: "6px 0 0",
+                                        color: "#f87171",
+                                        fontSize: 12,
                                         textAlign: isDesktop ? "left" : "center",
                                     }}
                                 >
-                                    <div
-                                        style={{
-                                            fontSize: 11,
-                                            fontWeight: 800,
-                                            textTransform: "uppercase",
-                                            letterSpacing: "0.08em",
-                                            color: subTextColor,
-                                            marginBottom: 8,
-                                        }}
-                                    >
-                                        Годы участия
-                                    </div>
-                                    <div
-                                        style={{
-                                            display: "flex",
-                                            flexWrap: "wrap",
-                                            gap: 8,
-                                            justifyContent: isDesktop ? "flex-start" : "center",
-                                        }}
-                                    >
-                                        {participationYears.map((year) => {
-                                            const yearStr = String(year);
-                                            const active = selectedYear === yearStr;
-                                            return (
-                                                <button
-                                                    key={year}
-                                                    type="button"
-                                                    onClick={() =>
-                                                        setSelectedYear(active ? "" : yearStr)
-                                                    }
-                                                    style={{
-                                                        padding: "6px 14px",
-                                                        borderRadius: 999,
-                                                        border: active ? "none" : chipColors.border,
-                                                        background: active
-                                                            ? chipColors.activeBg
-                                                            : chipColors.idleBg,
-                                                        color: active
-                                                            ? chipColors.activeColor
-                                                            : chipColors.idleColor,
-                                                        fontSize: 14,
-                                                        fontWeight: 800,
-                                                        cursor: "pointer",
-                                                        boxShadow: active
-                                                            ? chipColors.activeShadow
-                                                            : "none",
-                                                    }}
-                                                >
-                                                    {year}
-                                                </button>
-                                            );
-                                        })}
-                                    </div>
-                                </div>
+                                    {usernameError}
+                                </p>
                             )}
+                            <p style={{ margin: "8px 0 0", color: subTextColor, fontSize: 15, fontWeight: 500 }}>
+                                Оценки на Eurovision Voting
+                            </p>
 
                             <div
                                 style={{
@@ -859,52 +976,18 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                     labelColor={subTextColor}
                                     accent={accent}
                                 />
+                                {participationYears.length > 0 && (
+                                    <StatCard
+                                        label="Участвовал в"
+                                        value={participationYears.join(" · ")}
+                                        cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                        cardBorder={surfaceBorder}
+                                        labelColor={subTextColor}
+                                        accent={textColor}
+                                    />
+                                )}
                             </div>
 
-                            {isOwnProfile && (
-                                <div
-                                    style={{
-                                        display: "flex",
-                                        flexWrap: "wrap",
-                                        gap: 10,
-                                        marginTop: 16,
-                                        justifyContent: isDesktop ? "flex-start" : "center",
-                                    }}
-                                >
-                                    <button
-                                        type="button"
-                                        disabled={avatarUploading || avatarDeleting}
-                                        onClick={() => fileInputRef.current?.click()}
-                                        style={{
-                                            ...profileActionBtn,
-                                            background: accentSolid,
-                                            color: "#fff",
-                                            border: "none",
-                                            opacity: avatarUploading ? 0.7 : 1,
-                                            cursor: avatarUploading ? "wait" : "pointer",
-                                        }}
-                                    >
-                                        <Camera size={16} />
-                                        {avatarUploading ? "Загрузка…" : "Сменить аватар"}
-                                    </button>
-                                    {displayAvatar && (
-                                        <button
-                                            type="button"
-                                            disabled={avatarUploading || avatarDeleting}
-                                            onClick={() => void handleAvatarDelete()}
-                                            style={{
-                                                ...profileActionBtn,
-                                                color: isLight ? "#b91c1c" : "#f87171",
-                                                opacity: avatarDeleting ? 0.7 : 1,
-                                                cursor: avatarDeleting ? "wait" : "pointer",
-                                            }}
-                                        >
-                                            <Trash2 size={16} />
-                                            {avatarDeleting ? "Удаление…" : "Удалить"}
-                                        </button>
-                                    )}
-                                </div>
-                            )}
                         </div>
                     </div>
                 </section>
@@ -959,6 +1042,38 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                     activeRowBg={activeRowBg}
                                 />
                             </div>
+
+                            {participationYears.length > 0 && (
+                                <div>
+                                    <div style={{ ...styles.filterLabel, color: subTextColor }}>Год</div>
+                                    <div style={styles.chipRow}>
+                                        <FilterChip
+                                            active={selectedYear === ""}
+                                            onClick={() => setSelectedYear("")}
+                                            colors={chipColors}
+                                        >
+                                            Все
+                                        </FilterChip>
+                                        {participationYears.map((year) => {
+                                            const yearStr = String(year);
+                                            return (
+                                                <FilterChip
+                                                    key={year}
+                                                    active={selectedYear === yearStr}
+                                                    onClick={() =>
+                                                        setSelectedYear(
+                                                            selectedYear === yearStr ? "" : yearStr
+                                                        )
+                                                    }
+                                                    colors={chipColors}
+                                                >
+                                                    {year}
+                                                </FilterChip>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                            )}
 
                             <div>
                                 <div style={{ ...styles.filterLabel, color: subTextColor }}>Этап</div>

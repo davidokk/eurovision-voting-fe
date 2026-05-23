@@ -9,6 +9,8 @@ import { AppShell } from "./components/AppShell";
 import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
 import { fetchMe, setStoredAvatarUrl } from "./api/user";
+import { EmailVerifyGate } from "./components/EmailVerifyGate";
+import { applyAuthSession } from "./utils/jwt";
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 const CHAT_OPEN_KEY = "ev_chat_open";
@@ -79,7 +81,11 @@ export default function App() {
           return;
         }
         const me = await fetchMe(token);
-        if (me.avatar_url) setStoredAvatarUrl(me.avatar_url);
+        applyAuthSession(token, {
+          email_verified: me.email_verified,
+          avatar_url: me.avatar_url,
+        });
+        setStoredAvatarUrl(me.avatar_url ?? null);
       } catch (err) {
         console.error("Token validation failed", err);
       }
@@ -132,21 +138,38 @@ export default function App() {
     setTheme(newTheme);
   }
 
-  if (isAdmin) return <AdminPage initialContest={selectedContest} />;
-  if (isUserPage && userId) {
+  if (isAdmin) {
     return (
-      <AppShell
-        theme={theme}
-        onSelectTheme={handleSelectTheme}
-        contests={contests}
-        onSelectContest={handleSelectContest}
-        navigateHomeOnContest
-      >
-        <UserStatsPage userId={userId} theme={theme} />
-      </AppShell>
+      <>
+        <EmailVerifyGate theme={theme} />
+        <AdminPage initialContest={selectedContest} />
+      </>
     );
   }
-  if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} theme={theme}/>;
+  if (isUserPage && userId) {
+    return (
+      <>
+        <EmailVerifyGate theme={theme} />
+        <AppShell
+          theme={theme}
+          onSelectTheme={handleSelectTheme}
+          contests={contests}
+          onSelectContest={handleSelectContest}
+          navigateHomeOnContest
+        >
+          <UserStatsPage userId={userId} theme={theme} />
+        </AppShell>
+      </>
+    );
+  }
+  if (isCountryPage && countryId) {
+    return (
+      <>
+        <EmailVerifyGate theme={theme} />
+        <CountryStatsPage countryId={countryId} theme={theme} />
+      </>
+    );
+  }
 
   const isLight = theme === "light";
   const isGray = theme === "dark-gray";
@@ -158,6 +181,8 @@ export default function App() {
   const toggleBtnShadow = isLight ? "0 10px 30px rgba(0,0,0,0.15)" : "0 10px 30px rgba(79, 124, 255, 0.35), inset 0 1px rgba(255, 255, 255, 0.15)";
 
   return (
+    <>
+    <EmailVerifyGate theme={theme} />
     <div style={{
       height: "100vh",
       width: "100vw",
@@ -255,5 +280,6 @@ export default function App() {
         </button>
       )}
     </div>
+    </>
   );
 }
