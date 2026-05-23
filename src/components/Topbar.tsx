@@ -3,6 +3,9 @@ import type { ContestsByYear, Theme } from "../types/contest";
 import { ContestDropdown } from "./ContestDropdown";
 import { AuthModal } from "./AuthModal";
 import { Palette, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
+import { UserAvatar } from "./UserAvatar";
+import { useAvatarUrl } from "../hooks/useAvatarUrl";
+import { fetchMe, setStoredAvatarUrl } from "../api/user";
 
 type Props = {
   contests: ContestsByYear;
@@ -198,10 +201,19 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
   const userId = localStorage.getItem("user_id");
+  const avatarUrl = useAvatarUrl();
 
   useEffect(() => {
-    setToken(localStorage.getItem("token"));
+    const t = localStorage.getItem("token");
+    setToken(t);
     setUsername(localStorage.getItem("username"));
+    if (t) {
+      fetchMe(t)
+        .then((me) => {
+          if (me.avatar_url) setStoredAvatarUrl(me.avatar_url);
+        })
+        .catch(() => {});
+    }
   }, []);
 
   useEffect(() => {
@@ -238,6 +250,9 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   function logout() {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
+    localStorage.removeItem("user_id");
+    localStorage.removeItem("avatar_url");
+    setStoredAvatarUrl(null);
     setToken(null);
     setUsername(null);
     window.location.reload();
@@ -263,12 +278,6 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
     : isGray
       ? "rgba(28, 28, 28, 0.98)"
       : "rgba(15, 23, 42, 0.95)";
-
-  const avatarGradient = isLight
-    ? "linear-gradient(135deg, #4b5563, #1f2937)"
-    : isGray
-      ? "linear-gradient(135deg, #6b7280, #374151)"
-      : "linear-gradient(135deg, #4f7cff, #7c4dff)";
 
   const menuColors: MenuColors = {
     borderColor,
@@ -554,26 +563,13 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
                   transition: "all 0.2s ease",
                 }}
               >
-                <div
-                  style={{
-                    width: isMobile ? 36 : 32,
-                    height: isMobile ? 36 : 32,
-                    borderRadius: 12,
-                    background: avatarGradient,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontSize: isMobile ? 15 : 14,
-                    fontWeight: 900,
-                    color: "#fff",
-                    flexShrink: 0,
-                    boxShadow: isLight
-                      ? "0 4px 14px rgba(31, 41, 55, 0.2)"
-                      : "0 4px 14px rgba(79, 124, 255, 0.3)",
-                  }}
-                >
-                  {username?.charAt(0).toUpperCase()}
-                </div>
+                <UserAvatar
+                  username={username}
+                  avatarUrl={avatarUrl}
+                  size={isMobile ? 36 : 32}
+                  theme={theme}
+                  style={{ borderRadius: "50%" }}
+                />
                 {!isMobile && (
                   <>
                     <span

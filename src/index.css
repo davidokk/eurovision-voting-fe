@@ -54,3 +54,13 @@ html, body, #root {
     display: none !important;
   }
 }
+
+@keyframes ev-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.ev-spin {
+  animation: ev-spin 1s linear infinite;
+}

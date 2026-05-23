@@ -1,6 +1,8 @@
 import { useState } from "react";
-import { signin, signup } from "../api/auth";
+import { signin, signup, type ApiError } from "../api/auth";
+import { fetchMe, setStoredAvatarUrl } from "../api/user";
 import type { Theme } from "../types/contest";
+import { applyAuthSession } from "../utils/jwt";
 
 type Props = {
     onClose: () => void;
@@ -8,25 +10,13 @@ type Props = {
     theme?: Theme;
 };
 
-type ApiError = {
-    message: string;
-    code?: string;
-};
-
-function parseJwt(token: string) {
+async function persistSession(token: string) {
+    applyAuthSession(token);
     try {
-        const base64 = token.split(".")[1];
-        const json = decodeURIComponent(
-            atob(base64)
-                .split("")
-                .map((c) => {
-                    return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
-                })
-                .join("")
-        );
-        return JSON.parse(json);
+        const me = await fetchMe(token);
+        if (me.avatar_url) setStoredAvatarUrl(me.avatar_url);
     } catch {
-        return null;
+        /* ignore */
     }
 }
 
@@ -41,6 +31,7 @@ export function AuthModal({
 
     const [error, setError] = useState<string | null>(null);
     const [showRegisterPrompt, setShowRegisterPrompt] = useState(false);
+    const [signupClosed, setSignupClosed] = useState(false);
     const [loading, setLoading] = useState(false);
 
     async function handleSignin() {
@@ -50,25 +41,15 @@ export function AuthModal({
 
         try {
             const res = await signin(username, password);
-            const token = res.token;
-
-            localStorage.setItem("token", token);
-            const payload = parseJwt(token);
-
-            if (payload?.username) {
-                localStorage.setItem("username", payload.username);
-            }
-            if (payload?.user_id) {
-                localStorage.setItem("user_id", payload.user_id);
-            }
-
-            onSuccess(token);
+            await persistSession(res.token);
+            onSuccess(res.token);
         } catch (err) {
             const e = err as ApiError;
 
             if (e.code === "USER_NOT_EXISTS") {
                 setShowRegisterPrompt(true);
                 setError(null);
+                setSignupClosed(false);
             } else {
                 setError(e.message || "ошибка авторизации");
             }
@@ -83,19 +64,16 @@ export function AuthModal({
 
         try {
             const res = await signup(username, password);
-            const token = res.token;
-
-            localStorage.setItem("token", token);
-            const payload = parseJwt(token);
-
-            if (payload?.username) {
-                localStorage.setItem("username", payload.username);
-            }
-
-            onSuccess(token);
+            await persistSession(res.token);
+            onSuccess(res.token);
         } catch (err) {
             const e = err as ApiError;
-            setError(e.message || "ошибка регистрации");
+            if (e.code === "SIGNUP_CLOSED") {
+                setSignupClosed(true);
+                setError(null);
+            } else {
+                setError(e.message || "ошибка регистрации");
+            }
         } finally {
             setLoading(false);
         }
@@ -230,6 +208,7 @@ export function AuthModal({
                             setMode("signin");
                             setError(null);
                             setShowRegisterPrompt(false);
+                            setSignupClosed(false);
                         }}
                     >
                         Вход
@@ -245,6 +224,7 @@ export function AuthModal({
                             setMode("signup");
                             setError(null);
                             setShowRegisterPrompt(false);
+                            setSignupClosed(false);
                         }}
                     >
                         Регистрация
@@ -305,6 +285,30 @@ export function AuthModal({
                 )}
 
                 {/* Предложение зарегистрироваться */}
+                {signupClosed && (
+                    <div
+                        style={{
+                            ...styles.registerPrompt,
+                            background: isLight
+                                ? "linear-gradient(135deg, rgba(245, 158, 11, 0.12), rgba(251, 191, 36, 0.06))"
+                                : "linear-gradient(135deg, rgba(255, 209, 102, 0.1), rgba(245, 158, 11, 0.05))",
+                            border: isLight
+                                ? "1px solid rgba(245, 158, 11, 0.35)"
+                                : "1px solid rgba(255, 209, 102, 0.25)",
+                        }}
+                    >
+                        <span style={styles.promptIcon}>🚫</span>
+                        <div style={styles.promptContent}>
+                            <div style={{ ...styles.promptTitle, color: isLight ? "#b45309" : "#fcd34d" }}>
+                                Регистрация закрыта :(
+                            </div>
+                            <div style={{ ...styles.promptText, color: subtitleColor }}>
+                                Возвращайся в следующем году!
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {showRegisterPrompt && (
                     <div style={{
                         ...styles.registerPrompt,

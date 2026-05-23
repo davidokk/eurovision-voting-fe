@@ -5,8 +5,10 @@ import { CountryStatsPage } from "./components/CountryStatsPage";
 import { getContest, getContests } from "./api/contest";
 import type { ContestView, ContestsByYear, Theme } from "./types/contest";
 import { Topbar } from "./components/Topbar";
+import { AppShell } from "./components/AppShell";
 import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
+import { fetchMe, setStoredAvatarUrl } from "./api/user";
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 const CHAT_OPEN_KEY = "ev_chat_open";
@@ -56,10 +58,10 @@ export default function App() {
 
   // Валидация токена при заходе на сайт
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (!token) return;
+    const authToken = localStorage.getItem("token");
+    if (!authToken) return;
 
-    async function validateToken() {
+    async function validateToken(token: string) {
       try {
         if (!API_URL) return;
         const res = await fetch(`${API_URL}/v1/auth/validate`, {
@@ -74,13 +76,16 @@ export default function App() {
           localStorage.clear();
           if (savedTheme) localStorage.setItem("theme", savedTheme);
           window.location.reload();
+          return;
         }
+        const me = await fetchMe(token);
+        if (me.avatar_url) setStoredAvatarUrl(me.avatar_url);
       } catch (err) {
         console.error("Token validation failed", err);
       }
     }
 
-    validateToken();
+    validateToken(authToken);
   }, []);
 
   // Обновление глобальных стилей скроллбара и фона body при смене темы
@@ -128,7 +133,19 @@ export default function App() {
   }
 
   if (isAdmin) return <AdminPage initialContest={selectedContest} />;
-  if (isUserPage && userId) return <UserStatsPage userId={userId} theme={theme} />;
+  if (isUserPage && userId) {
+    return (
+      <AppShell
+        theme={theme}
+        onSelectTheme={handleSelectTheme}
+        contests={contests}
+        onSelectContest={handleSelectContest}
+        navigateHomeOnContest
+      >
+        <UserStatsPage userId={userId} theme={theme} />
+      </AppShell>
+    );
+  }
   if (isCountryPage && countryId) return <CountryStatsPage countryId={countryId} theme={theme}/>;
 
   const isLight = theme === "light";

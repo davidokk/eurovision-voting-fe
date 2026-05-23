@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { PerformanceWithScores, Theme } from "../types/contest";
+import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 
 type GifItem = {
   id: string;
@@ -57,6 +58,8 @@ export function RatePerformanceModal({
   const modalPaperBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "#0f172a";
   const modalPaperBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #374151" : "1px solid #334155";
   const modalHeadingColor = isLight ? "#0f172a" : "#fff";
+  const modalSubColor = isLight ? "#64748b" : "#94a3b8";
+  const supportsEmoji = getDoesBrowserSupportFlagEmojis();
 
   const ratingBtnInactiveBg = isLight ? "#f1f5f9" : isGray ? "#282828" : "#1e293b";
   const ratingBtnInactiveText = isLight ? "#0f172a" : "#fff";
@@ -140,6 +143,7 @@ export function RatePerformanceModal({
     setError(null);
     setSubmitting(true);
     const currentScore = score;
+    setScore(null);
     try {
       const res = await fetch(
         `${API_URL}/v1/performance/${performance.performance_id}/rate`,
@@ -251,10 +255,31 @@ export function RatePerformanceModal({
         >
           Оценка выступления
         </h2>
+
+        <p
+          style={{
+            margin: "0 0 8px 0",
+            fontSize: 13,
+            color: modalSubColor,
+            textAlign: "center",
+            lineHeight: 1.4,
+            maxWidth: 360,
+          }}
+        >
+          {supportsEmoji && (
+            <span style={{ fontSize: 18, marginRight: 6 }}>{performance.country.flag_emoji}</span>
+          )}
+          <span style={{ fontWeight: 700, color: modalHeadingColor }}>
+            {performance.country.name_ru}
+          </span>
+          {" · "}
+          {performance.artist} — {performance.song}
+        </p>
+
         <p
           style={{
             margin: "0 0 16px 0",
-            color: isLight ? "#64748b" : "#94a3b8",
+            color: modalSubColor,
             fontSize: 13,
             textAlign: "center",
             lineHeight: 1.4,

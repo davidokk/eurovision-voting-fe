@@ -8,6 +8,9 @@ import { ScoresHeatmapView } from "./ScoresHeatmapView";
 import { ScoresRunningOrderView } from "./ScoresRunningOrderView";
 import type { ScoresViewMode } from "./scores/scoresViewShared";
 import { YouTubeLiveSection } from "./YouTubeLiveSection";
+import { ContestHeaderHighlights } from "./ContestHeaderHighlights";
+import { UserAvatar } from "./UserAvatar";
+import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { isScoreSystemMessage } from "../utils/chatMessage";
 
@@ -30,6 +33,7 @@ type ChatMessage = {
     score?: number;
     old_score?: number;
     comment?: string;
+    avatarUrl?: string;
 };
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
@@ -128,6 +132,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
 
     const myUsername = localStorage.getItem("username");
     const myUserId = localStorage.getItem("user_id");
+    const myAvatarUrl = useAvatarUrl();
     const token = localStorage.getItem("token");
 
     const isAuthenticated = !!token;
@@ -507,17 +512,43 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         <span>EUROVISION • {contest.contest.year}</span>
                     </div>
 
-                    <h1 style={{
-                        margin: 0,
-                        color: titleColor,
-                        fontSize: isMobile ? "2.2rem" : "3.6rem",
-                        fontWeight: 950,
-                        lineHeight: 1.1,
-                        letterSpacing: "-0.03em",
-                        textShadow: titleShadow,
-                    }}>
-                        {translateContestType(contest.contest.type)}
-                    </h1>
+                    {contest.contest.type.includes("semifinal") ? (
+                        <h1
+                            style={{
+                                margin: 0,
+                                color: titleColor,
+                                fontSize: isMobile ? "2.2rem" : "3.6rem",
+                                fontWeight: 950,
+                                lineHeight: 1.1,
+                                letterSpacing: "-0.03em",
+                                textShadow: titleShadow,
+                            }}
+                        >
+                            {translateContestType(contest.contest.type)}
+                        </h1>
+                    ) : (
+                        <ContestHeaderHighlights
+                            contest={contest}
+                            theme={theme}
+                            isMobile={isMobile}
+                            center={
+                                <h1
+                                    style={{
+                                        margin: 0,
+                                        color: titleColor,
+                                        fontSize: isMobile ? "2rem" : "3.2rem",
+                                        fontWeight: 950,
+                                        lineHeight: 1.1,
+                                        letterSpacing: "-0.03em",
+                                        textShadow: titleShadow,
+                                        textAlign: "center",
+                                    }}
+                                >
+                                    {translateContestType(contest.contest.type)}
+                                </h1>
+                            }
+                        />
+                    )}
 
                     <div style={{
                         display: "flex",
@@ -837,19 +868,22 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                                     : "row",
                                         }}
                                     >
-                                        <div
+                                        <UserAvatar
+                                            username={m.username}
+                                            avatarUrl={isMe ? m.avatarUrl ?? myAvatarUrl : m.avatarUrl}
+                                            size={32}
+                                            theme={theme}
                                             style={{
-                                                ...styles.avatar,
-                                                background: isMe
-                                                    ? (isLight ? "linear-gradient(135deg, #4b5563, #1f2937)" : isGray ? "#4b5563" : "linear-gradient(135deg, #6b8eff, #4f7cff)")
-                                                    : (isLight ? "#cbd5e1" : "#24324f"),
-                                                color: isLight && !isMe ? "#0f172a" : "#fff",
+                                                borderRadius: "50%",
+                                                ...(isMe
+                                                    ? {}
+                                                    : {
+                                                          boxShadow: isLight
+                                                              ? "none"
+                                                              : "0 0 0 1px rgba(255,255,255,0.08)",
+                                                      }),
                                             }}
-                                        >
-                                            {m.username
-                                                .charAt(0)
-                                                .toUpperCase()}
-                                        </div>
+                                        />
 
                                         <div
                                             style={{
