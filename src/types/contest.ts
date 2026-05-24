@@ -33,7 +33,7 @@ export type PerformanceWithScores = {
   youtube_link: string;
 
   total_score: number;
-  place: number;
+  place?: number | null;
 
   scores: ScoreView[];
 };

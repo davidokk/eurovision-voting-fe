@@ -571,7 +571,7 @@ function CountryTableCell({
         >
           <span style={numberBadge}>#{p.number}</span>
 
-          {!isSemifinal && hasPlace && (
+          {!isSemifinal && hasPlace && p.place != null && (
             <span style={placeBadgeStyle(p.place, isLight, isGray)}>
               {p.place <= 3 ? PLACE_WORDS[p.place] : `${p.place} место`}
             </span>
