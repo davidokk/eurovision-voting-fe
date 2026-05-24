@@ -10,6 +10,16 @@ export type UserPublic = {
 
 export type { UserMe };
 
+export async function fetchUserList(excludeId?: string): Promise<UserPublic[]> {
+  const params = excludeId
+    ? `?exclude=${encodeURIComponent(excludeId)}`
+    : "";
+  const res = await fetch(`${API_URL}/v1/user/list${params}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data) ? data : [];
+}
+
 export async function fetchUserPublic(id: string): Promise<UserPublic> {
   const res = await fetch(`${API_URL}/v1/user/public?id=${encodeURIComponent(id)}`);
   if (!res.ok) throw new Error("user not found");

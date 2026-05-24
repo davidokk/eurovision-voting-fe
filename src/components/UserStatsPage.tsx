@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
-import { Camera, Check, ChevronDown, Loader2, Pencil, Search, Star, Trash2, X } from "lucide-react";
+import { Camera, Check, ChevronDown, GitCompare, Loader2, Pencil, Search, Star, Trash2, X } from "lucide-react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
 import {
@@ -8,28 +8,20 @@ import {
     fetchUserPublic,
     setStoredAvatarUrl,
     uploadAvatar,
+    type UserPublic,
 } from "../api/user";
+import { ProfileComparePicker } from "./ProfileComparePicker";
+import {
+    applyScoreFilters,
+    buildCompareRows,
+    scoreKey,
+    type ScoreFiltered,
+    type SortType,
+} from "../utils/scoreFilters";
 import { applyAuthSession } from "../utils/jwt";
 import { UserAvatar } from "./UserAvatar";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
-
-type ScoreFiltered = {
-    Username: string;
-    CountryName: string;
-    ContestYear: number;
-    ContestType: string;
-    Score: number;
-    Comment: string | null;
-    YoutubeLink: string;
-    GifURL: string | null;
-    Song: string;
-    Artist: string;
-    Qualified?: boolean;
-    Place?: number;
-};
-
-type SortType = "time" | "score" | "place";
 
 type Country = {
     id: string;
@@ -428,6 +420,11 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const supportsEmoji = getDoesBrowserSupportFlagEmojis();
     const [sort, setSort] = useState<SortType>("score");
 
+    const [compareOpen, setCompareOpen] = useState(false);
+    const [compareUser, setCompareUser] = useState<UserPublic | null>(null);
+    const [compareData, setCompareData] = useState<ScoreFiltered[]>([]);
+    const [compareLoading, setCompareLoading] = useState(false);
+
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
     useEffect(() => {
@@ -447,6 +444,14 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     useEffect(() => {
         load();
     }, [userId, selectedCountry, selectedYear, sort === "time" ? "time" : "score"]);
+
+    useEffect(() => {
+        if (!compareUser) {
+            setCompareData([]);
+            return;
+        }
+        loadCompare(compareUser.id);
+    }, [compareUser?.id, selectedCountry, selectedYear, sort === "time" ? "time" : "score"]);
 
     useEffect(() => {
         if (!API_URL || !userId) {
@@ -487,23 +492,23 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
             });
     }, [userId]);
 
+    async function fetchScoresForUser(targetUserId: string): Promise<ScoreFiltered[]> {
+        if (!API_URL) return [];
+        const params = new URLSearchParams();
+        params.append("user_id", targetUserId);
+        if (selectedCountry) params.append("country_id", selectedCountry);
+        if (selectedYear) params.append("year", selectedYear);
+        params.append("sort", sort === "time" ? "time" : "score");
+
+        const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
+        const json = await res.json();
+        return Array.isArray(json) ? json : [];
+    }
+
     async function load() {
         setLoading(true);
         try {
-            if (!API_URL) {
-                setData([]);
-                setLoading(false);
-                return;
-            }
-            const params = new URLSearchParams();
-            params.append("user_id", userId);
-            if (selectedCountry) params.append("country_id", selectedCountry);
-            if (selectedYear) params.append("year", selectedYear);
-            params.append("sort", sort === "time" ? "time" : "score");
-
-            const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
-            const json = await res.json();
-            setData(Array.isArray(json) ? json : []);
+            setData(await fetchScoresForUser(userId));
         } catch {
             setData([]);
         } finally {
@@ -511,30 +516,55 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
         }
     }
 
-    const filteredData = useMemo(() => {
-        let res = [...data];
-        if (filterType === "final") {
-            res = res.filter(item => item.ContestType === "final" || item.ContestType === "Финал");
-        } else if (filterType === "semifinal") {
-            res = res.filter(item => item.ContestType?.includes("semifinal"));
-
-            if (qualifiedFilter === "qualified") {
-                res = res.filter(item => item.Qualified === true);
-            } else if (qualifiedFilter === "not-qualified") {
-                res = res.filter(item => item.Qualified === false || item.Qualified === null || item.Qualified === undefined);
-            }
+    async function loadCompare(targetUserId: string) {
+        setCompareLoading(true);
+        setCompareData([]);
+        try {
+            setCompareData(await fetchScoresForUser(targetUserId));
+        } catch {
+            setCompareData([]);
+        } finally {
+            setCompareLoading(false);
         }
+    }
 
-        if (filterType === "final" && sort === "place") {
-            res.sort((a, b) => (a.Place ?? Infinity) - (b.Place ?? Infinity));
-        }
+    const filteredData = useMemo(
+        () => applyScoreFilters(data, filterType, qualifiedFilter, sort),
+        [data, filterType, qualifiedFilter, sort]
+    );
 
-        return res;
-    }, [data, filterType, qualifiedFilter, sort]);
+    const compareFilteredData = useMemo(
+        () => applyScoreFilters(compareData, filterType, qualifiedFilter, sort),
+        [compareData, filterType, qualifiedFilter, sort]
+    );
+
+    type CompareRow = ReturnType<typeof buildCompareRows>[number];
+
+    const listEntries: CompareRow[] = useMemo(() => {
+        if (!compareUser) return [];
+        return buildCompareRows(filteredData, compareFilteredData, sort, filterType);
+    }, [compareUser, filteredData, compareFilteredData, sort, filterType]);
+
+    const displayEntries = useMemo(() => {
+        if (compareUser) return listEntries;
+        return filteredData.map((item) => ({
+            key: scoreKey(item),
+            mine: item,
+            theirs: null as ScoreFiltered | null,
+            display: item,
+        }));
+    }, [compareUser, listEntries, filteredData]);
+
+    const isComparing = compareUser !== null;
 
     const avgScore =
         filteredData.length > 0
             ? filteredData.reduce((sum, i) => sum + (i.Score || 0), 0) / filteredData.length
+            : 0;
+
+    const compareAvgScore =
+        compareFilteredData.length > 0
+            ? compareFilteredData.reduce((sum, i) => sum + (i.Score || 0), 0) / compareFilteredData.length
             : 0;
 
     const isLight = theme === "light";
@@ -959,14 +989,45 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                     justifyContent: isDesktop ? "flex-start" : "center",
                                 }}
                             >
-                                <StatCard
-                                    label="Средняя оценка"
-                                    value={`${formatAvg(avgScore)} ★`}
-                                    cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
-                                    cardBorder={surfaceBorder}
-                                    labelColor={subTextColor}
-                                    accent={scoreValColor}
-                                />
+                                {isComparing ? (
+                                    <>
+                                        <StatCard
+                                            label={`Средняя · ${displayUsername ?? "профиль"}`}
+                                            value={`${formatAvg(avgScore)} ★`}
+                                            sub={`${filteredData.length} ${pluralRatings(filteredData.length)}`}
+                                            cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                            cardBorder={surfaceBorder}
+                                            labelColor={subTextColor}
+                                            accent={scoreValColor}
+                                        />
+                                        <StatCard
+                                            label={`Средняя · ${compareUser.username}`}
+                                            value={
+                                                compareLoading
+                                                    ? "…"
+                                                    : `${formatAvg(compareAvgScore)} ★`
+                                            }
+                                            sub={
+                                                compareLoading
+                                                    ? "Загрузка…"
+                                                    : `${compareFilteredData.length} ${pluralRatings(compareFilteredData.length)}`
+                                            }
+                                            cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                            cardBorder={surfaceBorder}
+                                            labelColor={subTextColor}
+                                            accent={scoreValColor}
+                                        />
+                                    </>
+                                ) : (
+                                    <StatCard
+                                        label="Средняя оценка"
+                                        value={`${formatAvg(avgScore)} ★`}
+                                        cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                        cardBorder={surfaceBorder}
+                                        labelColor={subTextColor}
+                                        accent={scoreValColor}
+                                    />
+                                )}
                                 <StatCard
                                     label="В выборке"
                                     value={String(filteredData.length)}
@@ -1163,24 +1224,89 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>
                                 Оценки
                             </h2>
-                            {loading && (
-                                <span
+                            <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setCompareOpen((v) => {
+                                            const next = !v;
+                                            if (!next) setCompareUser(null);
+                                            return next;
+                                        });
+                                    }}
                                     style={{
                                         display: "inline-flex",
                                         alignItems: "center",
                                         gap: 8,
+                                        padding: "8px 14px",
+                                        borderRadius: 999,
+                                        border: compareOpen ? "none" : btnBorder,
+                                        background: compareOpen ? accentSolid : btnGhostBg,
+                                        color: compareOpen ? "#fff" : textColor,
                                         fontSize: 13,
-                                        fontWeight: 600,
-                                        color: accent,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
                                     }}
                                 >
-                                    <Loader2 size={16} className="ev-spin" />
-                                    Обновление…
-                                </span>
-                            )}
+                                    <GitCompare size={16} />
+                                    Сравнить
+                                </button>
+                                {(loading || compareLoading) && (
+                                    <span
+                                        style={{
+                                            display: "inline-flex",
+                                            alignItems: "center",
+                                            gap: 8,
+                                            fontSize: 13,
+                                            fontWeight: 600,
+                                            color: accent,
+                                        }}
+                                    >
+                                        <Loader2 size={16} className="ev-spin" />
+                                        Обновление…
+                                    </span>
+                                )}
+                            </div>
                         </div>
 
-                        {!loading && filteredData.length === 0 && (
+                        {compareOpen && (
+                            <div
+                                style={{
+                                    marginBottom: 16,
+                                    padding: 14,
+                                    borderRadius: 16,
+                                    background: surfaceBg,
+                                    border: surfaceBorder,
+                                    display: "flex",
+                                    flexWrap: "wrap",
+                                    gap: 12,
+                                    alignItems: "center",
+                                }}
+                            >
+                                <span style={{ fontSize: 13, fontWeight: 700, color: subTextColor }}>
+                                    С кем сравнить:
+                                </span>
+                                <ProfileComparePicker
+                                    excludeUserId={userId}
+                                    selected={compareUser}
+                                    onSelect={setCompareUser}
+                                    panelBg={surfaceBg}
+                                    textColor={textColor}
+                                    subTextColor={subTextColor}
+                                    border={btnBorder}
+                                    accentSolid={accentSolid}
+                                    activeRowBg={activeRowBg}
+                                    chipBg={isLight ? "#f1f5f9" : isGray ? "#252525" : "rgba(30, 41, 59, 0.6)"}
+                                />
+                                {isComparing && (
+                                    <span style={{ fontSize: 13, color: subTextColor, fontWeight: 600 }}>
+                                        Слева — {displayUsername ?? "профиль"}, справа — {compareUser.username}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+
+                        {!loading && !compareLoading && displayEntries.length === 0 && (
                             <div
                                 style={{
                                     padding: "48px 24px",
@@ -1201,10 +1327,14 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                         <div
                             style={{
                                 ...styles.list,
-                                gridTemplateColumns: `repeat(auto-fill, minmax(${isDesktop ? "320px" : "min(100%, 280px)"}, 1fr))`,
+                                gridTemplateColumns: `repeat(auto-fill, minmax(${isComparing ? (isDesktop ? "380px" : "min(100%, 320px)") : isDesktop ? "320px" : "min(100%, 280px)"}, 1fr))`,
                             }}
                         >
-                    {filteredData.map((item, i) => {
+                    {displayEntries.map((row) => {
+                        const item = row.display;
+                        const mineRating = row.mine;
+                        const theirRating = row.theirs;
+                        const rowKey = row.key;
                         const youtubeId = item.YoutubeLink ? getYouTubeId(item.YoutubeLink) : null;
                         const country = countries.find((c) => c.name_ru === item.CountryName);
 
@@ -1237,7 +1367,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                         }
 
                         return (
-                            <div key={i} style={{ ...styles.card, background: itemCardBg, border: itemCardBorder }}>
+                            <div key={rowKey} style={{ ...styles.card, background: itemCardBg, border: itemCardBorder }}>
                                 <div style={styles.cardMain}>
                                     <div style={styles.meta}>
                                         <div style={{ ...styles.contestTag, color: contestTagColor }}>
@@ -1255,16 +1385,56 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                         </div>
                                     </div>
 
-                                    <div style={{ ...styles.scoreContainer, background: scoreBoxBg, border: scoreBoxBorder }}>
-                                        <div style={{ ...styles.scoreBig, color: scoreValColor }}>{item.Score}</div>
-                                        <div style={styles.starSmall}>⭐</div>
-                                    </div>
+                                    {isComparing ? (
+                                        <div style={{ display: "flex", gap: 10, flexShrink: 0 }}>
+                                            <div style={{ ...styles.scoreContainer, background: scoreBoxBg, border: scoreBoxBorder, minWidth: 72 }}>
+                                                <div style={{ fontSize: 10, fontWeight: 800, color: subTextColor, marginBottom: 4, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {displayUsername ?? "Профиль"}
+                                                </div>
+                                                <div style={{ ...styles.scoreBig, color: mineRating ? scoreValColor : subTextColor, fontSize: mineRating ? 36 : 28 }}>
+                                                    {mineRating?.Score ?? "—"}
+                                                </div>
+                                                {mineRating && <div style={styles.starSmall}>⭐</div>}
+                                            </div>
+                                            <div style={{ ...styles.scoreContainer, background: scoreBoxBg, border: scoreBoxBorder, minWidth: 72, opacity: compareLoading && !theirRating ? 0.55 : 1 }}>
+                                                <div style={{ fontSize: 10, fontWeight: 800, color: subTextColor, marginBottom: 4, maxWidth: 80, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                                    {compareUser?.username}
+                                                </div>
+                                                <div style={{ ...styles.scoreBig, color: theirRating ? scoreValColor : subTextColor, fontSize: theirRating ? 36 : 28 }}>
+                                                    {compareLoading && !theirRating ? "…" : theirRating?.Score ?? "—"}
+                                                </div>
+                                                {theirRating && <div style={styles.starSmall}>⭐</div>}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div style={{ ...styles.scoreContainer, background: scoreBoxBg, border: scoreBoxBorder }}>
+                                            <div style={{ ...styles.scoreBig, color: scoreValColor }}>{item.Score}</div>
+                                            <div style={styles.starSmall}>⭐</div>
+                                        </div>
+                                    )}
                                 </div>
 
-                                {item.Comment && (
-                                    <div style={{ ...styles.comment, background: commentBg, borderLeft: commentBorder, color: commentTextColor }}>
-                                        “{item.Comment}”
-                                    </div>
+                                {isComparing ? (
+                                    <>
+                                        {mineRating?.Comment && (
+                                            <div style={{ ...styles.comment, background: commentBg, borderLeft: commentBorder, color: commentTextColor }}>
+                                                <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.7 }}>{displayUsername}: </span>
+                                                “{mineRating.Comment}”
+                                            </div>
+                                        )}
+                                        {theirRating?.Comment && (
+                                            <div style={{ ...styles.comment, background: commentBg, borderLeft: commentBorder, color: commentTextColor }}>
+                                                <span style={{ fontSize: 11, fontWeight: 800, opacity: 0.7 }}>{compareUser?.username}: </span>
+                                                “{theirRating.Comment}”
+                                            </div>
+                                        )}
+                                    </>
+                                ) : (
+                                    item.Comment && (
+                                        <div style={{ ...styles.comment, background: commentBg, borderLeft: commentBorder, color: commentTextColor }}>
+                                            “{item.Comment}”
+                                        </div>
+                                    )
                                 )}
 
                                 {youtubeId && (

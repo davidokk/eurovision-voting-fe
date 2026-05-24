@@ -598,7 +598,8 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         maxWidth: 1200,
                         margin: "0 auto 16px",
                         display: "flex",
-                        justifyContent: "flex-end",
+                        justifyContent: "center",
+                        alignItems: "center",
                         gap: 8,
                         flexWrap: "wrap",
                     }}
