@@ -13,6 +13,8 @@ import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { isScoreSystemMessage } from "../utils/chatMessage";
+import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
+import { isScoreTwelve } from "../utils/scoreUtils";
 
 type Props = {
     contest: ContestViewType | null;
@@ -787,9 +789,20 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         <div style={styles.chatMessages}>
                             {messages.map((m, i) => {
                                 if (m.type === "system") {
+                                    const scoreIsTwelve =
+                                        m.score != null && isScoreTwelve(m.score);
                                     return (
                                         <div key={i} style={styles.systemMsg}>
-                                            <div style={{ ...styles.systemMsgInner, background: sysMsgBg, border: sysMsgBorder }}>
+                                            <div
+                                                className={
+                                                    scoreIsTwelve ? "ev-score-12-chat-msg" : undefined
+                                                }
+                                                style={{
+                                                    ...styles.systemMsgInner,
+                                                    background: sysMsgBg,
+                                                    border: sysMsgBorder,
+                                                }}
+                                            >
                                                 <div style={styles.systemHeader}>
                                                     <span style={styles.systemIcon}>⭐</span>
                                                     <span style={{ ...styles.systemUser, color: sysMsgUser }}>
@@ -815,15 +828,37 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                                                 {m.old_score}
                                                             </span>
                                                             <span style={styles.scoreArrow}>→</span>
-                                                            <span style={{ ...styles.systemScore, color: timerValColor }}>
-                                                                {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
-                                                            </span>
+                                                            {m.score != null ? (
+                                                                <ScoreTwelveDisplay
+                                                                    score={m.score}
+                                                                    variant="chat"
+                                                                    suffix={` ${plural(m.score, "балл", "балла", "баллов")}`}
+                                                                    style={
+                                                                        !scoreIsTwelve
+                                                                            ? {
+                                                                                  ...styles.systemScore,
+                                                                                  color: timerValColor,
+                                                                              }
+                                                                            : undefined
+                                                                    }
+                                                                />
+                                                            ) : null}
                                                         </div>
-                                                    ) : (
-                                                        <span style={{ ...styles.systemScore, color: timerValColor }}>
-                                                            {m.score} {plural(m.score || 0, "балл", "балла", "баллов")}
-                                                        </span>
-                                                    )}
+                                                    ) : m.score != null ? (
+                                                        <ScoreTwelveDisplay
+                                                            score={m.score}
+                                                            variant="chat"
+                                                            suffix={` ${plural(m.score, "балл", "балла", "баллов")}`}
+                                                            style={
+                                                                !scoreIsTwelve
+                                                                    ? {
+                                                                          ...styles.systemScore,
+                                                                          color: timerValColor,
+                                                                      }
+                                                                    : undefined
+                                                            }
+                                                        />
+                                                    ) : null}
                                                 </div>
 
                                                 {m.comment && (

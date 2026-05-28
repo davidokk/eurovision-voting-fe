@@ -2,6 +2,12 @@ import { useEffect, useState, type CSSProperties } from "react";
 import { createPortal } from "react-dom";
 import type { PerformanceWithScores, Theme } from "../types/contest";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
+import {
+  getScoreButtonBackground,
+  getScoreColor,
+  SCORE_TWELVE,
+} from "../utils/scoreUtils";
+import { ScoreTwelveCelebration } from "./ScoreTwelveCelebration";
 
 type GifItem = {
   id: string;
@@ -20,12 +26,8 @@ type Props = {
   initialGifUrl?: string | null;
 };
 
-function getScoreColor(score: number) {
-  const hue = ((score - 1) * 120) / 9;
-  return `hsl(${hue}, 80%, 45%)`;
-}
-
 const ENABLE_GIFS = true;
+const SCORES_1_10 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10] as const;
 
 export function RatePerformanceModal({
   performance,
@@ -50,6 +52,7 @@ export function RatePerformanceModal({
   const [selectedGif, setSelectedGif] = useState<string | null>(initialGifUrl);
   const [loadingGifs, setLoadingGifs] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showTwelveCelebration, setShowTwelveCelebration] = useState(false);
 
   const isLight = theme === "light";
   const isGray = theme === "dark-gray";
@@ -85,6 +88,7 @@ export function RatePerformanceModal({
     setGifSearch("");
     setError(null);
     setShowErrorAnimation(false);
+    setShowTwelveCelebration(false);
     void loadLocalGifs();
   }, [open, performance.performance_id, initialScore, initialComment, initialGifUrl]);
 
@@ -143,7 +147,6 @@ export function RatePerformanceModal({
     setError(null);
     setSubmitting(true);
     const currentScore = score;
-    setScore(null);
     try {
       const res = await fetch(
         `${API_URL}/v1/performance/${performance.performance_id}/rate`,
@@ -164,12 +167,17 @@ export function RatePerformanceModal({
         const data = await res.json().catch(() => null);
         throw new Error(data?.message || "Ошибка при отправке оценки");
       }
+      if (currentScore === SCORE_TWELVE) {
+        setShowTwelveCelebration(true);
+        await new Promise((r) => setTimeout(r, 2400));
+      }
       onClose();
       onSuccess?.();
     } catch (err) {
       setError((err as Error).message);
     } finally {
       setSubmitting(false);
+      setShowTwelveCelebration(false);
     }
   }
 
@@ -286,56 +294,108 @@ export function RatePerformanceModal({
             maxWidth: 360,
           }}
         >
-          Оцените выступление по 10-балльной шкале и поделитесь впечатлениями
+          Оцените от 1 до 10 или поставьте легендарные 12 баллов
         </p>
 
         {error && <div style={modalStyles.errorBanner}>{error}</div>}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(10, 1fr)",
-            gap: 4,
-            marginBottom: 16,
-            width: "100%",
-          }}
-        >
-          {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((n) => (
-            <button
-              key={n}
-              type="button"
-              onClick={() => {
-                setScore(n);
-                setShowErrorAnimation(false);
-              }}
-              style={{
-                aspectRatio: "1/1",
-                borderRadius: 10,
-                background: score === n ? getScoreColor(n) : ratingBtnInactiveBg,
-                color: score === n ? "#fff" : ratingBtnInactiveText,
-                fontSize: 15,
-                fontWeight: 800,
-                cursor: "pointer",
-                transform: score === n ? "scale(1.12)" : "scale(1)",
-                border:
-                  score === n
-                    ? "2px solid #fff"
-                    : showErrorAnimation
-                      ? "2px solid #ff6b6b"
-                      : `1px solid ${ratingBtnInactiveBorder}`,
-                transition: "all 0.2s ease",
-                padding: 0,
-                boxShadow:
-                  score === n
-                    ? `0 4px 12px ${getScoreColor(n)}`
-                    : showErrorAnimation
-                      ? "0 0 10px rgba(255, 107, 107, 0.5)"
-                      : "none",
-              }}
-            >
-              {n}
-            </button>
-          ))}
+        <ScoreTwelveCelebration active={showTwelveCelebration} />
+
+        <div style={{ width: "100%", marginBottom: 12, opacity: showTwelveCelebration ? 0.15 : 1, transition: "opacity 0.3s" }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(10, 1fr)",
+              gap: 4,
+              marginBottom: 10,
+            }}
+          >
+            {SCORES_1_10.map((n) => {
+              const active = score === n;
+              return (
+                <button
+                  key={n}
+                  type="button"
+                  disabled={showTwelveCelebration || submitting}
+                  onClick={() => {
+                    setScore(n);
+                    setShowErrorAnimation(false);
+                  }}
+                  style={{
+                    aspectRatio: "1/1",
+                    borderRadius: 10,
+                    background: active ? getScoreColor(n) : ratingBtnInactiveBg,
+                    color: active ? "#fff" : ratingBtnInactiveText,
+                    fontSize: 15,
+                    fontWeight: 800,
+                    cursor: "pointer",
+                    transform: active ? "scale(1.12)" : "scale(1)",
+                    border:
+                      active
+                        ? "2px solid #fff"
+                        : showErrorAnimation
+                          ? "2px solid #ff6b6b"
+                          : `1px solid ${ratingBtnInactiveBorder}`,
+                    transition: "all 0.2s ease",
+                    padding: 0,
+                    boxShadow: active
+                      ? `0 4px 12px ${getScoreColor(n)}`
+                      : showErrorAnimation
+                        ? "0 0 10px rgba(255, 107, 107, 0.5)"
+                        : "none",
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
+          </div>
+
+          <button
+            type="button"
+            disabled={showTwelveCelebration || submitting}
+            onClick={() => {
+              setScore(SCORE_TWELVE);
+              setShowErrorAnimation(false);
+            }}
+            style={{
+              width: "100%",
+              padding: "14px 20px",
+              borderRadius: 14,
+              border:
+                score === SCORE_TWELVE
+                  ? "2px solid #fff"
+                  : showErrorAnimation
+                    ? "2px solid #ff6b6b"
+                    : `2px solid ${isLight ? "rgba(234, 179, 8, 0.5)" : "rgba(250, 204, 21, 0.45)"}`,
+              background:
+                score === SCORE_TWELVE
+                  ? getScoreButtonBackground(SCORE_TWELVE, true)
+                  : isLight
+                    ? "linear-gradient(135deg, rgba(254, 240, 138, 0.35), rgba(251, 207, 232, 0.25))"
+                    : "linear-gradient(135deg, rgba(250, 204, 21, 0.15), rgba(236, 72, 153, 0.12))",
+              color: score === SCORE_TWELVE ? "#fff" : isLight ? "#92400e" : "#fde047",
+              fontSize: 22,
+              fontWeight: 1000,
+              letterSpacing: "0.06em",
+              cursor: "pointer",
+              transform: score === SCORE_TWELVE ? "scale(1.02)" : "scale(1)",
+              boxShadow:
+                score === SCORE_TWELVE
+                  ? "0 8px 32px rgba(250, 204, 21, 0.55), 0 0 40px rgba(236, 72, 153, 0.35)"
+                  : "0 4px 16px rgba(250, 204, 21, 0.15)",
+              transition: "all 0.25s ease",
+              animation: score === SCORE_TWELVE ? "ev-12-btn-glow 1.2s ease-in-out infinite alternate" : "none",
+            }}
+          >
+            ✨ 12 — Douze points!
+          </button>
+          <style>{`
+            @keyframes ev-12-btn-glow {
+              from { filter: brightness(1); }
+              to { filter: brightness(1.15); }
+            }
+          `}</style>
         </div>
 
         <textarea

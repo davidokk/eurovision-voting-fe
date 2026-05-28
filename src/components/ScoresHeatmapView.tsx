@@ -13,6 +13,8 @@ import {
 } from "./scores/scoresViewShared";
 import { useScoresMatrix } from "./scores/useScoresMatrix";
 import { useScoresViewAuth } from "./scores/useScoresViewAuth";
+import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
+import { isScoreTwelve } from "../utils/scoreUtils";
 
 export function ScoresHeatmapView({
   performances,
@@ -198,13 +200,16 @@ export function ScoresHeatmapView({
                       rowBg
                     );
 
+                    const cellTwelve = cell != null && isScoreTwelve(cell.score);
+
                     return (
                       <td
                         key={`${p.performance_id}-${u?.user_id}`}
+                        className={cellTwelve ? "ev-score-12-heatmap-cell" : undefined}
                         style={{
                           ...tdStyle,
                           background: cellStyle.background,
-                          color: cellStyle.color,
+                          color: cellTwelve ? undefined : cellStyle.color,
                           fontWeight: cell ? 700 : 400,
                           textAlign: "center",
                           cursor: cell ? "help" : "default",
@@ -215,7 +220,11 @@ export function ScoresHeatmapView({
                         }
                         onMouseLeave={() => setTooltip(null)}
                       >
-                        {cell ? cell.score : ""}
+                        {cell ? (
+                          <ScoreTwelveDisplay score={cell.score} variant="cell" />
+                        ) : (
+                          ""
+                        )}
                       </td>
                     );
                   })}

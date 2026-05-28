@@ -11,6 +11,8 @@ import {
   getScoresViewColors,
   type ScoresViewProps,
 } from "./scores/scoresViewShared";
+import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
+import { isScoreTwelve } from "../utils/scoreUtils";
 import { useScoresViewAuth } from "./scores/useScoresViewAuth";
 
 type SortMode = "score" | "number";
@@ -342,9 +344,15 @@ export function ScoresLeaderboardView({
                             flexWrap: "wrap",
                           }}
                         >
-                          <span style={{ fontWeight: 800, color: getScoreColor(s.score) }}>
-                            {s.score}
-                          </span>
+                          <ScoreTwelveDisplay
+                            score={s.score}
+                            variant="inline"
+                            style={
+                              !isScoreTwelve(s.score)
+                                ? { fontWeight: 800, color: getScoreColor(s.score) }
+                                : undefined
+                            }
+                          />
                           <span style={{ color: colors.text }}>{s.username}</span>
                           {s.comment && (
                             <span style={{ fontStyle: "italic" }}>«{s.comment}»</span>

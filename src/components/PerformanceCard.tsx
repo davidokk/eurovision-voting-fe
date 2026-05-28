@@ -17,11 +17,8 @@ function getYouTubeId(url: string) {
   return match?.[1] || null;
 }
 
-// Хелпер для получения цвета от 1 (красный) до 10 (зеленый)
-function getScoreColor(score: number) {
-  const hue = ((score - 1) * 120) / 9; // 0 = красный, 120 = зеленый
-  return `hsl(${hue}, 80%, 45%)`;
-}
+import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
+import { getScoreColor, isScoreTwelve } from "../utils/scoreUtils";
 
 export function PerformanceCard({
   performance,
@@ -47,14 +44,6 @@ export function PerformanceCard({
   const mine = myScoreFor(performance);
 
   const supportsEmoji = getDoesBrowserSupportFlagEmojis();
-
-  function getScoreEmoji(score: number) {
-    if (score <= 3) return "💩";
-    if (score <= 6) return "😕";
-    if (score <= 7) return "🙂";
-    if (score <= 9) return "🔥";
-    return "😍";
-  }
 
   // Форматирование числа: убираем лишние нули после точки
   const formatScore = (num: number) => Number(num.toFixed(2));
@@ -114,9 +103,13 @@ export function PerformanceCard({
 
   const isSemifinal = contestType?.includes("semifinal");
   const hasPlace = performance.place !== undefined && performance.place !== null;
+  const hasTwelveOnCard = performance.scores.some((s) => isScoreTwelve(s.score));
 
   return (
-    <div style={{ ...styles.card, background: cardBg, border: cardBorder, color: cardTextColor }}>
+    <div
+      className={hasTwelveOnCard ? "ev-score-12-card" : undefined}
+      style={{ ...styles.card, background: cardBg, border: cardBorder, color: cardTextColor }}
+    >
       {/* 1. TOP ROW: Country Stack & Dynamic Score */}
       <div style={styles.topRow}>
         <div style={{
@@ -239,16 +232,26 @@ export function PerformanceCard({
                     } : {}),
                   }}
                 >
-                  <div style={{
-                    ...styles.feedScoreBadge,
-                    background: isMe ? badgeMeBg : badgeBg,
-                    border: isMe ? badgeMeBorder : badgeBorder,
-                    ...(isMe ? { boxShadow: isLight ? "none" : "0 0 12px rgba(79, 124, 255, 0.15)" } : {}),
-                  }}>
-                    <span style={{...styles.feedScoreNum, color: getScoreColor(s.score)}}>
-                      {s.score}
-                    </span>
-                    <span style={styles.feedEmojiSmall}>{getScoreEmoji(s.score)}</span>
+                  <div
+                    style={{
+                      ...styles.feedScoreBadge,
+                      ...(isScoreTwelve(s.score)
+                        ? { background: "transparent", border: "none", padding: 0 }
+                        : {
+                            background: isMe ? badgeMeBg : badgeBg,
+                            border: isMe ? badgeMeBorder : badgeBorder,
+                            ...(isMe
+                              ? { boxShadow: isLight ? "none" : "0 0 12px rgba(79, 124, 255, 0.15)" }
+                              : {}),
+                          }),
+                    }}
+                  >
+                    <ScoreTwelveDisplay
+                      score={s.score}
+                      variant="badge"
+                      showEmoji
+                      style={!isScoreTwelve(s.score) ? { ...styles.feedScoreNum, color: getScoreColor(s.score) } : undefined}
+                    />
                   </div>
                   
                   <div style={styles.feedContent}>

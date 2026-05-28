@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import type { ScoreView, Theme } from "../../types/contest";
+import { ScoreTwelveDisplay } from "../ScoreTwelveDisplay";
+import { isScoreTwelve } from "../../utils/scoreUtils";
 
 export type TooltipState = {
   score: number;
@@ -54,15 +56,17 @@ export function useScoreTooltip(theme: Theme) {
           zIndex: 10000,
         }}
       >
-        <div
-          style={{
-            fontWeight: 800,
-            fontSize: 14,
-            color: tooltipTheme.score,
-            marginBottom: tooltip.comment ? 6 : 0,
-          }}
-        >
-          ⭐ {tooltip.score}
+        <div style={{ marginBottom: tooltip.comment ? 6 : 0 }}>
+          <ScoreTwelveDisplay
+            score={tooltip.score}
+            variant="inline"
+            prefix={isScoreTwelve(tooltip.score) ? undefined : "⭐ "}
+            style={
+              isScoreTwelve(tooltip.score)
+                ? undefined
+                : { fontWeight: 800, fontSize: 14, color: tooltipTheme.score }
+            }
+          />
         </div>
         {tooltip.comment ? (
           <div

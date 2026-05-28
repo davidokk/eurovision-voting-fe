@@ -1,4 +1,6 @@
 import type { ScoreView } from "../../types/contest";
+import { ScoreTwelveDisplay } from "../ScoreTwelveDisplay";
+import { isScoreTwelve } from "../../utils/scoreUtils";
 
 type Colors = {
   empty: string;
@@ -18,6 +20,7 @@ type Props = {
 
 export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor, compact }: Props) {
   const scoreColor = inheritCellColor ? "inherit" : colors.gold;
+  const scoreStyle = { fontSize: compact ? 14 : 15 };
 
   if (canVote) {
     if (mine) {
@@ -31,13 +34,17 @@ export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor,
             background: "transparent",
             cursor: "pointer",
             fontWeight: 800,
-          fontSize: compact ? 14 : 15,
-          color: scoreColor,
-        }}
-      >
-        {mine.score}
-      </button>
-    );
+            fontSize: compact ? 14 : 15,
+            color: isScoreTwelve(mine.score) || inheritCellColor ? undefined : scoreColor,
+          }}
+        >
+          <ScoreTwelveDisplay
+            score={mine.score}
+            variant="cell"
+            style={!isScoreTwelve(mine.score) ? scoreStyle : undefined}
+          />
+        </button>
+      );
     }
     return (
       <button
@@ -63,9 +70,14 @@ export function MyScoreAction({ mine, canVote, onRate, colors, inheritCellColor,
 
   if (mine) {
     return (
-      <span style={{ fontWeight: 800, fontSize: compact ? 14 : 15, color: scoreColor }}>
-        {mine.score}
-      </span>
+      <ScoreTwelveDisplay
+        score={mine.score}
+        variant="cell"
+        style={{
+          ...scoreStyle,
+          color: isScoreTwelve(mine.score) || inheritCellColor ? undefined : scoreColor,
+        }}
+      />
     );
   }
 

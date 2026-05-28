@@ -3,6 +3,8 @@ import { createPortal } from "react-dom";
 import type { PerformanceWithScores, ScoreView, Theme } from "../types/contest";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { RatePerformanceModal } from "./RatePerformanceModal";
+import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
+import { isScoreTwelve } from "../utils/scoreUtils";
 
 type Props = {
   performances: PerformanceWithScores[];
@@ -394,7 +396,16 @@ export function ScoresTableView({
                               color: isLight ? "#d97706" : "#ffd166",
                             }}
                           >
-                            ⭐ {mine.score}
+                            <ScoreTwelveDisplay
+                              score={mine.score}
+                              variant="cell"
+                              prefix={isScoreTwelve(mine.score) ? undefined : "⭐ "}
+                              style={
+                                !isScoreTwelve(mine.score)
+                                  ? { color: isLight ? "#d97706" : "#ffd166" }
+                                  : undefined
+                              }
+                            />
                           </button>
                         ) : (
                           <button
@@ -423,7 +434,16 @@ export function ScoresTableView({
                             color: isLight ? "#d97706" : "#ffd166",
                           }}
                         >
-                          ⭐ {mine.score}
+                          <ScoreTwelveDisplay
+                            score={mine.score}
+                            variant="cell"
+                            prefix={isScoreTwelve(mine.score) ? undefined : "⭐ "}
+                            style={
+                              !isScoreTwelve(mine.score)
+                                ? { color: isLight ? "#d97706" : "#ffd166" }
+                                : undefined
+                            }
+                          />
                         </span>
                       ) : (
                         <span style={{ color: colors.empty }}>—</span>
@@ -447,7 +467,11 @@ export function ScoresTableView({
                         onMouseEnter={(e) => cell && showTooltipForCell(e.currentTarget, cell)}
                         onMouseLeave={() => setTooltip(null)}
                       >
-                        {cell ? cell.score : "—"}
+                        {cell ? (
+                          <ScoreTwelveDisplay score={cell.score} variant="cell" />
+                        ) : (
+                          "—"
+                        )}
                       </td>
                     );
                   })}
@@ -490,7 +514,16 @@ export function ScoresTableView({
                 marginBottom: tooltip.comment ? 6 : 0,
               }}
             >
-              ⭐ {tooltip.score}
+              <ScoreTwelveDisplay
+                score={tooltip.score}
+                variant="inline"
+                prefix={isScoreTwelve(tooltip.score) ? undefined : "⭐ "}
+                style={
+                  isScoreTwelve(tooltip.score)
+                    ? undefined
+                    : { fontWeight: 800, fontSize: 14, color: tooltipTheme.score }
+                }
+              />
             </div>
             {tooltip.comment ? (
               <div

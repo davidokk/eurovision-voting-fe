@@ -12,10 +12,7 @@ export type ScoresViewProps = {
   onRated?: () => void;
 };
 
-export function getScoreColor(score: number) {
-  const hue = ((score - 1) * 120) / 9;
-  return `hsl(${hue}, 80%, 45%)`;
-}
+export { getScoreColor } from "../../utils/scoreUtils";
 
 /** Приглушённая заливка ячейки heatmap (фон + цвет текста) */
 export function heatCellStyles(
@@ -29,7 +26,14 @@ export function heatCellStyles(
       color: isLight ? "#94a3b8" : "#64748b",
     };
   }
-  const hue = ((score - 1) * 120) / 9;
+  if (score >= 12) {
+    return {
+      background: isLight ? "#fef08a" : "rgba(234, 179, 8, 0.4)",
+      color: isLight ? "#713f12" : "#fde047",
+    };
+  }
+  const normalized = Math.min(10, Math.max(1, score));
+  const hue = ((normalized - 1) * 120) / 9;
 
   if (isLight) {
     // Светлая тема: насыщеннее фон, темнее текст — иначе всё сливается в серый
