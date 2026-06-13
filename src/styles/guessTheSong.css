@@ -1,0 +1,382 @@
+/* Guess The Song — animations & layout */
+
+@keyframes gts-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes gts-pulse-ring {
+  0% {
+    transform: scale(1);
+    opacity: 0.6;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+@keyframes gts-eq {
+  0%,
+  100% {
+    height: 12px;
+  }
+  50% {
+    height: 36px;
+  }
+}
+
+@keyframes gts-reveal-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes gts-buzz-flash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(79, 124, 255, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 20px rgba(79, 124, 255, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(79, 124, 255, 0);
+  }
+}
+
+@keyframes gts-score-pop {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.15);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+@keyframes gts-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.gts-page {
+  min-height: calc(100vh - 64px);
+  padding: 24px 20px 48px;
+  animation: gts-fade-up 0.45s ease;
+}
+
+.gts-hero {
+  text-align: center;
+  max-width: 640px;
+  margin: 0 auto 32px;
+}
+
+.gts-hero h1 {
+  margin: 0 0 8px;
+  font-size: clamp(1.75rem, 4vw, 2.5rem);
+  font-weight: 950;
+  letter-spacing: -0.03em;
+}
+
+.gts-hero p {
+  margin: 0;
+  font-size: 15px;
+  opacity: 0.75;
+  line-height: 1.5;
+}
+
+.gts-card {
+  border-radius: 24px;
+  padding: 24px;
+  backdrop-filter: blur(20px);
+  animation: gts-fade-up 0.5s ease backwards;
+}
+
+.gts-grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  align-items: start;
+}
+
+@media (max-width: 960px) {
+  .gts-grid-2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+.gts-code {
+  font-family: ui-monospace, monospace;
+  font-size: 2rem;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  padding: 12px 20px;
+  border-radius: 16px;
+  display: inline-block;
+}
+
+.gts-buzz-btn {
+  position: relative;
+  width: min(100%, 320px);
+  padding: 22px 32px;
+  border-radius: 999px;
+  border: none;
+  font-size: 1.25rem;
+  font-weight: 900;
+  cursor: pointer;
+  color: #fff;
+  background: linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%);
+  box-shadow: 0 12px 40px rgba(79, 124, 255, 0.45);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.gts-buzz-btn:not(:disabled):hover {
+  transform: translateY(-2px) scale(1.02);
+}
+
+.gts-buzz-btn:not(:disabled):active {
+  transform: scale(0.98);
+  animation: gts-buzz-flash 0.5s ease;
+}
+
+.gts-buzz-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.3);
+}
+
+.gts-player {
+  position: relative;
+  border-radius: 20px;
+  overflow: hidden;
+  background: #000;
+  min-height: 200px;
+}
+
+.gts-player--video {
+  aspect-ratio: 16 / 9;
+  min-height: unset;
+}
+
+.gts-player--audio {
+  min-height: 220px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(145deg, #0f172a 0%, #1e1b4b 100%);
+}
+
+.gts-player--audio .gts-yt-mount {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.gts-player--video .gts-yt-mount {
+  position: absolute;
+  inset: 0;
+}
+
+.gts-player-reveal-in {
+  animation: gts-reveal-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.gts-audio-visual {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 24px;
+}
+
+.gts-equalizer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 6px;
+  height: 48px;
+  margin-bottom: 16px;
+}
+
+.gts-eq-bar {
+  width: 8px;
+  border-radius: 4px;
+  background: linear-gradient(180deg, #7aa2ff, #4f7cff);
+  animation: gts-eq 0.8s ease-in-out infinite;
+}
+
+.gts-eq-bar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+.gts-eq-bar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+.gts-eq-bar:nth-child(4) {
+  animation-delay: 0.15s;
+}
+.gts-eq-bar:nth-child(5) {
+  animation-delay: 0.25s;
+}
+
+.gts-eq-bar--paused {
+  animation: none;
+  height: 8px !important;
+}
+
+.gts-audio-hint {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.gts-scoreboard {
+  border-radius: 20px;
+  padding: 18px;
+}
+
+.gts-score-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border-radius: 12px;
+  margin-bottom: 6px;
+  transition: background 0.2s ease;
+}
+
+.gts-score-row--leader {
+  animation: gts-score-pop 0.4s ease;
+}
+
+.gts-score-row--buzzed {
+  outline: 2px solid rgba(79, 124, 255, 0.6);
+  outline-offset: 2px;
+}
+
+.gts-song-picker {
+  max-height: 360px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.gts-song-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  border: 1px solid transparent;
+  transition: all 0.15s ease;
+  width: 100%;
+  background: transparent;
+  font: inherit;
+}
+
+.gts-song-item--selected {
+  border-color: rgba(79, 124, 255, 0.5);
+  background: rgba(79, 124, 255, 0.12);
+}
+
+.gts-reveal-card {
+  text-align: center;
+  padding: 20px;
+  border-radius: 16px;
+  margin-top: 16px;
+  animation: gts-fade-up 0.4s ease;
+}
+
+.gts-judge-btns {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  flex-wrap: wrap;
+  margin-top: 16px;
+}
+
+.gts-btn {
+  padding: 10px 18px;
+  border-radius: 12px;
+  border: none;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: transform 0.12s ease, opacity 0.12s ease;
+}
+
+.gts-btn:active {
+  transform: scale(0.97);
+}
+
+.gts-btn--primary {
+  background: linear-gradient(135deg, #4f7cff, #7c4dff);
+  color: #fff;
+}
+
+.gts-btn--success {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  color: #fff;
+}
+
+.gts-btn--danger {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  color: #fff;
+}
+
+.gts-btn--ghost {
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.gts-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.gts-status-pill--live::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 10px #22c55e;
+  animation: gts-pulse-ring 1.5s ease infinite;
+}
+
+.gts-spin {
+  animation: gts-spin 0.8s linear infinite;
+}
+
+.ev-spin {
+  animation: gts-spin 0.8s linear infinite;
+}

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import type { ContestsByYear, Theme } from "../types/contest";
 import { ContestDropdown } from "./ContestDropdown";
 import { AuthModal } from "./AuthModal";
-import { Palette, LogOut, User as UserIcon, ChevronDown } from "lucide-react";
+import { Palette, LogOut, User as UserIcon, ChevronDown, Music2 } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
@@ -491,6 +491,28 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
         )}
 
         <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+          <a
+            href="/game"
+            title="Угадай песню"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              padding: isMobile ? "8px 12px" : "10px 14px",
+              borderRadius: 14,
+              border: `1px solid ${borderColor}`,
+              background: window.location.pathname.startsWith("/game")
+                ? btnHoverBg
+                : btnBg,
+              color: window.location.pathname.startsWith("/game") ? activeColor : subTextColor,
+              textDecoration: "none",
+              fontSize: 14,
+              fontWeight: 700,
+            }}
+          >
+            <Music2 size={16} />
+            {!isMobile && <span>Игра</span>}
+          </a>
           {!token ? (
             <>
               <div ref={guestThemeRef} style={{ position: "relative" }}>
@@ -661,6 +683,26 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
               </span>
             </div>
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
+              <a
+                href="/game"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  border: `1px solid ${borderColor}`,
+                  background: btnBg,
+                  color: textColor,
+                  textDecoration: "none",
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
+              >
+                <Music2 size={18} />
+                Угадай песню
+              </a>
               {Object.entries(contests).map(([year, items]) => (
                 <div key={year} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   <div
@@ -726,6 +768,7 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
       {authMode && (
         <AuthModal
           theme={theme}
+          initialMode={authMode}
           onClose={() => setAuthMode(null)}
           onSuccess={(t) => {
             handleLogin(t);

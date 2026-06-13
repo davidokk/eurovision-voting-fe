@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
 import { CountryStatsPage } from "./components/CountryStatsPage";
+import { GuessTheSongPage } from "./components/game/GuessTheSongPage";
 import { getContest, getContests } from "./api/contest";
 import type { ContestView, ContestsByYear, Theme } from "./types/contest";
 import { Topbar } from "./components/Topbar";
@@ -44,6 +45,10 @@ export default function App() {
   const userId = isUserPage ? window.location.pathname.split("/user/")[1] : null;
   const isCountryPage = window.location.pathname.startsWith("/country/");
   const countryId = isCountryPage ? window.location.pathname.split("/country/")[1] : null;
+  const isGamePage = window.location.pathname === "/game" || window.location.pathname.startsWith("/game/");
+  const gameRoomCode = window.location.pathname.startsWith("/game/")
+    ? window.location.pathname.split("/game/")[1]?.split("/")[0]?.toUpperCase()
+    : undefined;
 
   useEffect(() => {
     getContests().then(setContests);
@@ -81,7 +86,6 @@ export default function App() {
         }
         const me = await fetchMe(token);
         applyAuthSession(token, {
-          verified: me.telegram_linked,
           avatar_url: me.avatar_url,
         });
         setStoredAvatarUrl(me.avatar_url ?? null);
@@ -155,6 +159,19 @@ export default function App() {
   }
   if (isCountryPage && countryId) {
     return <CountryStatsPage countryId={countryId} theme={theme} />;
+  }
+  if (isGamePage) {
+    return (
+      <AppShell
+        theme={theme}
+        onSelectTheme={handleSelectTheme}
+        contests={contests}
+        onSelectContest={handleSelectContest}
+        navigateHomeOnContest
+      >
+        <GuessTheSongPage theme={theme} roomCode={gameRoomCode || undefined} />
+      </AppShell>
+    );
   }
 
   const isLight = theme === "light";

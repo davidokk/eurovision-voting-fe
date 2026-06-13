@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import {
+    passwordSignin,
+    passwordSignup,
     telegramSigninConfirm,
     telegramSigninStart,
     telegramSessionStatus,
@@ -15,9 +17,11 @@ type Props = {
     onClose: () => void;
     onSuccess: (token: string) => void;
     theme?: Theme;
+    initialMode?: "signin" | "signup";
 };
 
-type Step = "intro" | "telegram";
+type Step = "credentials" | "telegram";
+type CredentialMode = "signin" | "signup";
 
 async function persistSession(token: string) {
     setStoredAvatarUrl(null);
@@ -26,7 +30,6 @@ async function persistSession(token: string) {
         const me = await fetchMe(token);
         setStoredAvatarUrl(me.avatar_url ?? null);
         applyAuthSession(token, {
-            verified: me.telegram_linked,
             avatar_url: me.avatar_url ?? null,
         });
     } catch {
@@ -38,8 +41,12 @@ export function AuthModal({
     onClose,
     onSuccess,
     theme = "dark-blue",
+    initialMode = "signin",
 }: Props) {
-    const [step, setStep] = useState<Step>("intro");
+    const [step, setStep] = useState<Step>("credentials");
+    const [credentialMode, setCredentialMode] = useState<CredentialMode>(initialMode);
+    const [username, setUsername] = useState("");
+    const [password, setPassword] = useState("");
     const [code, setCode] = useState("");
     const [linkToken, setLinkToken] = useState("");
     const [botURL, setBotURL] = useState("");
@@ -52,13 +59,53 @@ export function AuthModal({
 
     function resetFlow() {
         setError(null);
-        setStep("intro");
+        setStep("credentials");
+        setCredentialMode(initialMode);
+        setUsername("");
+        setPassword("");
         setCode("");
         setLinkToken("");
         setBotURL("");
         setBotConnected(false);
         setCodeSent(false);
         setSignupClosed(false);
+    }
+
+    useEffect(() => {
+        setCredentialMode(initialMode);
+    }, [initialMode]);
+
+    async function submitCredentials() {
+        const u = username.trim();
+        if (!u || !password) {
+            setError("Введите логин и пароль");
+            return;
+        }
+        if (password.length < 6) {
+            setError("Пароль — минимум 6 символов");
+            return;
+        }
+        setLoading(true);
+        setError(null);
+        setSignupClosed(false);
+        try {
+            const res =
+                credentialMode === "signin"
+                    ? await passwordSignin(u, password)
+                    : await passwordSignup(u, password);
+            await persistSession(res.token);
+            onSuccess(res.token);
+        } catch (err) {
+            const e = err as ApiError;
+            if (e.code === "SIGNUP_CLOSED") {
+                setSignupClosed(true);
+                setError(null);
+            } else {
+                setError(formatAuthError(e));
+            }
+        } finally {
+            setLoading(false);
+        }
     }
 
     useEffect(() => {
@@ -162,16 +209,25 @@ export function AuthModal({
     const promptBorder = isLight ? "1px solid rgba(55, 65, 81, 0.2)" : isGray ? "1px solid rgba(255, 255, 255, 0.15)" : "1px solid rgba(79, 124, 255, 0.2)";
     const promptHighlightColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
 
-    const title = step === "telegram" ? "Код из Telegram" : "Вход";
+    const title =
+        step === "telegram"
+            ? "Код из Telegram"
+            : credentialMode === "signin"
+              ? "Вход"
+              : "Регистрация";
     const subtitle =
         step === "telegram"
             ? "Новый Telegram — аккаунт создастся сам после ввода кода"
-            : "Войдите через Telegram";
+            : credentialMode === "signin"
+              ? "Логин и пароль или вход через Telegram"
+              : "Придумайте имя пользователя и пароль";
 
     const primaryLabel = loading
         ? "Загрузка..."
-        : step === "intro"
-          ? "Войти через Telegram"
+        : step === "credentials"
+          ? credentialMode === "signin"
+            ? "Войти"
+            : "Создать аккаунт"
           : "Продолжить";
 
     const telegramStatus = codeSent
@@ -236,11 +292,112 @@ export function AuthModal({
                               : styles.iconWrap.background,
                     }}
                 >
-                    <span style={styles.icon}>✈️</span>
+                    <span style={styles.icon}>{step === "telegram" ? "✈️" : "🔑"}</span>
                 </div>
 
                 <h2 style={{ ...styles.title, color: titleColor }}>{title}</h2>
                 <p style={{ ...styles.subtitle, color: subtitleColor }}>{subtitle}</p>
+
+                {step === "credentials" && (
+                    <div style={styles.form}>
+                        <div
+                            style={{
+                                display: "flex",
+                                gap: 6,
+                                padding: 4,
+                                borderRadius: 14,
+                                background: btnBg,
+                                border: inputBorderColor,
+                            }}
+                        >
+                            {(["signin", "signup"] as const).map((m) => (
+                                <button
+                                    key={m}
+                                    type="button"
+                                    onClick={() => {
+                                        setCredentialMode(m);
+                                        setError(null);
+                                        setSignupClosed(false);
+                                    }}
+                                    style={{
+                                        flex: 1,
+                                        padding: "10px 12px",
+                                        borderRadius: 11,
+                                        border: "none",
+                                        cursor: "pointer",
+                                        fontWeight: 700,
+                                        fontSize: 13,
+                                        background:
+                                            credentialMode === m ? primaryGradient : "transparent",
+                                        color: credentialMode === m ? "#fff" : subtitleColor,
+                                        boxShadow: credentialMode === m ? primaryShadow : "none",
+                                    }}
+                                >
+                                    {m === "signin" ? "Вход" : "Регистрация"}
+                                </button>
+                            ))}
+                        </div>
+
+                        <input
+                            type="text"
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Имя пользователя"
+                            autoComplete="username"
+                            maxLength={32}
+                            style={{
+                                width: "100%",
+                                padding: "14px 16px",
+                                borderRadius: 14,
+                                border: `1px solid ${inputBorderColor}`,
+                                background: isLight ? "#fff" : isGray ? "#1a1a1a" : "rgba(15,23,42,0.6)",
+                                color: titleColor,
+                                fontSize: 15,
+                                fontWeight: 600,
+                                boxSizing: "border-box",
+                            }}
+                        />
+                        <input
+                            type="password"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Пароль (мин. 6 символов)"
+                            autoComplete={credentialMode === "signin" ? "current-password" : "new-password"}
+                            onKeyDown={(e) => {
+                                if (e.key === "Enter") void submitCredentials();
+                            }}
+                            style={{
+                                width: "100%",
+                                padding: "14px 16px",
+                                borderRadius: 14,
+                                border: `1px solid ${inputBorderColor}`,
+                                background: isLight ? "#fff" : isGray ? "#1a1a1a" : "rgba(15,23,42,0.6)",
+                                color: titleColor,
+                                fontSize: 15,
+                                fontWeight: 600,
+                                boxSizing: "border-box",
+                            }}
+                        />
+
+                        <button
+                            type="button"
+                            onClick={() => void startTelegramFlow()}
+                            disabled={loading}
+                            style={{
+                                border: "none",
+                                background: "transparent",
+                                color: promptHighlightColor,
+                                fontSize: 13,
+                                fontWeight: 600,
+                                cursor: loading ? "wait" : "pointer",
+                                textDecoration: "underline",
+                                textUnderlineOffset: 3,
+                            }}
+                        >
+                            Или войти через Telegram
+                        </button>
+                    </div>
+                )}
 
                 {step === "telegram" && (
                     <div style={styles.form}>
@@ -318,7 +475,7 @@ export function AuthModal({
                 <button
                     type="button"
                     onClick={() => {
-                        if (step === "intro") void startTelegramFlow();
+                        if (step === "credentials") void submitCredentials();
                         else void confirmCode();
                     }}
                     disabled={loading}

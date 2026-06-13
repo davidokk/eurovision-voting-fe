@@ -50,6 +50,26 @@ async function parseApiError(res: Response): Promise<ApiError> {
   }
 }
 
+export async function passwordSignin(username: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/v1/auth/signin`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) throw await parseApiError(res);
+  return res.json();
+}
+
+export async function passwordSignup(username: string, password: string): Promise<AuthResponse> {
+  const res = await fetch(`${API_URL}/v1/auth/signup`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ username, password }),
+  });
+  if (!res.ok) throw await parseApiError(res);
+  return res.json();
+}
+
 export async function telegramSigninStart(): Promise<TelegramStartResponse> {
   const res = await fetch(`${API_URL}/v1/auth/telegram/signin/start`, {
     method: "POST",
