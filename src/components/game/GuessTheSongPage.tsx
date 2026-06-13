@@ -996,17 +996,6 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                 {room.playlist_mode === "auto" ? " (авто)" : ""}
                 {room.play_mode === "online" ? " · онлайн" : ""}
               </p>
-              {room.playlist_preview && room.playlist_preview.length > 0 && (
-                <div className="gts-song-picker gts-song-picker--compact" style={{ marginTop: 16, textAlign: "left" }}>
-                  {room.playlist_preview.map((item) => (
-                    <div key={item.performance_id} className="gts-song-item" style={{ color: text, cursor: "default" }}>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <strong>{item.artist}</strong> — {item.song}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
