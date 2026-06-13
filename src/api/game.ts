@@ -1,4 +1,4 @@
-import type { GameCatalogItem, GamePlaylistEntryInput, GameRoomView } from "../types/game";
+import type { GameCatalogItem, GamePlaylistEntryInput, GameRoomView, SavedPlaylist, SavedPlaylistSummary } from "../types/game";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -112,4 +112,55 @@ export function buildPlaylistPayload(
     });
   }
   return { entries };
+}
+
+export async function fetchSavedPlaylists(): Promise<SavedPlaylistSummary[]> {
+  const res = await fetch(`${API_URL}/v1/game/playlists`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Не удалось загрузить плейлисты");
+  const json = await res.json();
+  return Array.isArray(json) ? json : [];
+}
+
+export async function fetchSavedPlaylist(id: string): Promise<SavedPlaylist> {
+  const res = await fetch(`${API_URL}/v1/game/playlists/${encodeURIComponent(id)}`, { headers: authHeaders() });
+  if (!res.ok) throw new Error("Плейлист не найден");
+  return res.json();
+}
+
+export async function createSavedPlaylist(name: string, entries: GamePlaylistEntryInput[]): Promise<SavedPlaylist> {
+  const res = await fetch(`${API_URL}/v1/game/playlists`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ name, entries }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Не удалось сохранить плейлист");
+  }
+  return res.json();
+}
+
+export async function updateSavedPlaylist(
+  id: string,
+  name: string,
+  entries: GamePlaylistEntryInput[]
+): Promise<SavedPlaylist> {
+  const res = await fetch(`${API_URL}/v1/game/playlists/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: authHeaders(),
+    body: JSON.stringify({ name, entries }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Не удалось обновить плейлист");
+  }
+  return res.json();
+}
+
+export async function deleteSavedPlaylist(id: string): Promise<void> {
+  const res = await fetch(`${API_URL}/v1/game/playlists/${encodeURIComponent(id)}`, {
+    method: "DELETE",
+    headers: authHeaders(),
+  });
+  if (!res.ok) throw new Error("Не удалось удалить плейлист");
 }

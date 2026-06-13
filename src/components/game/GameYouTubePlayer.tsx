@@ -1,7 +1,13 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import type { Theme } from "../../types/contest";
+import { UserAvatar } from "../UserAvatar";
 import { getYouTubeId, loadYouTubeIframeAPI, type YTPlayer } from "../../utils/youtube";
 
 export type PlayerMode = "audio" | "video" | "video_full" | "silent";
+
+export type PlayerOverlay =
+  | { kind: "buzzed"; username: string; avatarUrl?: string | null }
+  | { kind: "paused" };
 
 type Props = {
   youtubeLink: string;
@@ -10,6 +16,8 @@ type Props = {
   paused: boolean;
   startSeconds: number;
   instanceKey: string;
+  overlay?: PlayerOverlay | null;
+  theme?: Theme;
   onPlaybackReady?: () => void;
 };
 
@@ -20,6 +28,9 @@ type PlaybackProps = {
   mode: PlayerMode;
   isVideoSurface: boolean;
 };
+
+const PLAY_RETRY_MS = 280;
+const MAX_PLAY_RETRIES = 10;
 
 function destroyYouTubePlayer(player: YTPlayer | null, host: HTMLDivElement | null) {
   try {
@@ -32,11 +43,58 @@ function destroyYouTubePlayer(player: YTPlayer | null, host: HTMLDivElement | nu
   }
 }
 
-function syncPlayback(player: YTPlayer, props: PlaybackProps, seekKeyRef: { current: string | null }) {
-  const { active, paused, startSeconds, mode, isVideoSurface } = props;
-  const shouldPlay = active && !paused && mode !== "silent";
+function targetStartSec(props: PlaybackProps): number {
+  return props.mode === "video_full" ? 0 : Math.max(0, props.startSeconds);
+}
 
-  if (!shouldPlay) {
+function shouldPlay(props: PlaybackProps): boolean {
+  return props.active && !props.paused && props.mode !== "silent";
+}
+
+function loadKey(videoId: string, props: PlaybackProps): string {
+  return `${videoId}:${targetStartSec(props)}`;
+}
+
+function loadVideoOnPlayer(player: YTPlayer, videoId: string, props: PlaybackProps) {
+  const startAt = targetStartSec(props);
+  const args = { videoId, startSeconds: startAt };
+  try {
+    if (shouldPlay(props) && player.loadVideoById) {
+      player.loadVideoById(args);
+      return;
+    }
+    if (player.cueVideoById) {
+      player.cueVideoById(args);
+      return;
+    }
+    player.loadVideoById?.(args);
+  } catch {
+    // ignore
+  }
+}
+
+function getPlayerState(player: YTPlayer): number | null {
+  try {
+    return player.getPlayerState?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function isPlayingState(state: number | null): boolean {
+  if (state == null) return false;
+  const { PLAYING, BUFFERING } = window.YT?.PlayerState ?? {};
+  return state === PLAYING || state === BUFFERING;
+}
+
+function syncPlayback(
+  player: YTPlayer,
+  props: PlaybackProps,
+  seekKeyRef: { current: string | null },
+  onReady?: () => void,
+  retry = 0
+) {
+  if (!shouldPlay(props)) {
     try {
       player.pauseVideo();
     } catch {
@@ -45,8 +103,8 @@ function syncPlayback(player: YTPlayer, props: PlaybackProps, seekKeyRef: { curr
     return;
   }
 
-  const seekTo = mode === "video_full" ? 0 : Math.max(0, startSeconds);
-  const seekKey = `${mode}:${seekTo}`;
+  const seekTo = targetStartSec(props);
+  const seekKey = `${seekTo}`;
   if (seekKeyRef.current !== seekKey) {
     seekKeyRef.current = seekKey;
     try {
@@ -54,31 +112,48 @@ function syncPlayback(player: YTPlayer, props: PlaybackProps, seekKeyRef: { curr
     } catch {
       // ignore
     }
-  }
-
-  if (isVideoSurface) {
-    try {
-      player.mute?.();
-    } catch {
-      // ignore
+    if (seekTo > 0) {
+      window.setTimeout(() => {
+        try {
+          player.seekTo(seekTo, true);
+        } catch {
+          // ignore
+        }
+      }, 200);
     }
   }
 
-  try {
-    player.playVideo();
-  } catch {
-    // ignore
-  }
+  const startPlayback = () => {
+    try {
+      player.mute?.();
+      player.playVideo();
+      window.setTimeout(() => {
+        try {
+          player.unMute?.();
+        } catch {
+          // ignore
+        }
+      }, props.isVideoSurface ? 350 : 120);
+    } catch {
+      // ignore
+    }
+  };
 
-  if (isVideoSurface) {
-    window.setTimeout(() => {
-      try {
-        player.unMute?.();
-      } catch {
-        // ignore
-      }
-    }, 300);
-  }
+  startPlayback();
+
+  window.setTimeout(() => {
+    const state = getPlayerState(player);
+    if (isPlayingState(state)) {
+      onReady?.();
+      return;
+    }
+    if (retry >= MAX_PLAY_RETRIES) return;
+
+    if (state === window.YT?.PlayerState?.CUED || state === window.YT?.PlayerState?.UNSTARTED) {
+      startPlayback();
+    }
+    syncPlayback(player, props, seekKeyRef, onReady, retry + 1);
+  }, PLAY_RETRY_MS);
 }
 
 export function GamePlayerPlaceholder({ label = "🔇 Пауза" }: { label?: string }) {
@@ -96,6 +171,8 @@ export function GameYouTubePlayer({
   paused,
   startSeconds,
   instanceKey,
+  overlay,
+  theme = "dark-blue",
   onPlaybackReady,
 }: Props) {
   const onPlaybackReadyRef = useRef(onPlaybackReady);
@@ -103,7 +180,7 @@ export function GameYouTubePlayer({
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
   const seekKeyRef = useRef<string | null>(null);
-  const initialSyncDoneRef = useRef(false);
+  const loadedKeyRef = useRef<string | null>(null);
   const propsRef = useRef<PlaybackProps>({
     active,
     paused,
@@ -115,44 +192,44 @@ export function GameYouTubePlayer({
   const videoId = getYouTubeId(youtubeLink);
 
   const isVideoSurface = mode === "video" || mode === "video_full";
-  const mountKey = `${instanceKey}-${isVideoSurface ? mode : "audio"}`;
-  const showAudioVisual = mode === "audio" && active && !paused;
+  const showBuzzed = overlay?.kind === "buzzed" && !isVideoSurface;
+  const showAudioVisual = mode === "audio" && active && !paused && !showBuzzed;
   const showSilent = !showAudioVisual && !isVideoSurface;
 
   propsRef.current = { active, paused, startSeconds, mode, isVideoSurface };
 
+  const signalReady = () => {
+    onPlaybackReadyRef.current?.();
+  };
+
   useLayoutEffect(() => {
     const host = hostRef.current;
-    if (!videoId || !host) return;
+    if (!host || !videoId) return;
 
     let cancelled = false;
     setReady(false);
     seekKeyRef.current = null;
-    initialSyncDoneRef.current = false;
-
-    const mount = document.createElement("div");
-    mount.className = "gts-yt-mount-inner";
-    host.appendChild(mount);
-
-    const startAt = Math.max(0, startSeconds);
+    loadedKeyRef.current = null;
 
     loadYouTubeIframeAPI().then(() => {
-      if (cancelled || !window.YT || !mount.isConnected) return;
+      if (cancelled || !window.YT || !host.isConnected) return;
 
-      destroyYouTubePlayer(playerRef.current, null);
+      destroyYouTubePlayer(playerRef.current, host);
       playerRef.current = null;
+
+      const mount = document.createElement("div");
+      mount.className = "gts-yt-mount-inner";
+      host.appendChild(mount);
 
       try {
         new window.YT.Player(mount, {
-          videoId,
           width: "100%",
           height: "100%",
           playerVars: {
-            autoplay: 1,
-            start: startAt,
-            controls: isVideoSurface ? 1 : 0,
-            disablekb: isVideoSurface ? 0 : 1,
-            fs: isVideoSurface ? 1 : 0,
+            autoplay: 0,
+            controls: 1,
+            disablekb: 0,
+            fs: 1,
             modestbranding: 1,
             rel: 0,
             iv_load_policy: 3,
@@ -164,8 +241,30 @@ export function GameYouTubePlayer({
               if (cancelled) return;
               playerRef.current = event.target;
               setReady(true);
-              syncPlayback(event.target, propsRef.current, seekKeyRef);
-              onPlaybackReadyRef.current?.();
+              const props = propsRef.current;
+              loadVideoOnPlayer(event.target, videoId, props);
+              loadedKeyRef.current = loadKey(videoId, props);
+              syncPlayback(event.target, props, seekKeyRef, signalReady);
+            },
+            onStateChange: (event: { data: number }) => {
+              if (cancelled) return;
+              const player = playerRef.current;
+              if (!player) return;
+              const props = propsRef.current;
+
+              if (event.data === window.YT?.PlayerState?.PLAYING || event.data === window.YT?.PlayerState?.BUFFERING) {
+                signalReady();
+              }
+
+              if (!shouldPlay(props)) return;
+
+              if (
+                event.data === window.YT?.PlayerState?.CUED ||
+                event.data === window.YT?.PlayerState?.PAUSED ||
+                event.data === window.YT?.PlayerState?.UNSTARTED
+              ) {
+                syncPlayback(player, props, seekKeyRef, signalReady);
+              }
             },
           },
         });
@@ -179,18 +278,25 @@ export function GameYouTubePlayer({
       setReady(false);
       destroyYouTubePlayer(playerRef.current, host);
       playerRef.current = null;
+      loadedKeyRef.current = null;
+      seekKeyRef.current = null;
     };
-  }, [videoId, mountKey, isVideoSurface, startSeconds]);
+  }, [instanceKey, videoId]);
 
   useEffect(() => {
     const player = playerRef.current;
-    if (!player || !ready) return;
-    if (!initialSyncDoneRef.current) {
-      initialSyncDoneRef.current = true;
-      return;
+    if (!player || !ready || !videoId) return;
+
+    const props = propsRef.current;
+    const nextLoadKey = loadKey(videoId, props);
+    if (loadedKeyRef.current !== nextLoadKey) {
+      loadedKeyRef.current = nextLoadKey;
+      seekKeyRef.current = null;
+      loadVideoOnPlayer(player, videoId, props);
     }
-    syncPlayback(player, propsRef.current, seekKeyRef);
-  }, [ready, active, paused, mode, startSeconds, isVideoSurface]);
+
+    syncPlayback(player, props, seekKeyRef, signalReady);
+  }, [ready, videoId, active, paused, mode, startSeconds, isVideoSurface]);
 
   if (!videoId || !youtubeLink.trim()) {
     return <GamePlayerPlaceholder />;
@@ -209,7 +315,21 @@ export function GameYouTubePlayer({
           </div>
         </div>
       )}
-      {showSilent && <div className="gts-silent-hint">🔇 Пауза</div>}
+      {showBuzzed && (
+        <div className="gts-player-buzzed">
+          <UserAvatar
+            username={overlay.username}
+            avatarUrl={overlay.avatarUrl}
+            size={64}
+            theme={theme}
+          />
+          <p className="gts-player-buzzed__name">{overlay.username}</p>
+          <p className="gts-player-buzzed__label">отвечает</p>
+        </div>
+      )}
+      {showSilent && !showBuzzed && (
+        <div className="gts-silent-hint">{overlay?.kind === "paused" ? "⏸ Пауза" : "🔇 Пауза"}</div>
+      )}
       {!isVideoSurface && <div className="gts-yt-shield" aria-hidden />}
       <div
         ref={hostRef}

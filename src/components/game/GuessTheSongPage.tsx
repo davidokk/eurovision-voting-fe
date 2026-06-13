@@ -7,10 +7,11 @@ import {
   Play,
   Plus,
   Users,
+  ListMusic,
   Zap,
 } from "lucide-react";
 import type { Theme } from "../../types/contest";
-import type { GameCatalogItem, GamePlaylistMode, GamePlayMode, GameRoomState, GameRoomView, GameRoundView } from "../../types/game";
+import type { GameCatalogItem, GameJudgement, GameJudgeOutcome, GamePlaylistEntryInput, GamePlaylistMode, GamePlayMode, GameRoomState, GameRoomView, GameRoundView } from "../../types/game";
 import {
   buildPlaylistPayload,
   createGameRoom,
@@ -22,17 +23,17 @@ import {
   joinGameRoom,
 } from "../../api/game";
 import { useGameWebSocket } from "../../hooks/useGameWebSocket";
+import { useGameTrackPreload } from "../../hooks/useGameTrackPreload";
 import { useAvatarUrl } from "../../hooks/useAvatarUrl";
-import { GameYouTubePlayer, type PlayerMode } from "./GameYouTubePlayer";
+import { GameYouTubePlayer, type PlayerMode, type PlayerOverlay } from "./GameYouTubePlayer";
 import { GameRoundTimer } from "./GameRoundTimer";
 import { GameContestScoresFeed } from "./GameContestScoresFeed";
 import { GameEndConfetti } from "./GameEndConfetti";
-import { GameYouTubeSearchTab } from "./GameYouTubeSearchTab";
-import { GameQuickChips } from "./GameQuickChips";
-import { GamePlaylistPanel } from "./GamePlaylistPanel";
-import { GamePlaylistRoulette } from "./GamePlaylistRoulette";
-import { GameLobbyPlayers } from "./GameLobbyPlayers";
+import { GameLobbyWizard } from "./GameLobbyWizard";
+import { GameSavedPlaylistsManager } from "./GameSavedPlaylistsManager";
 import { GameAnswerForm } from "./GameAnswerForm";
+import { GameJudgementPopup } from "./GameJudgementPopup";
+import { playlistEntriesToCatalog } from "../../utils/gamePlaylist";
 import { UserAvatar } from "../UserAvatar";
 import {
   cacheGameRoom,
@@ -44,7 +45,7 @@ import {
 import { AuthModal } from "../AuthModal";
 import { contestTypeLabel } from "../../utils/contestLabels";
 import { getDoesBrowserSupportFlagEmojis } from "../../utils/emojiSupport";
-import { getYouTubeThumb, loadYouTubeIframeAPI } from "../../utils/youtube";
+import { loadYouTubeIframeAPI } from "../../utils/youtube";
 import "../../styles/guessTheSong.css";
 
 const WS_URL = import.meta.env.VITE_WS_URL || "";
@@ -79,6 +80,15 @@ function gameStateLabel(state: GameRoomState, paused: boolean): string {
     default:
       return "В эфире";
   }
+}
+
+function halfPoints(points: number): number {
+  const half = Math.floor(points / 2);
+  return half > 0 ? half : 1;
+}
+
+function judgementPopupKey(j: GameJudgement, round: number): string {
+  return `${round}:${j.username}:${j.delta}:${j.outcome ?? ""}:${j.points}`;
 }
 
 function derivePlayerMode(state: GameRoomState | string | undefined): PlayerMode {
@@ -120,6 +130,8 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
   const [myUserId] = useState(() => localStorage.getItem("user_id"));
   const myAvatarUrl = useAvatarUrl();
   const [authMode, setAuthMode] = useState(false);
+  const [showSavedPlaylists, setShowSavedPlaylists] = useState(false);
+  const [startLoading, setStartLoading] = useState(false);
 
   const [joinInput, setJoinInput] = useState("");
   const [room, setRoom] = useState<GameRoomView | null>(() =>
@@ -140,8 +152,9 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
   const [savedDuration, setSavedDuration] = useState(10);
   const [buzzLoading, setBuzzLoading] = useState(false);
   const [judgeLoading, setJudgeLoading] = useState(false);
-  const [judgePending, setJudgePending] = useState<"correct" | "wrong" | null>(null);
-  const [judgeFlash, setJudgeFlash] = useState<"correct" | "wrong" | null>(null);
+  const [judgePending, setJudgePending] = useState<GameJudgeOutcome | null>(null);
+  const [judgementPopup, setJudgementPopup] = useState<GameJudgement | null>(null);
+  const lastJudgementPopupKeyRef = useRef("");
   const [clientTimerDone, setClientTimerDone] = useState(false);
   const [trackReady, setTrackReady] = useState(false);
   const [rouletteSpinning, setRouletteSpinning] = useState(false);
@@ -183,18 +196,6 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     () => [...(room?.players ?? [])].sort((a, b) => b.score - a.score || a.username.localeCompare(b.username, "ru")),
     [room?.players]
   );
-
-  const filteredCatalog = useMemo(() => {
-    const q = catalogQuery.trim().toLowerCase();
-    if (!q) return catalog;
-    return catalog.filter(
-      (c) =>
-        c.artist.toLowerCase().includes(q) ||
-        c.song.toLowerCase().includes(q) ||
-        c.country_name.toLowerCase().includes(q) ||
-        String(c.year).includes(q)
-    );
-  }, [catalog, catalogQuery]);
 
   const selectedIds = useMemo(() => new Set(selectedOrder), [selectedOrder]);
 
@@ -252,7 +253,14 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
 
   useEffect(() => {
     setTrackReady(false);
-  }, [room?.current_round, room?.round?.performance_id]);
+  }, [room?.current_round, room?.round?.performance_id, room?.state]);
+
+  const showJudgementPopup = useCallback((j: GameJudgement, roundIndex: number) => {
+    const key = judgementPopupKey(j, roundIndex);
+    if (lastJudgementPopupKeyRef.current === key) return;
+    lastJudgementPopupKeyRef.current = key;
+    setJudgementPopup(j);
+  }, []);
 
   const onGameEvent = useCallback((msg: { type: string; room?: GameRoomView }) => {
     if (msg.type !== "game.state" || !isValidRoom(msg.room)) return;
@@ -286,6 +294,11 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
       lastRoundRef.current = room.round;
     }
   }, [room?.round]);
+
+  useEffect(() => {
+    if (!room?.last_judgement || room.state !== "round_reveal") return;
+    showJudgementPopup(room.last_judgement, room.current_round);
+  }, [room?.last_judgement, room?.state, room?.current_round, showJudgementPopup]);
 
   useEffect(() => {
     fetchGameCatalog().then(setCatalog).catch(() => setCatalog([]));
@@ -377,11 +390,11 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     }
   }
 
-  async function hostAction(action: string, payload: Record<string, unknown> = {}) {
-    if (!room) return;
+  async function hostAction(action: string, payload: Record<string, unknown> = {}): Promise<GameRoomView | null> {
+    if (!room) return null;
     try {
       const r = await gameRoomAction(room.code, action, payload);
-      if (!isValidRoom(r)) return;
+      if (!isValidRoom(r)) return null;
       applyRoomUpdate(r);
       if (r.state === "lobby") syncRoomPlaylist(r);
       if (r.round_duration_sec) {
@@ -390,8 +403,10 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
       if (typeof r.points_per_correct === "number") {
         setSavedPoints(r.points_per_correct);
       }
+      return r;
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка");
+      return null;
     }
   }
 
@@ -403,15 +418,18 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     await hostAction("set_round_duration", { seconds });
   }
 
-  async function handleJudge(correct: boolean) {
-    if (judgeLoading) return;
+  async function handleJudge(outcome: GameJudgeOutcome) {
+    if (judgeLoading || !room) return;
     setJudgeLoading(true);
-    setJudgePending(correct ? "correct" : "wrong");
-    setJudgeFlash(null);
+    setJudgePending(outcome);
     try {
-      await hostAction("judge", { correct });
-      setJudgeFlash(correct ? "correct" : "wrong");
-      window.setTimeout(() => setJudgeFlash(null), 1600);
+      const r = await hostAction("judge", {
+        outcome,
+        correct: outcome !== "wrong",
+      });
+      if (r?.last_judgement) {
+        showJudgementPopup(r.last_judgement, r.current_round);
+      }
     } finally {
       setJudgeLoading(false);
       setJudgePending(null);
@@ -538,6 +556,29 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     if (isValidRoom(r)) applyRoomUpdate(r);
   }
 
+  async function applySavedEntries(entries: GamePlaylistEntryInput[]) {
+    const { order, byId } = playlistEntriesToCatalog(entries, catalog);
+    setSelectedOrder(order);
+    setSelectedById(byId);
+    setPlaylistMode("manual");
+    await hostAction("set_playlist_mode", { mode: "manual", count: autoCount });
+    await hostAction("set_playlist", buildPlaylistPayload(order, byId));
+  }
+
+  async function handleStartGame() {
+    setStartLoading(true);
+    try {
+      if (selectedOrder.length > 0) {
+        await hostAction("set_playlist", buildPlaylistPayload(selectedOrder, selectedById));
+      } else if (playlistMode === "auto") {
+        await applyAutoPlaylistWithAnimation();
+      }
+      await hostAction("start");
+    } finally {
+      setStartLoading(false);
+    }
+  }
+
   async function handleBuzz() {
     if (!room || buzzLoading) return;
     setBuzzLoading(true);
@@ -567,7 +608,8 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     !room.buzzed_user_id;
 
   const inRound = isActiveRoundState(room?.state);
-  const guessSeconds = room?.round_duration_sec ?? savedDuration ?? 10;
+  const roundDurationSec = room?.round_duration_sec ?? 10;
+  const guessSeconds = roundDurationSec;
   const waitingForReveal =
     room?.state === "round_waiting_reveal" ||
     (room?.state === "round_playing" && clientTimerDone);
@@ -577,8 +619,6 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
 
   function roundStatusText(): { text: string; color?: string } | null {
     if (!room) return null;
-    if (judgeFlash === "correct") return { text: "✓ Засчитано!", color: "#22c55e" };
-    if (judgeFlash === "wrong") return { text: "✗ Не засчитано", color: "#f87171" };
     if (room.state === "round_buzzed" && room.buzzed_username) {
       if (room.play_mode === "online") {
         if (room.buzzed_answer) {
@@ -597,14 +637,6 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     if (room.state === "round_playing" && clientTimerDone) {
       return { text: "⏱ Время вышло…", color: sub };
     }
-    if (room.last_judgement && room.state === "round_reveal") {
-      return {
-        text: room.last_judgement.correct
-          ? `✓ ${room.last_judgement.username}: +${room.last_judgement.delta}`
-          : `✗ ${room.last_judgement.username}: неверно`,
-        color: room.last_judgement.correct ? "#22c55e" : "#f87171",
-      };
-    }
     if (room.state === "round_playing" && !clientTimerDone && !room.paused) {
       return { text: "🎧 Слушайте и угадывайте", color: sub };
     }
@@ -615,10 +647,43 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     return null;
   }
 
+  const playlistLinks = useMemo(() => {
+    if (!room) return [];
+    if (room.playlist_sources?.length) return room.playlist_sources.filter(Boolean);
+    if (room.state === "lobby" && isHost) {
+      return selectedOrder
+        .map((id) => selectedById.get(id)?.youtube_link ?? catalog.find((c) => c.performance_id === id)?.youtube_link)
+        .filter((link): link is string => !!link);
+    }
+    if (room.playlist_preview?.length) {
+      return room.playlist_preview.map((item) => item.youtube_link).filter(Boolean);
+    }
+    return [];
+  }, [room, room?.playlist_sources, room?.playlist_preview, room?.state, isHost, selectedOrder, selectedById, catalog]);
+
+  useGameTrackPreload(playlistLinks, room?.current_round ?? 0, !!room && playlistLinks.length > 0);
+
   // Landing — only when no room code in URL
   if (!room && !loading && !activeCode) {
     return (
-      <div className="gts-page gts-page--landing" data-theme={theme} style={{ color: text }}>
+      <div
+        className={`gts-page ${showSavedPlaylists && token ? "gts-page--saved" : "gts-page--landing"}`}
+        data-theme={theme}
+        style={{ color: text }}
+      >
+        {showSavedPlaylists && token ? (
+          <GameSavedPlaylistsManager
+            theme={theme}
+            catalog={catalog}
+            textColor={text}
+            subColor={sub}
+            accent={accent}
+            cardBg={cardBg}
+            cardBorder={cardBorder}
+            inputBg={inputBg}
+            onClose={() => setShowSavedPlaylists(false)}
+          />
+        ) : (
         <div className="gts-landing">
           <div className="gts-landing__hero">
             <span className="gts-landing__icon">🎵</span>
@@ -657,10 +722,31 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                 </button>
               </div>
             </div>
+
+            {token && (
+              <div className="gts-landing__card gts-landing__card--wide" style={{ background: cardBg, border: cardBorder }}>
+                <ListMusic size={24} color={accent} />
+                <div>
+                  <h2>Мои плейлисты</h2>
+                  <p>Соберите списки песен заранее и используйте при создании игры.</p>
+                </div>
+                <button
+                  type="button"
+                  className="gts-btn gts-btn--ghost"
+                  onClick={() => {
+                    if (!catalog.length) void fetchGameCatalog().then(setCatalog);
+                    setShowSavedPlaylists(true);
+                  }}
+                >
+                  Открыть
+                </button>
+              </div>
+            )}
           </div>
         </div>
+        )}
 
-        {error && <p className="gts-landing__error">{error}</p>}
+        {!showSavedPlaylists && error && <p className="gts-landing__error">{error}</p>}
 
         {authMode && (
           <AuthModal
@@ -696,12 +782,16 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
 
   const displayRound = room.round ?? lastRoundRef.current;
   const roundPlayerMode = derivePlayerMode(room.state);
+  const roundStartSec = displayRound?.video_start_sec ?? 0;
 
-  const playerInstanceKey = `${room.current_round}-${displayRound?.performance_id ?? "round"}`;
+  const playerInstanceKey = `${room.current_round}-${displayRound?.performance_id ?? "round"}-${roundStartSec}`;
+
+  const canStartRoundAudio = room.state !== "round_playing" || roundStartSec > 0;
 
   const playerActive =
     inRound &&
     !!displayRound &&
+    canStartRoundAudio &&
     ((room.state === "round_playing" && !clientTimerDone) ||
       room.state === "round_reveal" ||
       room.state === "round_clip");
@@ -720,11 +810,31 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     !room.buzzed_answer;
 
   const hideScoreboardAside = inRound || (room.state === "lobby" && !!isHost);
-  const showLobbyPlayers = room.state === "lobby" && !!isHost;
+  const judgePoints = room.points_per_correct ?? savedPoints;
+  const judgeHalfPoints = halfPoints(judgePoints);
+
+  const playerOverlay: PlayerOverlay | null =
+    room.state === "round_buzzed" && room.buzzed_username
+      ? {
+          kind: "buzzed",
+          username: room.buzzed_username,
+          avatarUrl: playerAvatarUrl(
+            room.buzzed_user_id!,
+            sortedPlayers.find((p) => p.user_id === room.buzzed_user_id)?.avatar_url
+          ),
+        }
+      : room.paused && inRound
+        ? { kind: "paused" }
+        : null;
 
   return (
     <div className="gts-page" data-theme={theme} style={{ color: text }}>
       <GameEndConfetti active={room.state === "finished"} />
+      <GameJudgementPopup
+        judgement={judgementPopup}
+        pointsPerCorrect={judgePoints}
+        onDismiss={() => setJudgementPopup(null)}
+      />
       <div className="gts-room-topbar">
         <div>
           <span className="gts-status-pill gts-status-pill--live" style={{ background: "rgba(34,197,94,0.15)", color: "#22c55e" }}>
@@ -747,242 +857,63 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
       </div>
 
       <div
-        className={`gts-room-shell ${inRound ? "gts-room-shell--in-round" : ""}`}
+        className={`gts-room-shell ${hideScoreboardAside ? "gts-room-shell--in-round" : ""}`}
       >
         <div
           className={`gts-card ${room.state === "lobby" && isHost ? "gts-card--lobby" : ""} ${inRound ? "gts-card--round" : ""}`}
           style={inRound ? undefined : { background: cardBg, border: cardBorder }}
         >
           {room.state === "lobby" && isHost && (
-            <div className="gts-lobby">
-              <header className="gts-lobby__bar">
-                <div className="gts-lobby__chips">
-                  <GameQuickChips
-                    label="Баллы"
-                    value={savedPoints}
-                    chips={[5, 10, 15, 20]}
-                    onSelect={(n) => {
-                      void applyPoints(n);
-                    }}
-                  />
-                  <GameQuickChips
-                    label="Секунд"
-                    value={savedDuration}
-                    chips={[5, 10, 15, 20, 30]}
-                    onSelect={(n) => {
-                      void applyDuration(n);
-                    }}
-                  />
-                  {playlistMode === "auto" && (
-                    <GameQuickChips
-                      label="Песен"
-                      value={autoCount}
-                      chips={[5, 10, 15, 20]}
-                      onSelect={(n) => {
-                        setAutoCount(n);
-                        void hostAction("set_playlist_mode", { mode: "auto", count: n });
-                      }}
-                    />
-                  )}
-                </div>
-                <div className="gts-mode-tabs gts-lobby__modes">
-                  <button
-                    type="button"
-                    className={`gts-mode-tab ${playlistMode === "manual" ? "gts-mode-tab--active" : ""}`}
-                    onClick={() => void switchPlaylistMode("manual")}
-                  >
-                    Выбор песен
-                  </button>
-                  <button
-                    type="button"
-                    className={`gts-mode-tab ${playlistMode === "auto" ? "gts-mode-tab--active" : ""}`}
-                    onClick={() => void switchPlaylistMode("auto")}
-                  >
-                    Случайный плейлист
-                  </button>
-                </div>
-                <div className="gts-lobby__play-mode">
-                  <span className="gts-lobby__play-label" style={{ color: sub }}>
-                    Тип игры
-                  </span>
-                  <div className="gts-mode-tabs">
-                    <button
-                      type="button"
-                      className={`gts-mode-tab ${playMode === "offline" ? "gts-mode-tab--active" : ""}`}
-                      onClick={() => void applyPlayMode("offline")}
-                    >
-                      Офлайн
-                    </button>
-                    <button
-                      type="button"
-                      className={`gts-mode-tab ${playMode === "online" ? "gts-mode-tab--active" : ""}`}
-                      onClick={() => void applyPlayMode("online")}
-                    >
-                      Онлайн
-                    </button>
-                  </div>
-                  <p className="gts-lobby__play-hint" style={{ color: sub }}>
-                    {playMode === "online"
-                      ? "Ответ вводится в чат — все видят его, ведущий засчитывает"
-                      : "Ответ вслух — ведущий нажимает «Верно» или «Неверно»"}
-                  </p>
-                </div>
-              </header>
-
-              <div className="gts-lobby__body">
-                <div className="gts-lobby__main">
-                {playlistMode === "auto" ? (
-                  <div className="gts-lobby__auto">
-                    {rouletteSpinning ? (
-                      <GamePlaylistRoulette
-                        item={roulettePreview}
-                        strip={rouletteStrip}
-                        spinning
-                        progress={rouletteProgress}
-                        targetCount={autoCount}
-                      />
-                    ) : selectedOrder.length > 0 ? (
-                      <div className="gts-auto-ready">
-                        <div className="gts-auto-ready__icon">✓</div>
-                        <div>
-                          <strong className="gts-auto-ready__title">Плейлист готов</strong>
-                          <p className="gts-auto-ready__text" style={{ color: sub }}>
-                            {selectedOrder.length} случайных песен — список справа. Можно перегенерировать или начать игру.
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="gts-auto-idle">
-                        <div className="gts-auto-idle__icon">🎲</div>
-                        <div>
-                          <strong className="gts-auto-idle__title">Случайный плейлист</strong>
-                          <p className="gts-auto-idle__text" style={{ color: sub }}>
-                            Выберите количество песен сверху и нажмите «Сгенерировать» — треки подберутся из каталога Eurovision.
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                    <button
-                      type="button"
-                      className="gts-btn gts-btn--ghost"
-                      disabled={rouletteSpinning}
-                      onClick={() => void applyAutoPlaylistWithAnimation()}
-                    >
-                      🎲 {selectedOrder.length > 0 ? "Перегенерировать" : "Сгенерировать"}
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <div className="gts-lobby__pick-tabs">
-                      <button
-                        type="button"
-                        className={`gts-mode-tab ${pickTab === "eurovision" ? "gts-mode-tab--active" : ""}`}
-                        onClick={() => setPickTab("eurovision")}
-                      >
-                        Eurovision
-                      </button>
-                      <button
-                        type="button"
-                        className={`gts-mode-tab ${pickTab === "youtube" ? "gts-mode-tab--active" : ""}`}
-                        onClick={() => setPickTab("youtube")}
-                      >
-                        YouTube
-                      </button>
-                    </div>
-
-                    {pickTab === "eurovision" ? (
-                      <>
-                        <input
-                          className="gts-lobby__search"
-                          value={catalogQuery}
-                          onChange={(e) => setCatalogQuery(e.target.value)}
-                          placeholder="Поиск…"
-                          style={{ border: cardBorder, background: inputBg, color: text }}
-                        />
-                        <div className="gts-song-picker gts-lobby__picker">
-                          {filteredCatalog.slice(0, 200).map((item) => {
-                            const thumb = getYouTubeThumb(item.youtube_link);
-                            const selected = selectedIds.has(item.performance_id);
-                            return (
-                              <button
-                                key={item.performance_id}
-                                type="button"
-                                className={`gts-song-item ${selected ? "gts-song-item--selected" : ""}`}
-                                style={{ color: text }}
-                                onClick={() => toggleSong(item)}
-                              >
-                                {thumb ? (
-                                  <img src={thumb} alt="" className="gts-song-thumb" loading="lazy" />
-                                ) : (
-                                  <span className="gts-song-thumb gts-song-thumb--placeholder">🎬</span>
-                                )}
-                                <span style={{ flex: 1, minWidth: 0 }}>
-                                  <strong>{item.artist}</strong> — {item.song}
-                                  <span style={{ display: "block", fontSize: 11, color: sub }}>
-                                    {supportsEmoji ? item.flag_emoji : "🌍"} {item.year} · {contestTypeLabel(item.contest_type)}
-                                  </span>
-                                </span>
-                                <span className="gts-song-item__mark">{selected ? "✓" : "+"}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </>
-                    ) : (
-                      <GameYouTubeSearchTab
-                        selectedIds={selectedIds}
-                        onAdd={addTrack}
-                        text={text}
-                        sub={sub}
-                        cardBorder={cardBorder}
-                        inputBg={inputBg}
-                        accent={accent}
-                      />
-                    )}
-                  </>
-                )}
-                </div>
-
-                <GamePlaylistPanel
-                  order={selectedOrder}
-                  itemsById={selectedById}
-                  catalog={catalog}
-                  onReorder={reorderPlaylist}
-                  onRemove={removeTrack}
-                  textColor={text}
-                  subColor={sub}
-                  border={cardBorder}
-                />
-              </div>
-
-              <footer className="gts-lobby__footer">
-                <span className="gts-lobby__summary" style={{ color: sub }}>
-                  {playlistMode === "auto"
-                    ? `${selectedOrder.length || autoCount} песен`
-                    : `${selectedOrder.length} выбрано`}
-                </span>
-                <button
-                  type="button"
-                  className="gts-btn gts-btn--primary gts-lobby__start"
-                  disabled={
-                    rouletteSpinning ||
-                    (playlistMode === "manual"
-                      ? selectedOrder.length === 0 && (room.playlist_ids?.length ?? 0) === 0
-                      : selectedOrder.length === 0)
-                  }
-                  onClick={async () => {
-                    if (selectedOrder.length > 0) {
-                      await hostAction("set_playlist", buildPlaylistPayload(selectedOrder, selectedById));
-                    } else if (playlistMode === "auto") {
-                      await applyAutoPlaylistWithAnimation();
-                    }
-                    await hostAction("start");
-                  }}
-                >
-                  <Play size={18} /> Начать
-                </button>
-              </footer>
-            </div>
+            <GameLobbyWizard
+              theme={theme}
+              hostUserId={room.host_user_id}
+              players={sortedPlayers}
+              savedPoints={savedPoints}
+              savedDuration={savedDuration}
+              playMode={playMode}
+              playlistMode={playlistMode}
+              autoCount={autoCount}
+              catalog={catalog}
+              selectedOrder={selectedOrder}
+              selectedById={selectedById}
+              catalogQuery={catalogQuery}
+              pickTab={pickTab}
+              rouletteSpinning={rouletteSpinning}
+              roulettePreview={roulettePreview}
+              rouletteStrip={rouletteStrip}
+              rouletteProgress={rouletteProgress}
+              textColor={text}
+              subColor={sub}
+              accent={accent}
+              cardBorder={cardBorder}
+              inputBg={inputBg}
+              cardBg={cardBg}
+              onCatalogQueryChange={setCatalogQuery}
+              onPickTabChange={setPickTab}
+              onApplyPoints={(n) => void applyPoints(n)}
+              onApplyDuration={(n) => void applyDuration(n)}
+              onApplyPlayMode={(m) => void applyPlayMode(m)}
+              onSwitchPlaylistMode={(m) => void switchPlaylistMode(m)}
+              onAutoCountChange={(n) => {
+                setAutoCount(n);
+                void hostAction("set_playlist_mode", { mode: "auto", count: n });
+              }}
+              onAddTrack={addTrack}
+              onToggleSong={toggleSong}
+              onReorder={reorderPlaylist}
+              onRemove={removeTrack}
+              onApplySavedEntries={applySavedEntries}
+              onAutoGenerate={applyAutoPlaylistWithAnimation}
+              onStart={handleStartGame}
+              avatarUrl={playerAvatarUrl}
+              startDisabled={
+                rouletteSpinning ||
+                (playlistMode === "manual"
+                  ? selectedOrder.length === 0 && (room.playlist_ids?.length ?? 0) === 0
+                  : selectedOrder.length === 0)
+              }
+              startLoading={startLoading}
+            />
           )}
 
           {room.state === "lobby" && !isHost && (
@@ -1006,7 +937,7 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                   {room.state === "round_playing" && displayRound.round_ends_at && (
                     <GameRoundTimer
                       endsAt={displayRound.round_ends_at}
-                      totalSec={guessSeconds}
+                      totalSec={roundDurationSec}
                       paused={room.paused}
                       onExpire={handleTimerExpire}
                     />
@@ -1020,12 +951,14 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                         mode={roundPlayerMode}
                         active={playerActive}
                         paused={room.paused}
-                        startSeconds={displayRound.video_start_sec ?? 0}
+                        startSeconds={roundStartSec}
                         instanceKey={playerInstanceKey}
+                        overlay={playerOverlay}
+                        theme={theme}
                         onPlaybackReady={() => setTrackReady(true)}
                       />
 
-                      {room.state === "round_playing" && playerActive && !trackReady && (
+                      {inRound && playerActive && !trackReady && room.state !== "round_buzzed" && (
                         <div className="gts-stage__loading">Загрузка трека…</div>
                       )}
                     </div>
@@ -1167,24 +1100,32 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
 
                     <div className="gts-action-bar__controls">
                       {isHost && room.state === "round_buzzed" && (
-                        <>
+                        <div className="gts-judge-btns">
                           <button
                             type="button"
-                            className={`gts-judge-btn gts-btn--success ${judgeFlash === "correct" ? "gts-judge-btn--flash" : ""}`}
+                            className={`gts-judge-btn gts-btn--success ${judgePending === "full" ? "gts-judge-btn--flash" : ""}`}
                             disabled={judgeLoading}
-                            onClick={() => void handleJudge(true)}
+                            onClick={() => void handleJudge("full")}
                           >
-                            {judgeLoading && judgePending === "correct" ? "…" : "✓ Верно"}
+                            {judgeLoading && judgePending === "full" ? "…" : `✓ +${judgePoints}`}
                           </button>
                           <button
                             type="button"
-                            className={`gts-judge-btn gts-btn--danger ${judgeFlash === "wrong" ? "gts-judge-btn--flash" : ""}`}
+                            className={`gts-judge-btn gts-btn--half ${judgePending === "half" ? "gts-judge-btn--flash" : ""}`}
                             disabled={judgeLoading}
-                            onClick={() => void handleJudge(false)}
+                            onClick={() => void handleJudge("half")}
                           >
-                            {judgeLoading && judgePending === "wrong" ? "…" : "✗ Неверно"}
+                            {judgeLoading && judgePending === "half" ? "…" : `◐ +${judgeHalfPoints}`}
                           </button>
-                        </>
+                          <button
+                            type="button"
+                            className={`gts-judge-btn gts-btn--danger ${judgePending === "wrong" ? "gts-judge-btn--flash" : ""}`}
+                            disabled={judgeLoading}
+                            onClick={() => void handleJudge("wrong")}
+                          >
+                            {judgeLoading && judgePending === "wrong" ? "…" : `✗ −${judgePoints}`}
+                          </button>
+                        </div>
                       )}
 
                       {isHost && room.state === "round_waiting_reveal" && (
@@ -1193,13 +1134,13 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                         </button>
                       )}
 
-                      {isHost && room.state === "round_reveal" && (
+                      {isHost && (room.state === "round_reveal" || room.state === "round_clip") && (
                         <button type="button" className="gts-btn gts-btn--primary" onClick={() => void hostAction("next_round")}>
                           Дальше →
                         </button>
                       )}
 
-                      {isHost && (room.state === "round_playing" || room.state === "round_reveal") && (
+                      {isHost && (room.state === "round_playing" || room.state === "round_reveal" || room.state === "round_clip") && (
                         <button
                           type="button"
                           className="gts-btn gts-btn--ghost"
@@ -1265,19 +1206,6 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
             </div>
           )}
         </div>
-
-        {showLobbyPlayers && (
-          <GameLobbyPlayers
-            players={sortedPlayers}
-            hostUserId={room.host_user_id}
-            theme={theme}
-            textColor={text}
-            subColor={sub}
-            cardBg={cardBg}
-            border={cardBorder}
-            avatarUrl={playerAvatarUrl}
-          />
-        )}
 
         {!hideScoreboardAside && (
         <aside className="gts-scoreboard" style={{ background: cardBg, border: cardBorder }}>

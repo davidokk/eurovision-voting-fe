@@ -28,9 +28,12 @@ export type YTPlayer = {
   stopVideo: () => void;
   destroy: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  getCurrentTime?: () => number;
+  getPlayerState?: () => number;
+  loadVideoById?: (videoIdOrArgs: string | { videoId: string; startSeconds?: number }, startSeconds?: number) => void;
+  cueVideoById?: (videoIdOrArgs: string | { videoId: string; startSeconds?: number }, startSeconds?: number) => void;
   mute?: () => void;
   unMute?: () => void;
-  getPlayerState?: () => number;
 };
 
 let ytApiPromise: Promise<void> | null = null;

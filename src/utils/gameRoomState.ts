@@ -1,4 +1,4 @@
-import type { GameRoomState, GameRoomView, GameRoundMode, GameRoundView } from "../types/game";
+import type { GamePlayer, GameRoomState, GameRoomView, GameRoundMode, GameRoundView } from "../types/game";
 
 const ROOM_CACHE_KEY = "gts_room_cache";
 
@@ -85,6 +85,24 @@ function shouldAcceptRoomState(prev: GameRoomView, next: GameRoomView): boolean 
   return true;
 }
 
+function mergePlayerScores(prev: GamePlayer[], next: GamePlayer[]): GamePlayer[] {
+  if (!next.length) return prev;
+  const byId = new Map(prev.map((p) => [p.user_id, { ...p }]));
+  for (const p of next) {
+    const old = byId.get(p.user_id);
+    if (!old) {
+      byId.set(p.user_id, { ...p });
+      continue;
+    }
+    byId.set(p.user_id, {
+      ...old,
+      ...p,
+      score: Math.max(old.score, p.score),
+    });
+  }
+  return [...byId.values()];
+}
+
 function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | undefined {
   const pausedRound =
     next.state === "round_waiting_reveal" || next.state === "round_buzzed";
@@ -95,6 +113,7 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
       ...next.round,
       youtube_link: next.round?.youtube_link || prev.round.youtube_link,
       performance_id: next.round?.performance_id || prev.round.performance_id,
+      video_start_sec: next.round?.video_start_sec ?? prev.round.video_start_sec,
       mode: "silent",
       round_ends_at: undefined,
       artist: undefined,
@@ -106,7 +125,26 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
     };
   }
 
-  if (next.round?.youtube_link) return next.round;
+  if (next.round?.youtube_link) {
+    if (next.current_round !== prev.current_round) {
+      return next.round;
+    }
+    if (next.state === "round_reveal" || next.state === "round_clip") {
+      return {
+        ...next.round,
+        video_start_sec: next.round.video_start_sec ?? prev.round?.video_start_sec,
+        mode: roundModeForState(next.state),
+      };
+    }
+    if (next.state === "round_playing") {
+      return {
+        ...next.round,
+        video_start_sec: next.round.video_start_sec ?? prev.round?.video_start_sec,
+        round_ends_at: next.round.round_ends_at,
+      };
+    }
+    return next.round;
+  }
   if (!prev.round || !isActiveRoundState(next.state)) return next.round;
 
   if (next.current_round !== prev.current_round) {
@@ -118,8 +156,9 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
     ...prev.round,
     ...next.round,
     youtube_link: next.round?.youtube_link || prev.round.youtube_link,
+    video_start_sec: next.round?.video_start_sec ?? prev.round.video_start_sec,
     mode: roundModeForState(next.state),
-    round_ends_at: next.state === "round_playing" ? next.round?.round_ends_at ?? prev.round.round_ends_at : undefined,
+    round_ends_at: next.state === "round_playing" ? next.round?.round_ends_at : undefined,
     artist: revealed ? next.round?.artist ?? prev.round.artist : undefined,
     song: revealed ? next.round?.song ?? prev.round.song : undefined,
     country_name: revealed ? next.round?.country_name ?? prev.round.country_name : undefined,
@@ -147,6 +186,8 @@ export function mergeGameRoom(prev: GameRoomView | null, next: GameRoomView): Ga
       buzzed_user_id: prev.buzzed_user_id,
       buzzed_username: prev.buzzed_username,
       current_round: prev.current_round,
+      last_judgement: prev.last_judgement ?? next.last_judgement,
+      players: mergePlayerScores(prev.players ?? [], merged.players ?? []),
     };
   }
 

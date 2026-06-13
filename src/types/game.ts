@@ -17,6 +17,21 @@ export type GamePlaylistEntryInput = {
   youtube_link?: string;
 };
 
+export type SavedPlaylistSummary = {
+  id: string;
+  name: string;
+  entry_count: number;
+  updated_at: string;
+};
+
+export type SavedPlaylist = {
+  id: string;
+  name: string;
+  entries: GamePlaylistEntryInput[];
+  created_at: string;
+  updated_at: string;
+};
+
 export type GamePlaylistMode = "manual" | "auto";
 
 export type GamePlayMode = "offline" | "online";
@@ -61,8 +76,11 @@ export type GameRoomState =
   | "round_clip"
   | "finished";
 
+export type GameJudgeOutcome = "full" | "half" | "wrong";
+
 export type GameJudgement = {
   correct: boolean;
+  outcome?: GameJudgeOutcome;
   username: string;
   points: number;
   delta: number;
@@ -87,6 +105,7 @@ export type GameRoomView = {
   buzzed_username?: string;
   buzzed_answer?: string;
   play_mode?: GamePlayMode;
+  playlist_sources?: string[];
   round?: GameRoundView;
   last_judgement?: GameJudgement;
 };

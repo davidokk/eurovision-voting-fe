@@ -24,11 +24,19 @@ export function GameRoundTimer({ endsAt, totalSec = 10, paused = false, onExpire
   const [left, setLeft] = useState<number | null>(() => (endsAt ? secondsLeft(endsAt) : null));
   const expiredRef = useRef(false);
   const onExpireRef = useRef(onExpire);
+  const roundTotalRef = useRef(Math.max(1, totalSec));
+  const endsAtKeyRef = useRef<string | null>(null);
+
   onExpireRef.current = onExpire;
 
   useEffect(() => {
-    expiredRef.current = false;
-  }, [endsAt]);
+    if (!endsAt) return;
+    if (endsAtKeyRef.current !== endsAt) {
+      endsAtKeyRef.current = endsAt;
+      expiredRef.current = false;
+    }
+    roundTotalRef.current = Math.max(1, totalSec);
+  }, [endsAt, totalSec]);
 
   useEffect(() => {
     if (!endsAt) {
@@ -63,7 +71,7 @@ export function GameRoundTimer({ endsAt, totalSec = 10, paused = false, onExpire
 
   if (left === null) return null;
 
-  const total = Math.max(1, totalSec);
+  const total = roundTotalRef.current;
   const progress = Math.min(100, Math.max(0, (left / total) * 100));
   const t = tone(left, paused);
 
