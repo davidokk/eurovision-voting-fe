@@ -1,6 +1,12 @@
-export function getYouTubeId(url: string): string | null {
+export function getYouTubeId(url: string | null | undefined): string | null {
+  if (!url) return null;
   const match = url.match(/(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i);
   return match?.[1] || null;
+}
+
+export function getYouTubeThumb(url: string | null | undefined, quality: "mqdefault" | "hqdefault" = "mqdefault"): string | null {
+  const id = getYouTubeId(url);
+  return id ? `https://img.youtube.com/vi/${id}/${quality}.jpg` : null;
 }
 
 declare global {
@@ -10,7 +16,7 @@ declare global {
         el: HTMLElement | string,
         opts: Record<string, unknown>
       ) => YTPlayer;
-      PlayerState: { PLAYING: number; PAUSED: number; ENDED: number };
+      PlayerState: { UNSTARTED: number; ENDED: number; PLAYING: number; PAUSED: number; BUFFERING: number; CUED: number };
     };
     onYouTubeIframeAPIReady?: () => void;
   }
@@ -22,6 +28,9 @@ export type YTPlayer = {
   stopVideo: () => void;
   destroy: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  mute?: () => void;
+  unMute?: () => void;
+  getPlayerState?: () => number;
 };
 
 let ytApiPromise: Promise<void> | null = null;
@@ -31,15 +40,39 @@ export function loadYouTubeIframeAPI(): Promise<void> {
   if (ytApiPromise) return ytApiPromise;
 
   ytApiPromise = new Promise((resolve) => {
+    const finish = () => {
+      if (window.YT?.Player) resolve();
+    };
+
     const prev = window.onYouTubeIframeAPIReady;
     window.onYouTubeIframeAPIReady = () => {
       prev?.();
-      resolve();
+      finish();
     };
-    if (document.querySelector('script[src*="youtube.com/iframe_api"]')) return;
-    const tag = document.createElement("script");
-    tag.src = "https://www.youtube.com/iframe_api";
-    document.head.appendChild(tag);
+
+    if (window.YT?.Player) {
+      finish();
+      return;
+    }
+
+    if (!document.querySelector('script[src*="youtube.com/iframe_api"]')) {
+      const tag = document.createElement("script");
+      tag.src = "https://www.youtube.com/iframe_api";
+      document.head.appendChild(tag);
+    }
+
+    const poll = window.setInterval(() => {
+      if (window.YT?.Player) {
+        window.clearInterval(poll);
+        finish();
+      }
+    }, 50);
+
+    window.setTimeout(() => {
+      window.clearInterval(poll);
+      finish();
+    }, 10_000);
   });
+
   return ytApiPromise;
 }

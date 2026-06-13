@@ -1,4 +1,4 @@
-import type { GameCatalogItem, GameRoomView } from "../types/game";
+import type { GameCatalogItem, GamePlaylistEntryInput, GameRoomView } from "../types/game";
 
 const API_URL = import.meta.env.VITE_API_URL || "";
 
@@ -64,4 +64,39 @@ export async function gameBuzz(code: string): Promise<GameRoomView> {
   });
   if (!res.ok) throw new Error("Не удалось нажать");
   return res.json();
+}
+
+export type YouTubeSearchItem = {
+  id: { videoId: string };
+  snippet: {
+    title: string;
+    channelTitle: string;
+    thumbnails?: { medium?: { url: string }; default?: { url: string } };
+  };
+};
+
+export async function searchYouTubeVideos(query: string, maxResults = 8): Promise<YouTubeSearchItem[]> {
+  const params = new URLSearchParams({ q: query.trim(), maxResults: String(maxResults) });
+  const res = await fetch(`${API_URL}/v1/proxy/youtube/search?${params}`);
+  if (!res.ok) return [];
+  const data = await res.json();
+  return Array.isArray(data.items) ? data.items : [];
+}
+
+export function buildPlaylistPayload(
+  order: string[],
+  byId: Map<string, GameCatalogItem>
+): { entries: GamePlaylistEntryInput[] } {
+  const entries: GamePlaylistEntryInput[] = [];
+  for (const id of order) {
+    const item = byId.get(id);
+    if (!item) continue;
+    entries.push({
+      performance_id: item.performance_id,
+      artist: item.artist,
+      song: item.song,
+      youtube_link: item.youtube_link,
+    });
+  }
+  return { entries };
 }
