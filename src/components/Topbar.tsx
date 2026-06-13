@@ -6,6 +6,7 @@ import { Palette, LogOut, User as UserIcon, ChevronDown, Music2 } from "lucide-r
 import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
+import { applyAuthSession } from "../utils/jwt";
 
 type Props = {
   contests: ContestsByYear;
@@ -200,22 +201,36 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
 
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
-  const userId = localStorage.getItem("user_id");
+  const [userId, setUserId] = useState<string | null>(() => localStorage.getItem("user_id"));
   const avatarUrl = useAvatarUrl();
 
-  useEffect(() => {
-    const t = localStorage.getItem("token");
-    setToken(t);
+  function syncAuthFromStorage() {
+    setToken(localStorage.getItem("token"));
     setUsername(localStorage.getItem("username"));
+    setUserId(localStorage.getItem("user_id"));
+  }
+
+  useEffect(() => {
+    syncAuthFromStorage();
+    const t = localStorage.getItem("token");
     if (t) {
       fetchMe(t)
         .then((me) => {
+          applyAuthSession(t, {
+            avatar_url: me.avatar_url ?? null,
+            user_id: me.id,
+            username: me.username,
+          });
           setStoredAvatarUrl(me.avatar_url ?? null);
+          syncAuthFromStorage();
         })
         .catch(() => {
           setStoredAvatarUrl(null);
         });
     }
+    const onAuth = () => syncAuthFromStorage();
+    window.addEventListener("ev-auth-updated", onAuth);
+    return () => window.removeEventListener("ev-auth-updated", onAuth);
   }, []);
 
   useEffect(() => {
@@ -242,12 +257,22 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   }, [userMenuOpen, guestThemeOpen]);
 
   function handleLogin(token: string) {
-    setStoredAvatarUrl(null);
-    localStorage.setItem("token", token);
+    applyAuthSession(token, { avatar_url: null });
     setToken(token);
-    const savedUsername = localStorage.getItem("username");
-    setUsername(savedUsername);
-    window.location.reload();
+    syncAuthFromStorage();
+    fetchMe(token)
+      .then((me) => {
+        applyAuthSession(token, {
+          avatar_url: me.avatar_url ?? null,
+          user_id: me.id,
+          username: me.username,
+        });
+        setStoredAvatarUrl(me.avatar_url ?? null);
+        syncAuthFromStorage();
+      })
+      .catch(() => {
+        setStoredAvatarUrl(null);
+      });
   }
 
   function logout() {

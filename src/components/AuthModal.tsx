@@ -7,6 +7,7 @@ import {
     telegramSessionStatus,
     type ApiError,
 } from "../api/auth";
+import type { UserMe } from "../api/auth";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
 import type { Theme } from "../types/contest";
 import { formatAuthError } from "../api/authErrors";
@@ -23,14 +24,20 @@ type Props = {
 type Step = "credentials" | "telegram";
 type CredentialMode = "signin" | "signup";
 
-async function persistSession(token: string) {
+async function persistSession(token: string, user?: UserMe) {
     setStoredAvatarUrl(null);
-    applyAuthSession(token, { avatar_url: null });
+    applyAuthSession(token, {
+        avatar_url: null,
+        user_id: user?.id,
+        username: user?.username,
+    });
     try {
         const me = await fetchMe(token);
         setStoredAvatarUrl(me.avatar_url ?? null);
         applyAuthSession(token, {
             avatar_url: me.avatar_url ?? null,
+            user_id: me.id,
+            username: me.username,
         });
     } catch {
         setStoredAvatarUrl(null);
@@ -93,7 +100,7 @@ export function AuthModal({
                 credentialMode === "signin"
                     ? await passwordSignin(u, password)
                     : await passwordSignup(u, password);
-            await persistSession(res.token);
+            await persistSession(res.token, res.user);
             onSuccess(res.token);
         } catch (err) {
             const e = err as ApiError;
@@ -151,7 +158,7 @@ export function AuthModal({
         setSignupClosed(false);
         try {
             const res = await telegramSigninConfirm(linkToken, code.trim());
-            await persistSession(res.token);
+            await persistSession(res.token, res.user);
             onSuccess(res.token);
         } catch (err) {
             const e = err as ApiError;

@@ -19,6 +19,8 @@ export type GamePlaylistEntryInput = {
 
 export type GamePlaylistMode = "manual" | "auto";
 
+export type GamePlayMode = "offline" | "online";
+
 export type GamePlayer = {
   user_id: string;
   username: string;
@@ -83,6 +85,8 @@ export type GameRoomView = {
   total_rounds: number;
   buzzed_user_id?: string;
   buzzed_username?: string;
+  buzzed_answer?: string;
+  play_mode?: GamePlayMode;
   round?: GameRoundView;
   last_judgement?: GameJudgement;
 };

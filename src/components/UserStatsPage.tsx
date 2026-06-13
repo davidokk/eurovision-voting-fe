@@ -425,6 +425,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const [compareData, setCompareData] = useState<ScoreFiltered[]>([]);
     const [compareLoading, setCompareLoading] = useState(false);
 
+
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
     useEffect(() => {
@@ -659,7 +660,10 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
         setUsernameError(null);
         try {
             const res = await changeUsername(next);
-            applyAuthSession(res.token);
+            applyAuthSession(res.token, {
+                username: next,
+                user_id: localStorage.getItem("user_id") ?? undefined,
+            });
             setProfileUsername(next);
             setEditingUsername(false);
         } catch {

@@ -2,30 +2,47 @@ import { useEffect, useRef, useState } from "react";
 
 type Props = {
   endsAt?: string;
-  color?: string;
+  totalSec?: number;
+  paused?: boolean;
   onExpire?: () => void;
 };
 
-export function GameRoundTimer({ endsAt, color = "#7aa2ff", onExpire }: Props) {
-  const [left, setLeft] = useState<number | null>(null);
+function secondsLeft(endsAt: string): number | null {
+  const ms = new Date(endsAt).getTime() - Date.now();
+  if (Number.isNaN(ms)) return null;
+  return Math.max(0, Math.ceil(ms / 1000));
+}
+
+function tone(left: number, paused: boolean): "paused" | "critical" | "warn" | "normal" {
+  if (paused) return "paused";
+  if (left <= 3) return "critical";
+  if (left <= 6) return "warn";
+  return "normal";
+}
+
+export function GameRoundTimer({ endsAt, totalSec = 10, paused = false, onExpire }: Props) {
+  const [left, setLeft] = useState<number | null>(() => (endsAt ? secondsLeft(endsAt) : null));
   const expiredRef = useRef(false);
   const onExpireRef = useRef(onExpire);
   onExpireRef.current = onExpire;
 
   useEffect(() => {
     expiredRef.current = false;
+  }, [endsAt]);
+
+  useEffect(() => {
     if (!endsAt) {
       setLeft(null);
       return;
     }
+    if (paused) return;
 
     const tick = () => {
-      const ms = new Date(endsAt).getTime() - Date.now();
-      if (Number.isNaN(ms)) {
+      const newLeft = secondsLeft(endsAt);
+      if (newLeft === null) {
         setLeft(null);
         return;
       }
-      const newLeft = Math.max(0, Math.ceil(ms / 1000));
       setLeft(newLeft);
       if (newLeft === 0 && !expiredRef.current) {
         expiredRef.current = true;
@@ -36,14 +53,34 @@ export function GameRoundTimer({ endsAt, color = "#7aa2ff", onExpire }: Props) {
     tick();
     const id = window.setInterval(tick, 200);
     return () => clearInterval(id);
-  }, [endsAt]);
+  }, [endsAt, paused]);
+
+  useEffect(() => {
+    if (!endsAt || paused) return;
+    const next = secondsLeft(endsAt);
+    if (next !== null) setLeft(next);
+  }, [endsAt, paused]);
 
   if (left === null) return null;
 
+  const total = Math.max(1, totalSec);
+  const progress = Math.min(100, Math.max(0, (left / total) * 100));
+  const t = tone(left, paused);
+
   return (
-    <div className="gts-round-timer" style={{ color }}>
-      <span className="gts-round-timer__value">{left}</span>
-      <span className="gts-round-timer__label">сек</span>
+    <div
+      className={`gts-timer-bar gts-timer-bar--${t}`}
+      aria-live="polite"
+      aria-label={paused ? `Пауза, осталось ${left} секунд` : `Осталось ${left} секунд`}
+    >
+      <div className="gts-timer-bar__track" aria-hidden>
+        <div className="gts-timer-bar__fill" style={{ width: `${progress}%` }} />
+      </div>
+      <div className="gts-timer-bar__readout">
+        {paused && <span className="gts-timer-bar__pause-mark">⏸</span>}
+        <span className="gts-timer-bar__value">{left}</span>
+        <span className="gts-timer-bar__unit">сек</span>
+      </div>
     </div>
   );
 }

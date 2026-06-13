@@ -1,8 +1,11 @@
 export function parseJwt(token: string): Record<string, unknown> | null {
   try {
-    const base64 = token.split(".")[1];
+    const part = token.split(".")[1];
+    if (!part) return null;
+    const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64 + "=".repeat((4 - (base64.length % 4)) % 4);
     const json = decodeURIComponent(
-      atob(base64)
+      atob(padded)
         .split("")
         .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
         .join("")
@@ -24,18 +27,49 @@ function readVerified(
   return undefined;
 }
 
+function readUserId(
+  payload: Record<string, unknown> | null,
+  extras?: { user_id?: string }
+): string | undefined {
+  if (extras?.user_id) return extras.user_id;
+  const id = payload?.user_id;
+  if (typeof id === "string") return id;
+  return undefined;
+}
+
+function readUsername(
+  payload: Record<string, unknown> | null,
+  extras?: { username?: string }
+): string | undefined {
+  if (extras?.username) return extras.username;
+  const name = payload?.username;
+  if (typeof name === "string") return name;
+  return undefined;
+}
+
 export function applyAuthSession(
   token: string,
-  extras?: { avatar_url?: string | null; verified?: boolean; email_verified?: boolean }
+  extras?: {
+    avatar_url?: string | null;
+    verified?: boolean;
+    email_verified?: boolean;
+    user_id?: string;
+    username?: string;
+  }
 ) {
   localStorage.setItem("token", token);
   const payload = parseJwt(token);
-  if (payload?.username && typeof payload.username === "string") {
-    localStorage.setItem("username", payload.username);
+
+  const userId = readUserId(payload, extras);
+  if (userId) {
+    localStorage.setItem("user_id", userId);
   }
-  if (payload?.user_id && typeof payload.user_id === "string") {
-    localStorage.setItem("user_id", payload.user_id);
+
+  const username = readUsername(payload, extras);
+  if (username) {
+    localStorage.setItem("username", username);
   }
+
   const verified = readVerified(payload, extras);
   if (typeof verified === "boolean") {
     localStorage.setItem("account_verified", verified ? "1" : "0");
@@ -51,6 +85,18 @@ export function applyAuthSession(
     );
   }
   window.dispatchEvent(new CustomEvent("ev-auth-updated"));
+}
+
+export function readAuthFromStorage(): {
+  token: string | null;
+  userId: string | null;
+  username: string | null;
+} {
+  return {
+    token: localStorage.getItem("token"),
+    userId: localStorage.getItem("user_id"),
+    username: localStorage.getItem("username"),
+  };
 }
 
 export function isAccountVerifiedLocally(): boolean {

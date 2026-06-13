@@ -66,6 +66,19 @@ export async function gameBuzz(code: string): Promise<GameRoomView> {
   return res.json();
 }
 
+export async function gameSubmitAnswer(code: string, answer: string): Promise<GameRoomView> {
+  const res = await fetch(`${API_URL}/v1/game/rooms/${encodeURIComponent(code)}/answer`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ answer }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.message || "Не удалось отправить ответ");
+  }
+  return res.json();
+}
+
 export type YouTubeSearchItem = {
   id: { videoId: string };
   snippet: {

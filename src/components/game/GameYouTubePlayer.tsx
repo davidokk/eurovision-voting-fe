@@ -207,10 +207,10 @@ export function GameYouTubePlayer({
               <span key={i} className="gts-eq-bar" />
             ))}
           </div>
-          <div className="gts-audio-hint">🎧 Слушайте и угадывайте…</div>
         </div>
       )}
       {showSilent && <div className="gts-silent-hint">🔇 Пауза</div>}
+      {!isVideoSurface && <div className="gts-yt-shield" aria-hidden />}
       <div
         ref={hostRef}
         className={`gts-yt-host ${isVideoSurface ? "gts-yt-host--visible" : "gts-yt-host--hidden"}`}

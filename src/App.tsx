@@ -86,7 +86,9 @@ export default function App() {
         }
         const me = await fetchMe(token);
         applyAuthSession(token, {
-          avatar_url: me.avatar_url,
+          avatar_url: me.avatar_url ?? null,
+          user_id: me.id,
+          username: me.username,
         });
         setStoredAvatarUrl(me.avatar_url ?? null);
       } catch (err) {
