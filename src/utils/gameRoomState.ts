@@ -10,6 +10,7 @@ export function isValidRoom(r: unknown): r is GameRoomView {
 
 export function isActiveRoundState(state: GameRoomState | string | undefined): boolean {
   return (
+    state === "round_countdown" ||
     state === "round_playing" ||
     state === "round_buzzed" ||
     state === "round_waiting_reveal" ||
@@ -24,6 +25,7 @@ function roundModeForState(state: GameRoomState | string): GameRoundMode {
       return "video";
     case "round_clip":
       return "video_full";
+    case "round_countdown":
     case "round_buzzed":
     case "round_waiting_reveal":
       return "silent";
@@ -38,6 +40,7 @@ function stateRank(state: string): number {
   switch (state) {
     case "lobby":
       return 0;
+    case "round_countdown":
     case "round_playing":
       return 1;
     case "round_buzzed":
@@ -141,7 +144,7 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
         mode: roundModeForState(next.state),
       };
     }
-    if (next.state === "round_playing") {
+    if (next.state === "round_playing" || next.state === "round_countdown") {
       return {
         ...next.round,
         video_start_sec: next.round.video_start_sec ?? prev.round?.video_start_sec,

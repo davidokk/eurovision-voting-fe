@@ -434,6 +434,49 @@
   }
 }
 
+/* ——— Round countdown (preload window) ——— */
+.gts-countdown {
+  position: absolute;
+  inset: 0;
+  z-index: 8;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: rgba(0, 0, 0, 0.62);
+  backdrop-filter: blur(4px);
+  pointer-events: none;
+}
+
+.gts-countdown__label {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.gts-countdown__value {
+  font-size: clamp(4rem, 14vw, 6.5rem);
+  font-weight: 800;
+  line-height: 1;
+  color: #fff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+  animation: gts-countdown-pop 0.45s ease-out;
+}
+
+@keyframes gts-countdown-pop {
+  from {
+    transform: scale(0.55);
+    opacity: 0.35;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* ——— Landing ——— */
 .gts-landing {
   max-width: 640px;

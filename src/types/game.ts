@@ -69,6 +69,7 @@ export type GameRoundView = {
 
 export type GameRoomState =
   | "lobby"
+  | "round_countdown"
   | "round_playing"
   | "round_buzzed"
   | "round_waiting_reveal"

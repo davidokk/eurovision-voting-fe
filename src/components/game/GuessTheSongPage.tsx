@@ -27,6 +27,7 @@ import { useGameTrackPreload } from "../../hooks/useGameTrackPreload";
 import { useAvatarUrl } from "../../hooks/useAvatarUrl";
 import { GameYouTubePlayer, type PlayerMode, type PlayerOverlay } from "./GameYouTubePlayer";
 import { GameRoundTimer } from "./GameRoundTimer";
+import { GameRoundCountdown } from "./GameRoundCountdown";
 import { GameContestScoresFeed } from "./GameContestScoresFeed";
 import { GameEndConfetti } from "./GameEndConfetti";
 import { GameLobbyWizard } from "./GameLobbyWizard";
@@ -65,6 +66,8 @@ function gameStateLabel(state: GameRoomState, paused: boolean): string {
   if (state === "lobby") return "Лобби";
   if (paused) return "Пауза";
   switch (state) {
+    case "round_countdown":
+      return "Приготовьтесь";
     case "round_playing":
       return "Угадывание";
     case "round_buzzed":
@@ -99,6 +102,7 @@ function derivePlayerMode(state: GameRoomState | string | undefined): PlayerMode
       return "video_full";
     case "round_buzzed":
     case "round_waiting_reveal":
+    case "round_countdown":
       return "silent";
     case "round_playing":
       return "audio";
@@ -236,7 +240,7 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
             const r = await getGameRoom(code);
             if (!isValidRoom(r)) continue;
             applyRoomUpdate(r);
-            if (r.state !== "round_playing") return;
+            if (r.state !== "round_playing" && r.state !== "round_reveal") return;
           } catch {
             // retry until server timeout lands
           }
@@ -610,6 +614,7 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
   const inRound = isActiveRoundState(room?.state);
   const roundDurationSec = room?.round_duration_sec ?? 10;
   const guessSeconds = roundDurationSec;
+  const inCountdown = room?.state === "round_countdown";
   const waitingForReveal =
     room?.state === "round_waiting_reveal" ||
     (room?.state === "round_playing" && clientTimerDone);
@@ -630,6 +635,9 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
         return { text: `🔔 ${room.buzzed_username} вводит ответ…`, color: accent };
       }
       return { text: `🔔 Отвечает: ${room.buzzed_username}`, color: accent };
+    }
+    if (room.state === "round_countdown") {
+      return { text: "⏳ Приготовьтесь…", color: accent };
     }
     if (room.state === "round_waiting_reveal") {
       return { text: `⏱ Никто не успел за ${guessSeconds} сек`, color: sub };
@@ -785,7 +793,7 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
   const roundStartSec =
     displayRound?.video_start_sec && displayRound.video_start_sec > 0
       ? displayRound.video_start_sec
-      : room.state === "round_playing"
+      : room.state === "round_playing" || room.state === "round_countdown"
         ? 45
         : 0;
 
@@ -794,9 +802,12 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
   const playerActive =
     inRound &&
     !!displayRound?.youtube_link &&
-    ((room.state === "round_playing" && !clientTimerDone) ||
+    (inCountdown ||
+      (room.state === "round_playing" && !clientTimerDone) ||
       room.state === "round_reveal" ||
       room.state === "round_clip");
+
+  const playerPaused = room.paused || inCountdown;
 
   const showRevealInfo =
     displayRound &&
@@ -957,7 +968,7 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                         youtubeLink={displayRound.youtube_link ?? ""}
                         mode={roundPlayerMode}
                         active={playerActive}
-                        paused={room.paused}
+                        paused={playerPaused}
                         startSeconds={roundStartSec}
                         instanceKey={playerInstanceKey}
                         overlay={playerOverlay}
@@ -965,7 +976,11 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                         onPlaybackReady={() => setTrackReady(true)}
                       />
 
-                      {inRound && playerActive && !trackReady && room.state !== "round_buzzed" && (
+                      {inCountdown && displayRound.round_ends_at && (
+                        <GameRoundCountdown endsAt={displayRound.round_ends_at} totalSec={3} />
+                      )}
+
+                      {inRound && playerActive && !trackReady && !inCountdown && room.state !== "round_buzzed" && (
                         <div className="gts-stage__loading">Загрузка трека…</div>
                       )}
                     </div>
@@ -1190,7 +1205,9 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                           onClick={() => void handleBuzz()}
                         >
                           <Zap size={18} style={{ verticalAlign: "middle", marginRight: 5 }} />
-                          {room.state === "round_buzzed" && room.buzzed_user_id === myUserId
+                          {room.state === "round_countdown"
+                            ? "Старт…"
+                            : room.state === "round_buzzed" && room.buzzed_user_id === myUserId
                             ? room.play_mode === "online" && !room.buzzed_answer
                               ? "Введите ответ ↑"
                               : "Ваш ход!"
