@@ -3,6 +3,7 @@ import { Loader2, Search } from "lucide-react";
 import type { GameCatalogItem } from "../../types/game";
 import { searchYouTubeVideos, type YouTubeSearchItem } from "../../api/game";
 import { getYouTubeThumb } from "../../utils/youtube";
+import { GameSongGridCard } from "./GameSongGridCard";
 
 type Props = {
   selectedIds: Set<string>;
@@ -39,6 +40,15 @@ function toCatalogItem(video: YouTubeSearchItem): GameCatalogItem {
   };
 }
 
+function pickThumb(video: YouTubeSearchItem): string | null {
+  return (
+    video.snippet.thumbnails?.high?.url ||
+    video.snippet.thumbnails?.medium?.url ||
+    video.snippet.thumbnails?.default?.url ||
+    getYouTubeThumb(`https://www.youtube.com/watch?v=${video.id.videoId}`, "hqdefault")
+  );
+}
+
 export function GameYouTubeSearchTab({
   selectedIds,
   onAdd,
@@ -59,7 +69,7 @@ export function GameYouTubeSearchTab({
     setLoading(true);
     setSearched(true);
     try {
-      const items = await searchYouTubeVideos(query.trim(), 10);
+      const items = await searchYouTubeVideos(query.trim(), 12);
       setResults(items);
     } catch {
       setResults([]);
@@ -69,8 +79,8 @@ export function GameYouTubeSearchTab({
   }
 
   return (
-    <div>
-      <form onSubmit={(e) => void handleSearch(e)} style={{ display: "flex", gap: 8, marginBottom: 10 }}>
+    <div className="gts-youtube-search">
+      <form className="gts-youtube-search__form" onSubmit={(e) => void handleSearch(e)}>
         <input
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -89,50 +99,44 @@ export function GameYouTubeSearchTab({
         </button>
       </form>
 
-      <div className="gts-song-picker">
+      <div className="gts-song-grid-scroll gts-lobby__picker">
+        <div className="gts-song-grid">
         {loading && (
-          <p style={{ textAlign: "center", color: sub, padding: 16 }}>
+          <p className="gts-song-grid__empty" style={{ color: sub }}>
             <Loader2 size={20} className="gts-spin" color={accent} /> Ищем…
           </p>
         )}
         {!loading && searched && results.length === 0 && (
-          <p style={{ textAlign: "center", color: sub, padding: 16 }}>Ничего не найдено</p>
+          <p className="gts-song-grid__empty" style={{ color: sub }}>
+            Ничего не найдено
+          </p>
         )}
         {!loading &&
           results.map((video) => {
             const item = toCatalogItem(video);
-            const thumb =
-              video.snippet.thumbnails?.medium?.url ||
-              video.snippet.thumbnails?.default?.url ||
-              getYouTubeThumb(item.youtube_link);
             const picked = selectedIds.has(item.performance_id);
             return (
-              <button
+              <GameSongGridCard
                 key={item.performance_id}
-                type="button"
-                className={`gts-song-item ${picked ? "gts-song-item--selected" : ""}`}
-                style={{ color: text }}
-                onClick={() => onAdd(item)}
+                thumbUrl={pickThumb(video)}
+                title={item.song}
+                subtitle={item.artist}
+                selected={picked}
                 disabled={picked}
-              >
-                {thumb ? (
-                  <img src={thumb} alt="" className="gts-song-thumb" loading="lazy" />
-                ) : (
-                  <span className="gts-song-thumb gts-song-thumb--placeholder">🎬</span>
-                )}
-                <span style={{ flex: 1, minWidth: 0 }}>
-                  <strong>{item.song}</strong>
-                  <span style={{ display: "block", fontSize: 12, color: sub }}>{item.artist}</span>
-                </span>
-                <span>{picked ? "✓" : "+"}</span>
-              </button>
+                textColor={text}
+                subColor={sub}
+                cardBorder={cardBorder}
+                inputBg={inputBg}
+                onClick={() => onAdd(item)}
+              />
             );
           })}
         {!loading && !searched && (
-          <p style={{ textAlign: "center", color: sub, padding: 20, fontSize: 13 }}>
+          <p className="gts-song-grid__empty" style={{ color: sub }}>
             Введите название песни или артиста — можно добавить любой трек с YouTube
           </p>
         )}
+        </div>
       </div>
     </div>
   );

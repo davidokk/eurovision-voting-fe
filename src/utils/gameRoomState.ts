@@ -108,6 +108,7 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
     next.state === "round_waiting_reveal" || next.state === "round_buzzed";
 
   if (pausedRound && prev.round) {
+    const hasHostHint = !!(next.round?.artist || next.round?.song);
     return {
       ...prev.round,
       ...next.round,
@@ -116,18 +117,22 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
       video_start_sec: next.round?.video_start_sec ?? prev.round.video_start_sec,
       mode: "silent",
       round_ends_at: undefined,
-      artist: undefined,
-      song: undefined,
-      country_name: undefined,
-      flag_emoji: undefined,
-      year: undefined,
+      artist: hasHostHint ? (next.round?.artist ?? prev.round.artist) : undefined,
+      song: hasHostHint ? (next.round?.song ?? prev.round.song) : undefined,
+      country_name: hasHostHint ? (next.round?.country_name ?? prev.round.country_name) : undefined,
+      flag_emoji: hasHostHint ? (next.round?.flag_emoji ?? prev.round.flag_emoji) : undefined,
+      year: hasHostHint ? (next.round?.year ?? prev.round.year) : undefined,
+      contest_type: hasHostHint ? (next.round?.contest_type ?? prev.round.contest_type) : undefined,
       contest_scores: undefined,
     };
   }
 
   if (next.round?.youtube_link) {
     if (next.current_round !== prev.current_round) {
-      return next.round;
+      return {
+        ...next.round,
+        video_start_sec: next.round.video_start_sec || 45,
+      };
     }
     if (next.state === "round_reveal" || next.state === "round_clip") {
       return {

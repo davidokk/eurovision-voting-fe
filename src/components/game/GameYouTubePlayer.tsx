@@ -29,8 +29,10 @@ type PlaybackProps = {
   isVideoSurface: boolean;
 };
 
-const PLAY_RETRY_MS = 280;
-const MAX_PLAY_RETRIES = 10;
+const SEEK_TOLERANCE_SEC = 3;
+const SEEK_STABILIZE_MS = 140;
+const PLAY_VERIFY_MS = 420;
+const MAX_SYNC_ATTEMPTS = 8;
 
 function destroyYouTubePlayer(player: YTPlayer | null, host: HTMLDivElement | null) {
   try {
@@ -55,27 +57,18 @@ function loadKey(videoId: string, props: PlaybackProps): string {
   return `${videoId}:${targetStartSec(props)}`;
 }
 
-function loadVideoOnPlayer(player: YTPlayer, videoId: string, props: PlaybackProps) {
-  const startAt = targetStartSec(props);
-  const args = { videoId, startSeconds: startAt };
-  try {
-    if (shouldPlay(props) && player.loadVideoById) {
-      player.loadVideoById(args);
-      return;
-    }
-    if (player.cueVideoById) {
-      player.cueVideoById(args);
-      return;
-    }
-    player.loadVideoById?.(args);
-  } catch {
-    // ignore
-  }
-}
-
 function getPlayerState(player: YTPlayer): number | null {
   try {
     return player.getPlayerState?.() ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function getCurrentTime(player: YTPlayer): number | null {
+  try {
+    const t = player.getCurrentTime?.();
+    return typeof t === "number" && Number.isFinite(t) ? t : null;
   } catch {
     return null;
   }
@@ -87,73 +80,109 @@ function isPlayingState(state: number | null): boolean {
   return state === PLAYING || state === BUFFERING;
 }
 
-function syncPlayback(
+function pauseSafe(player: YTPlayer) {
+  try {
+    player.pauseVideo();
+  } catch {
+    // ignore
+  }
+}
+
+function seekSafe(player: YTPlayer, sec: number) {
+  try {
+    player.seekTo(sec, true);
+  } catch {
+    // ignore
+  }
+}
+
+function cueVideoOnPlayer(player: YTPlayer, videoId: string, props: PlaybackProps) {
+  const startAt = targetStartSec(props);
+  const args = { videoId, startSeconds: startAt };
+  try {
+    if (player.cueVideoById) {
+      player.cueVideoById(args);
+      return;
+    }
+    player.loadVideoById?.(args);
+  } catch {
+    // ignore
+  }
+}
+
+function stabilizeSeek(player: YTPlayer, targetSec: number, onDone: () => void) {
+  seekSafe(player, targetSec);
+  window.setTimeout(() => {
+    seekSafe(player, targetSec);
+    pauseSafe(player);
+    window.setTimeout(onDone, SEEK_STABILIZE_MS);
+  }, SEEK_STABILIZE_MS);
+}
+
+function beginPlayback(
   player: YTPlayer,
   props: PlaybackProps,
-  seekKeyRef: { current: string | null },
+  sessionGen: number,
+  playbackGenRef: { current: number },
   onReady?: () => void,
-  retry = 0
+  attempt = 0
 ) {
+  if (sessionGen !== playbackGenRef.current) return;
+
   if (!shouldPlay(props)) {
-    try {
-      player.pauseVideo();
-    } catch {
-      // ignore
-    }
+    pauseSafe(player);
     return;
   }
 
-  const seekTo = targetStartSec(props);
-  const seekKey = `${seekTo}`;
-  if (seekKeyRef.current !== seekKey) {
-    seekKeyRef.current = seekKey;
-    try {
-      player.seekTo(seekTo, true);
-    } catch {
-      // ignore
-    }
-    if (seekTo > 0) {
-      window.setTimeout(() => {
-        try {
-          player.seekTo(seekTo, true);
-        } catch {
-          // ignore
-        }
-      }, 200);
-    }
-  }
+  const targetSec = targetStartSec(props);
 
-  const startPlayback = () => {
+  const startMutedPlayback = () => {
+    if (sessionGen !== playbackGenRef.current) return;
     try {
       player.mute?.();
       player.playVideo();
-      window.setTimeout(() => {
-        try {
-          player.unMute?.();
-        } catch {
-          // ignore
-        }
-      }, props.isVideoSurface ? 350 : 120);
     } catch {
       // ignore
     }
   };
 
-  startPlayback();
+  stabilizeSeek(player, targetSec, () => {
+    if (sessionGen !== playbackGenRef.current) return;
+    startMutedPlayback();
 
-  window.setTimeout(() => {
-    const state = getPlayerState(player);
-    if (isPlayingState(state)) {
-      onReady?.();
-      return;
-    }
-    if (retry >= MAX_PLAY_RETRIES) return;
+    window.setTimeout(() => {
+      if (sessionGen !== playbackGenRef.current) return;
 
-    if (state === window.YT?.PlayerState?.CUED || state === window.YT?.PlayerState?.UNSTARTED) {
-      startPlayback();
-    }
-    syncPlayback(player, props, seekKeyRef, onReady, retry + 1);
-  }, PLAY_RETRY_MS);
+      const state = getPlayerState(player);
+      const current = getCurrentTime(player);
+      const playing = isPlayingState(state);
+      const timeOk =
+        targetSec <= 0 || current == null || Math.abs(current - targetSec) <= SEEK_TOLERANCE_SEC;
+
+      if (playing && timeOk) {
+        try {
+          player.unMute?.();
+        } catch {
+          // ignore
+        }
+        onReady?.();
+        return;
+      }
+
+      if (attempt >= MAX_SYNC_ATTEMPTS) {
+        try {
+          player.unMute?.();
+        } catch {
+          // ignore
+        }
+        if (playing) onReady?.();
+        return;
+      }
+
+      pauseSafe(player);
+      beginPlayback(player, props, sessionGen, playbackGenRef, onReady, attempt + 1);
+    }, PLAY_VERIFY_MS);
+  });
 }
 
 export function GamePlayerPlaceholder({ label = "🔇 Пауза" }: { label?: string }) {
@@ -179,8 +208,8 @@ export function GameYouTubePlayer({
   onPlaybackReadyRef.current = onPlaybackReady;
   const hostRef = useRef<HTMLDivElement>(null);
   const playerRef = useRef<YTPlayer | null>(null);
-  const seekKeyRef = useRef<string | null>(null);
   const loadedKeyRef = useRef<string | null>(null);
+  const playbackGenRef = useRef(0);
   const propsRef = useRef<PlaybackProps>({
     active,
     paused,
@@ -202,13 +231,20 @@ export function GameYouTubePlayer({
     onPlaybackReadyRef.current?.();
   };
 
+  const runPlayback = () => {
+    const player = playerRef.current;
+    if (!player || !ready || !videoId) return;
+    const gen = ++playbackGenRef.current;
+    beginPlayback(player, propsRef.current, gen, playbackGenRef, signalReady);
+  };
+
   useLayoutEffect(() => {
     const host = hostRef.current;
     if (!host || !videoId) return;
 
     let cancelled = false;
+    playbackGenRef.current += 1;
     setReady(false);
-    seekKeyRef.current = null;
     loadedKeyRef.current = null;
 
     loadYouTubeIframeAPI().then(() => {
@@ -242,9 +278,9 @@ export function GameYouTubePlayer({
               playerRef.current = event.target;
               setReady(true);
               const props = propsRef.current;
-              loadVideoOnPlayer(event.target, videoId, props);
+              cueVideoOnPlayer(event.target, videoId, props);
               loadedKeyRef.current = loadKey(videoId, props);
-              syncPlayback(event.target, props, seekKeyRef, signalReady);
+              runPlayback();
             },
             onStateChange: (event: { data: number }) => {
               if (cancelled) return;
@@ -260,10 +296,9 @@ export function GameYouTubePlayer({
 
               if (
                 event.data === window.YT?.PlayerState?.CUED ||
-                event.data === window.YT?.PlayerState?.PAUSED ||
                 event.data === window.YT?.PlayerState?.UNSTARTED
               ) {
-                syncPlayback(player, props, seekKeyRef, signalReady);
+                runPlayback();
               }
             },
           },
@@ -275,11 +310,11 @@ export function GameYouTubePlayer({
 
     return () => {
       cancelled = true;
+      playbackGenRef.current += 1;
       setReady(false);
       destroyYouTubePlayer(playerRef.current, host);
       playerRef.current = null;
       loadedKeyRef.current = null;
-      seekKeyRef.current = null;
     };
   }, [instanceKey, videoId]);
 
@@ -291,11 +326,10 @@ export function GameYouTubePlayer({
     const nextLoadKey = loadKey(videoId, props);
     if (loadedKeyRef.current !== nextLoadKey) {
       loadedKeyRef.current = nextLoadKey;
-      seekKeyRef.current = null;
-      loadVideoOnPlayer(player, videoId, props);
+      cueVideoOnPlayer(player, videoId, props);
     }
 
-    syncPlayback(player, props, seekKeyRef, signalReady);
+    runPlayback();
   }, [ready, videoId, active, paused, mode, startSeconds, isVideoSurface]);
 
   if (!videoId || !youtubeLink.trim()) {

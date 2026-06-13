@@ -84,7 +84,7 @@ export type YouTubeSearchItem = {
   snippet: {
     title: string;
     channelTitle: string;
-    thumbnails?: { medium?: { url: string }; default?: { url: string } };
+    thumbnails?: { high?: { url: string }; medium?: { url: string }; default?: { url: string } };
   };
 };
 

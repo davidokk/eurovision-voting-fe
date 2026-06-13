@@ -321,78 +321,76 @@ export function GameLobbyWizard(props: Props) {
             </div>
           )}
 
-          {step === "build" && (
+          {step === "build" && playlistMode === "auto" && (
             <div className="gts-wizard-panel gts-wizard-panel--build">
-              {playlistMode === "auto" ? (
-                <>
-                  <GameQuickChips
-                    label="Песен"
-                    value={autoCount}
-                    chips={[5, 10, 15, 20]}
-                    onSelect={(n) => {
-                      onAutoCountChange(n);
-                    }}
+              <GameQuickChips
+                label="Песен"
+                value={autoCount}
+                chips={[5, 10, 15, 20]}
+                onSelect={(n) => {
+                  onAutoCountChange(n);
+                }}
+              />
+              <div className="gts-lobby__auto">
+                <div className="gts-lobby__auto-stage">
+                {rouletteSpinning ? (
+                  <GamePlaylistRoulette
+                    item={roulettePreview}
+                    strip={rouletteStrip}
+                    spinning
+                    progress={rouletteProgress}
+                    targetCount={autoCount}
                   />
-                  <div className="gts-lobby__auto">
-                    <div className="gts-lobby__auto-stage">
-                    {rouletteSpinning ? (
-                      <GamePlaylistRoulette
-                        item={roulettePreview}
-                        strip={rouletteStrip}
-                        spinning
-                        progress={rouletteProgress}
-                        targetCount={autoCount}
-                      />
-                    ) : selectedOrder.length > 0 ? (
-                      <div className="gts-auto-ready">
-                        <div className="gts-auto-ready__icon">✓</div>
-                        <div>
-                          <strong className="gts-auto-ready__title">Плейлист готов</strong>
-                          <p className="gts-auto-ready__text" style={{ color: subColor }}>
-                            {selectedOrder.length} случайных песен
-                          </p>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="gts-auto-idle">
-                        <div className="gts-auto-idle__icon">🎲</div>
-                        <div>
-                          <strong className="gts-auto-idle__title">Сгенерируйте плейлист</strong>
-                          <p className="gts-auto-idle__text" style={{ color: subColor }}>
-                            Нажмите кнопку ниже
-                          </p>
-                        </div>
-                      </div>
-                    )}
+                ) : selectedOrder.length > 0 ? (
+                  <div className="gts-auto-ready">
+                    <div className="gts-auto-ready__icon">✓</div>
+                    <div>
+                      <strong className="gts-auto-ready__title">Плейлист готов</strong>
+                      <p className="gts-auto-ready__text" style={{ color: subColor }}>
+                        {selectedOrder.length} случайных песен
+                      </p>
                     </div>
-                    <button
-                      type="button"
-                      className="gts-btn gts-btn--ghost"
-                      disabled={rouletteSpinning}
-                      onClick={() => void onAutoGenerate()}
-                    >
-                      🎲 {selectedOrder.length > 0 ? "Перегенерировать" : "Сгенерировать"}
-                    </button>
                   </div>
-                </>
-              ) : (
-                <GamePlaylistPicker
-                  catalog={catalog}
-                  selectedIds={selectedIds}
-                  pickTab={pickTab}
-                  catalogQuery={catalogQuery}
-                  onPickTabChange={onPickTabChange}
-                  onCatalogQueryChange={onCatalogQueryChange}
-                  onToggleSong={onToggleSong}
-                  onAddTrack={props.onAddTrack}
-                  textColor={textColor}
-                  subColor={subColor}
-                  accent={accent}
-                  cardBorder={cardBorder}
-                  inputBg={inputBg}
-                />
-              )}
+                ) : (
+                  <div className="gts-auto-idle">
+                    <div className="gts-auto-idle__icon">🎲</div>
+                    <div>
+                      <strong className="gts-auto-idle__title">Сгенерируйте плейлист</strong>
+                      <p className="gts-auto-idle__text" style={{ color: subColor }}>
+                        Нажмите кнопку ниже
+                      </p>
+                    </div>
+                  </div>
+                )}
+                </div>
+                <button
+                  type="button"
+                  className="gts-btn gts-btn--ghost"
+                  disabled={rouletteSpinning}
+                  onClick={() => void onAutoGenerate()}
+                >
+                  🎲 {selectedOrder.length > 0 ? "Перегенерировать" : "Сгенерировать"}
+                </button>
+              </div>
             </div>
+          )}
+
+          {step === "build" && playlistMode === "manual" && (
+            <GamePlaylistPicker
+              catalog={catalog}
+              selectedIds={selectedIds}
+              pickTab={pickTab}
+              catalogQuery={catalogQuery}
+              onPickTabChange={onPickTabChange}
+              onCatalogQueryChange={onCatalogQueryChange}
+              onToggleSong={onToggleSong}
+              onAddTrack={props.onAddTrack}
+              textColor={textColor}
+              subColor={subColor}
+              accent={accent}
+              cardBorder={cardBorder}
+              inputBg={inputBg}
+            />
           )}
 
           {step === "review" && (

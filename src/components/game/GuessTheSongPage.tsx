@@ -782,16 +782,18 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
 
   const displayRound = room.round ?? lastRoundRef.current;
   const roundPlayerMode = derivePlayerMode(room.state);
-  const roundStartSec = displayRound?.video_start_sec ?? 0;
+  const roundStartSec =
+    displayRound?.video_start_sec && displayRound.video_start_sec > 0
+      ? displayRound.video_start_sec
+      : room.state === "round_playing"
+        ? 45
+        : 0;
 
-  const playerInstanceKey = `${room.current_round}-${displayRound?.performance_id ?? "round"}-${roundStartSec}`;
-
-  const canStartRoundAudio = room.state !== "round_playing" || roundStartSec > 0;
+  const playerInstanceKey = `${room.current_round}-${displayRound?.performance_id ?? "round"}`;
 
   const playerActive =
     inRound &&
-    !!displayRound &&
-    canStartRoundAudio &&
+    !!displayRound?.youtube_link &&
     ((room.state === "round_playing" && !clientTimerDone) ||
       room.state === "round_reveal" ||
       room.state === "round_clip");
@@ -800,6 +802,12 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
     displayRound &&
     (room.state === "round_reveal" || room.state === "round_clip") &&
     displayRound.artist;
+
+  const showHostAnswerHint =
+    !!isHost &&
+    room.state === "round_buzzed" &&
+    !!displayRound?.artist &&
+    !!displayRound?.song;
 
   const isOnlinePlay = room?.play_mode === "online";
   const isBuzzedPlayer = room?.buzzed_user_id === myUserId;
@@ -946,7 +954,6 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                   <div className="gts-stage__body">
                     <div className="gts-stage__media">
                       <GameYouTubePlayer
-                        key={playerInstanceKey}
                         youtubeLink={displayRound.youtube_link ?? ""}
                         mode={roundPlayerMode}
                         active={playerActive}
@@ -975,6 +982,30 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                           {displayRound.country_name && (
                             <span className="gts-meta-bar__hint">🎵 Угадайте!</span>
                           )}
+                        </div>
+                      )}
+
+                      {showHostAnswerHint && (
+                        <div className="gts-dock-section gts-dock-section--host-hint">
+                          <div className="gts-dock-section__title" style={{ color: sub }}>
+                            Правильный ответ
+                          </div>
+                          <div className="gts-answer-panel gts-answer-panel--host-hint">
+                            <div className="gts-answer-panel__top">
+                              <span className="gts-answer-panel__flag">
+                                {supportsEmoji && displayRound.flag_emoji ? displayRound.flag_emoji : "🎤"}
+                              </span>
+                              {displayRound.contest_type && (
+                                <span className="gts-answer-panel__type">{contestTypeLabel(displayRound.contest_type)}</span>
+                              )}
+                            </div>
+                            <p className="gts-answer-panel__artist">{displayRound.artist}</p>
+                            <p className="gts-answer-panel__song">{displayRound.song}</p>
+                            <p className="gts-answer-panel__meta">
+                              {displayRound.country_name}
+                              {displayRound.year ? ` · ${displayRound.year}` : ""}
+                            </p>
+                          </div>
                         </div>
                       )}
 
