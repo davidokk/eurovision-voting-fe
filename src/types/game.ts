@@ -65,6 +65,9 @@ export type GameRoundView = {
   contest_type?: string;
   round_ends_at?: string;
   contest_scores?: GameContestScore[];
+  total_score?: number;
+  qualified?: boolean;
+  place?: number;
 };
 
 export type GameRoomState =

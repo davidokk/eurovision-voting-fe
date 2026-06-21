@@ -195,7 +195,7 @@ export default function App() {
       flexDirection: "column",
       position: "relative",
     }}>
-      <div style={{ position: "relative", zIndex: 3000, flexShrink: 0 }}>
+      <div style={{ position: "relative", zIndex: 3000, flexShrink: 0, overflow: "visible" }}>
         <Topbar
           contests={contests}
           onSelectContest={handleSelectContest}

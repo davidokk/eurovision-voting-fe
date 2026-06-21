@@ -63,6 +63,7 @@ export function AuthModal({
     const [error, setError] = useState<string | null>(null);
     const [signupClosed, setSignupClosed] = useState(false);
     const [loading, setLoading] = useState(false);
+    const [showPasswordForm, setShowPasswordForm] = useState(false);
 
     function resetFlow() {
         setError(null);
@@ -76,6 +77,7 @@ export function AuthModal({
         setBotConnected(false);
         setCodeSent(false);
         setSignupClosed(false);
+        setShowPasswordForm(false);
     }
 
     useEffect(() => {
@@ -219,23 +221,29 @@ export function AuthModal({
     const title =
         step === "telegram"
             ? "Код из Telegram"
-            : credentialMode === "signin"
-              ? "Вход"
-              : "Регистрация";
+            : showPasswordForm
+              ? credentialMode === "signin"
+                ? "Вход по паролю"
+                : "Регистрация"
+              : "Вход";
     const subtitle =
         step === "telegram"
             ? "Новый Telegram — аккаунт создастся сам после ввода кода"
-            : credentialMode === "signin"
-              ? "Логин и пароль или вход через Telegram"
-              : "Придумайте имя пользователя и пароль";
+            : showPasswordForm
+              ? credentialMode === "signin"
+                ? "Логин и пароль для существующего аккаунта"
+                : "Придумайте имя пользователя и пароль"
+              : "Быстрый вход через Telegram-бота";
 
     const primaryLabel = loading
         ? "Загрузка..."
-        : step === "credentials"
-          ? credentialMode === "signin"
-            ? "Войти"
-            : "Создать аккаунт"
-          : "Продолжить";
+        : step === "credentials" && !showPasswordForm
+          ? "Войти через Telegram"
+          : step === "credentials"
+            ? credentialMode === "signin"
+              ? "Войти"
+              : "Создать аккаунт"
+            : "Продолжить";
 
     const telegramStatus = codeSent
         ? { text: "Код отправлен в Telegram", tone: "success" as const }
@@ -299,7 +307,7 @@ export function AuthModal({
                               : styles.iconWrap.background,
                     }}
                 >
-                    <span style={styles.icon}>{step === "telegram" ? "✈️" : "🔑"}</span>
+                    <span style={styles.icon}>{step === "telegram" ? "✈️" : showPasswordForm ? "🔑" : "✈️"}</span>
                 </div>
 
                 <h2 style={{ ...styles.title, color: titleColor }}>{title}</h2>
@@ -307,102 +315,135 @@ export function AuthModal({
 
                 {step === "credentials" && (
                     <div style={styles.form}>
-                        <div
-                            style={{
-                                display: "flex",
-                                gap: 6,
-                                padding: 4,
-                                borderRadius: 14,
-                                background: btnBg,
-                                border: inputBorderColor,
-                            }}
-                        >
-                            {(["signin", "signup"] as const).map((m) => (
+                        {!showPasswordForm ? (
+                            <>
+                                <p style={{ margin: 0, fontSize: 13, lineHeight: 1.5, color: subtitleColor, textAlign: "center" }}>
+                                    Откройте бота, нажмите Start — пришлём код для входа
+                                </p>
                                 <button
-                                    key={m}
                                     type="button"
                                     onClick={() => {
-                                        setCredentialMode(m);
+                                        setShowPasswordForm(true);
                                         setError(null);
                                         setSignupClosed(false);
                                     }}
                                     style={{
-                                        flex: 1,
-                                        padding: "10px 12px",
-                                        borderRadius: 11,
                                         border: "none",
-                                        cursor: "pointer",
-                                        fontWeight: 700,
+                                        background: "transparent",
+                                        color: subtitleColor,
                                         fontSize: 13,
-                                        background:
-                                            credentialMode === m ? primaryGradient : "transparent",
-                                        color: credentialMode === m ? "#fff" : subtitleColor,
-                                        boxShadow: credentialMode === m ? primaryShadow : "none",
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        textDecoration: "underline",
+                                        textUnderlineOffset: 3,
                                     }}
                                 >
-                                    {m === "signin" ? "Вход" : "Регистрация"}
+                                    Войти по логину и паролю
                                 </button>
-                            ))}
-                        </div>
+                            </>
+                        ) : (
+                            <>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        gap: 6,
+                                        padding: 4,
+                                        borderRadius: 14,
+                                        background: btnBg,
+                                        border: inputBorderColor,
+                                    }}
+                                >
+                                    {(["signin", "signup"] as const).map((m) => (
+                                        <button
+                                            key={m}
+                                            type="button"
+                                            onClick={() => {
+                                                setCredentialMode(m);
+                                                setError(null);
+                                                setSignupClosed(false);
+                                            }}
+                                            style={{
+                                                flex: 1,
+                                                padding: "10px 12px",
+                                                borderRadius: 11,
+                                                border: "none",
+                                                cursor: "pointer",
+                                                fontWeight: 700,
+                                                fontSize: 13,
+                                                background:
+                                                    credentialMode === m ? primaryGradient : "transparent",
+                                                color: credentialMode === m ? "#fff" : subtitleColor,
+                                                boxShadow: credentialMode === m ? primaryShadow : "none",
+                                            }}
+                                        >
+                                            {m === "signin" ? "Вход" : "Регистрация"}
+                                        </button>
+                                    ))}
+                                </div>
 
-                        <input
-                            type="text"
-                            value={username}
-                            onChange={(e) => setUsername(e.target.value)}
-                            placeholder="Имя пользователя"
-                            autoComplete="username"
-                            maxLength={32}
-                            style={{
-                                width: "100%",
-                                padding: "14px 16px",
-                                borderRadius: 14,
-                                border: `1px solid ${inputBorderColor}`,
-                                background: isLight ? "#fff" : isGray ? "#1a1a1a" : "rgba(15,23,42,0.6)",
-                                color: titleColor,
-                                fontSize: 15,
-                                fontWeight: 600,
-                                boxSizing: "border-box",
-                            }}
-                        />
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => setPassword(e.target.value)}
-                            placeholder="Пароль (мин. 6 символов)"
-                            autoComplete={credentialMode === "signin" ? "current-password" : "new-password"}
-                            onKeyDown={(e) => {
-                                if (e.key === "Enter") void submitCredentials();
-                            }}
-                            style={{
-                                width: "100%",
-                                padding: "14px 16px",
-                                borderRadius: 14,
-                                border: `1px solid ${inputBorderColor}`,
-                                background: isLight ? "#fff" : isGray ? "#1a1a1a" : "rgba(15,23,42,0.6)",
-                                color: titleColor,
-                                fontSize: 15,
-                                fontWeight: 600,
-                                boxSizing: "border-box",
-                            }}
-                        />
+                                <input
+                                    type="text"
+                                    value={username}
+                                    onChange={(e) => setUsername(e.target.value)}
+                                    placeholder="Имя пользователя"
+                                    autoComplete="username"
+                                    maxLength={32}
+                                    style={{
+                                        width: "100%",
+                                        padding: "14px 16px",
+                                        borderRadius: 14,
+                                        border: `1px solid ${inputBorderColor}`,
+                                        background: isLight ? "#fff" : isGray ? "#1a1a1a" : "rgba(15,23,42,0.6)",
+                                        color: titleColor,
+                                        fontSize: 15,
+                                        fontWeight: 600,
+                                        boxSizing: "border-box",
+                                    }}
+                                />
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => setPassword(e.target.value)}
+                                    placeholder="Пароль (мин. 6 символов)"
+                                    autoComplete={credentialMode === "signin" ? "current-password" : "new-password"}
+                                    onKeyDown={(e) => {
+                                        if (e.key === "Enter") void submitCredentials();
+                                    }}
+                                    style={{
+                                        width: "100%",
+                                        padding: "14px 16px",
+                                        borderRadius: 14,
+                                        border: `1px solid ${inputBorderColor}`,
+                                        background: isLight ? "#fff" : isGray ? "#1a1a1a" : "rgba(15,23,42,0.6)",
+                                        color: titleColor,
+                                        fontSize: 15,
+                                        fontWeight: 600,
+                                        boxSizing: "border-box",
+                                    }}
+                                />
 
-                        <button
-                            type="button"
-                            onClick={() => void startTelegramFlow()}
-                            disabled={loading}
-                            style={{
-                                border: "none",
-                                background: "transparent",
-                                color: promptHighlightColor,
-                                fontSize: 13,
-                                fontWeight: 600,
-                                cursor: loading ? "wait" : "pointer",
-                                textDecoration: "underline",
-                                textUnderlineOffset: 3,
-                            }}
-                        >
-                            Или войти через Telegram
-                        </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setShowPasswordForm(false);
+                                        setError(null);
+                                        setSignupClosed(false);
+                                    }}
+                                    style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        color: promptHighlightColor,
+                                        fontSize: 13,
+                                        fontWeight: 600,
+                                        cursor: "pointer",
+                                        textDecoration: "underline",
+                                        textUnderlineOffset: 3,
+                                    }}
+                                >
+                                    ← Войти через Telegram
+                                </button>
+                            </>
+                        )}
                     </div>
                 )}
 
@@ -482,13 +523,20 @@ export function AuthModal({
                 <button
                     type="button"
                     onClick={() => {
-                        if (step === "credentials") void submitCredentials();
-                        else void confirmCode();
+                        if (step === "credentials") {
+                            if (showPasswordForm) void submitCredentials();
+                            else void startTelegramFlow();
+                        } else {
+                            void confirmCode();
+                        }
                     }}
                     disabled={loading}
                     style={{
                         ...styles.button,
-                        background: primaryGradient,
+                        background:
+                            step === "credentials" && !showPasswordForm
+                                ? "linear-gradient(135deg, #229ED9 0%, #1d8bc4 100%)"
+                                : primaryGradient,
                         boxShadow: primaryShadow,
                         opacity: loading ? 0.6 : 1,
                     }}

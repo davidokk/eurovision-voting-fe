@@ -28,7 +28,7 @@ import { useAvatarUrl } from "../../hooks/useAvatarUrl";
 import { GameYouTubePlayer, type PlayerMode, type PlayerOverlay } from "./GameYouTubePlayer";
 import { GameRoundTimer } from "./GameRoundTimer";
 import { GameRoundCountdown } from "./GameRoundCountdown";
-import { GameContestScoresFeed } from "./GameContestScoresFeed";
+import { GameRevealAnswerCard } from "./GameRevealAnswerCard";
 import { GameEndConfetti } from "./GameEndConfetti";
 import { GameLobbyWizard } from "./GameLobbyWizard";
 import { GameSavedPlaylistsManager } from "./GameSavedPlaylistsManager";
@@ -36,6 +36,7 @@ import { GameAnswerForm } from "./GameAnswerForm";
 import { GameJudgementPopup } from "./GameJudgementPopup";
 import { playlistEntriesToCatalog } from "../../utils/gamePlaylist";
 import { UserAvatar } from "../UserAvatar";
+import { contestTypeLabel } from "../../utils/contestLabels";
 import {
   cacheGameRoom,
   isActiveRoundState,
@@ -44,7 +45,6 @@ import {
   mergeGameRoom,
 } from "../../utils/gameRoomState";
 import { AuthModal } from "../AuthModal";
-import { contestTypeLabel } from "../../utils/contestLabels";
 import { getDoesBrowserSupportFlagEmojis } from "../../utils/emojiSupport";
 import { loadYouTubeIframeAPI } from "../../utils/youtube";
 import "../../styles/guessTheSong.css";
@@ -1000,27 +1000,17 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                         </div>
                       )}
 
-                      {showHostAnswerHint && (
+                      {showHostAnswerHint && displayRound && (
                         <div className="gts-dock-section gts-dock-section--host-hint">
                           <div className="gts-dock-section__title" style={{ color: sub }}>
                             Правильный ответ
                           </div>
-                          <div className="gts-answer-panel gts-answer-panel--host-hint">
-                            <div className="gts-answer-panel__top">
-                              <span className="gts-answer-panel__flag">
-                                {supportsEmoji && displayRound.flag_emoji ? displayRound.flag_emoji : "🎤"}
-                              </span>
-                              {displayRound.contest_type && (
-                                <span className="gts-answer-panel__type">{contestTypeLabel(displayRound.contest_type)}</span>
-                              )}
-                            </div>
-                            <p className="gts-answer-panel__artist">{displayRound.artist}</p>
-                            <p className="gts-answer-panel__song">{displayRound.song}</p>
-                            <p className="gts-answer-panel__meta">
-                              {displayRound.country_name}
-                              {displayRound.year ? ` · ${displayRound.year}` : ""}
-                            </p>
-                          </div>
+                          <GameRevealAnswerCard
+                            round={displayRound}
+                            theme={theme}
+                            supportsEmoji={supportsEmoji}
+                            variant="hint"
+                          />
                         </div>
                       )}
 
@@ -1076,28 +1066,13 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                         </div>
                       )}
 
-                      {showRevealInfo && (
+                      {showRevealInfo && displayRound && (
                         <div className="gts-dock-section gts-dock-section--answer">
-                          <div className="gts-answer-panel">
-                            <div className="gts-answer-panel__top">
-                              <span className="gts-answer-panel__flag">
-                                {supportsEmoji && displayRound.flag_emoji ? displayRound.flag_emoji : "🎤"}
-                              </span>
-                              {displayRound.contest_type && (
-                                <span className="gts-answer-panel__type">{contestTypeLabel(displayRound.contest_type)}</span>
-                              )}
-                            </div>
-                            <p className="gts-answer-panel__artist">{displayRound.artist}</p>
-                            <p className="gts-answer-panel__song">{displayRound.song}</p>
-                            <p className="gts-answer-panel__meta">
-                              {displayRound.country_name}
-                              {displayRound.year ? ` · ${displayRound.year}` : ""}
-                            </p>
-                          </div>
-                          <GameContestScoresFeed
-                            scores={displayRound.contest_scores ?? []}
+                          <GameRevealAnswerCard
+                            round={displayRound}
                             theme={theme}
-                            compact
+                            supportsEmoji={supportsEmoji}
+                            variant="reveal"
                           />
                         </div>
                       )}

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
-import { Camera, Check, ChevronDown, GitCompare, Loader2, Pencil, Search, Star, Trash2, X } from "lucide-react";
+import { Camera, Check, ChevronDown, GitCompare, Heart, Loader2, Pencil, Search, Star, Trash2, X } from "lucide-react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
 import {
@@ -22,6 +22,9 @@ import { applyAuthSession } from "../utils/jwt";
 import { UserAvatar } from "./UserAvatar";
 import { AvatarCropModal } from "./AvatarCropModal";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
+import { FavoriteButton } from "./FavoriteButton";
+import { fetchFavoritePerformances, type FavoritePerformance } from "../api/favorites";
+import { useFavorites } from "../hooks/useFavorites";
 
 type Country = {
     id: string;
@@ -425,6 +428,11 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     const [compareData, setCompareData] = useState<ScoreFiltered[]>([]);
     const [compareLoading, setCompareLoading] = useState(false);
 
+    const [profileTab, setProfileTab] = useState<"ratings" | "favorites">("ratings");
+    const [favorites, setFavorites] = useState<FavoritePerformance[]>([]);
+    const [favoritesLoading, setFavoritesLoading] = useState(false);
+    const { favoriteIds } = useFavorites();
+
 
     const [isDesktop, setIsDesktop] = useState(window.innerWidth >= 1024);
 
@@ -445,6 +453,11 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
     useEffect(() => {
         load();
     }, [userId, selectedCountry, selectedYear, sort === "time" ? "time" : "score"]);
+
+    useEffect(() => {
+        if (profileTab !== "favorites") return;
+        void loadFavorites();
+    }, [profileTab, userId, favoriteIds]);
 
     useEffect(() => {
         if (!compareUser) {
@@ -504,6 +517,17 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
         const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
         const json = await res.json();
         return Array.isArray(json) ? json : [];
+    }
+
+    async function loadFavorites() {
+        setFavoritesLoading(true);
+        try {
+            setFavorites(await fetchFavoritePerformances(userId));
+        } catch {
+            setFavorites([]);
+        } finally {
+            setFavoritesLoading(false);
+        }
     }
 
     async function load() {
@@ -1060,12 +1084,12 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                 <div
                     style={{
                         display: "grid",
-                        gridTemplateColumns: isDesktop ? "minmax(260px, 300px) 1fr" : "1fr",
+                        gridTemplateColumns: isDesktop && profileTab === "ratings" ? "minmax(260px, 300px) 1fr" : "1fr",
                         gap: isDesktop ? 28 : 20,
                         alignItems: "start",
                     }}
                 >
-                    {/* Filters sidebar */}
+                    {profileTab === "ratings" && (
                     <aside
                         style={{
                             position: isDesktop ? "sticky" : "static",
@@ -1212,6 +1236,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             </div>
                         </div>
                     </aside>
+                    )}
 
                     {/* Main content */}
                     <main>
@@ -1225,9 +1250,56 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                 flexWrap: "wrap",
                             }}
                         >
-                            <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>
-                                Оценки
-                            </h2>
+                            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setProfileTab("ratings");
+                                        setCompareOpen(false);
+                                        setCompareUser(null);
+                                    }}
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "8px 14px",
+                                        borderRadius: 999,
+                                        border: profileTab === "ratings" ? "none" : btnBorder,
+                                        background: profileTab === "ratings" ? accentSolid : btnGhostBg,
+                                        color: profileTab === "ratings" ? "#fff" : textColor,
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Оценки
+                                </button>
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        setProfileTab("favorites");
+                                        setCompareOpen(false);
+                                        setCompareUser(null);
+                                    }}
+                                    style={{
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: 6,
+                                        padding: "8px 14px",
+                                        borderRadius: 999,
+                                        border: profileTab === "favorites" ? "none" : btnBorder,
+                                        background: profileTab === "favorites" ? accentSolid : btnGhostBg,
+                                        color: profileTab === "favorites" ? "#fff" : textColor,
+                                        fontSize: 13,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    <Heart size={15} fill={profileTab === "favorites" ? "currentColor" : "none"} />
+                                    Избранное
+                                </button>
+                            </div>
+                            {profileTab === "ratings" && (
                             <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
                                 <button
                                     type="button"
@@ -1271,9 +1343,10 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                     </span>
                                 )}
                             </div>
+                            )}
                         </div>
 
-                        {compareOpen && (
+                        {profileTab === "ratings" && compareOpen && (
                             <div
                                 style={{
                                     marginBottom: 16,
@@ -1310,7 +1383,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             </div>
                         )}
 
-                        {!loading && !compareLoading && displayEntries.length === 0 && (
+                        {profileTab === "ratings" && !loading && !compareLoading && displayEntries.length === 0 && (
                             <div
                                 style={{
                                     padding: "48px 24px",
@@ -1328,6 +1401,128 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             </div>
                         )}
 
+                        {profileTab === "favorites" && !favoritesLoading && favorites.length === 0 && (
+                            <div
+                                style={{
+                                    padding: "48px 24px",
+                                    textAlign: "center",
+                                    borderRadius: 20,
+                                    background: surfaceBg,
+                                    border: surfaceBorder,
+                                }}
+                            >
+                                <Heart size={40} strokeWidth={1.5} color={subTextColor} style={{ marginBottom: 12, opacity: 0.5 }} />
+                                <p style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>Пока нет избранного</p>
+                                <p style={{ margin: "8px 0 0", color: subTextColor, fontSize: 14 }}>
+                                    {isOwnProfile
+                                        ? "Добавляйте песни с карточек конкурса, из оценок или из игры"
+                                        : "Пользователь ещё ничего не сохранил"}
+                                </p>
+                            </div>
+                        )}
+
+                        {profileTab === "favorites" && favoritesLoading && (
+                            <div style={{ textAlign: "center", padding: 40, color: subTextColor }}>
+                                <Loader2 size={28} className="ev-spin" />
+                            </div>
+                        )}
+
+                        {profileTab === "favorites" && !favoritesLoading && favorites.length > 0 && (
+                            <div
+                                style={{
+                                    ...styles.list,
+                                    gridTemplateColumns: `repeat(auto-fill, minmax(${isDesktop ? "320px" : "min(100%, 280px)"}, 1fr))`,
+                                }}
+                            >
+                                {favorites.map((item) => {
+                                    const youtubeId = item.YoutubeLink ? getYouTubeId(item.YoutubeLink) : null;
+                                    const isSemifinal = item.ContestType?.includes("semifinal");
+                                    const hasPlace = item.Place !== undefined && item.Place !== null && item.Place !== 0;
+                                    const isQualified = item.Qualified === true;
+
+                                    return (
+                                        <div
+                                            key={item.PerformanceID}
+                                            style={{ ...styles.card, background: baseCardBg, border: baseCardBorder }}
+                                        >
+                                            <div style={styles.cardMain}>
+                                                <div style={styles.meta}>
+                                                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                                                        <div style={{ ...styles.contestTag, color: contestTagColor }}>
+                                                            {item.ContestYear} • {formatContestType(item.ContestType)}
+                                                        </div>
+                                                        {isOwnProfile && (
+                                                            <FavoriteButton performanceId={item.PerformanceID} size={16} theme={theme} />
+                                                        )}
+                                                    </div>
+                                                    <div style={styles.countryRow}>
+                                                        {supportsEmoji && item.FlagEmoji && (
+                                                            <span style={styles.flagLarge}>{item.FlagEmoji}</span>
+                                                        )}
+                                                        <div style={{ ...styles.countryName, color: textColor, wordBreak: "break-word" }}>
+                                                            {item.CountryName}
+                                                        </div>
+                                                    </div>
+                                                    <div style={{ ...styles.artistInfo, color: subTextColor }}>
+                                                        <span style={{ ...styles.artist, color: artistColor }}>{item.Artist}</span>
+                                                        <span style={styles.song}> — {item.Song}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {youtubeId && (
+                                                <div style={styles.mediaContainer}>
+                                                    <a href={item.YoutubeLink} target="_blank" rel="noreferrer" style={styles.thumbnailWrapper}>
+                                                        <img
+                                                            src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
+                                                            style={styles.thumbnailImg}
+                                                            alt=""
+                                                        />
+                                                        <div style={styles.playOverlay}>▶ YouTube</div>
+                                                    </a>
+                                                </div>
+                                            )}
+
+                                            {(hasPlace || isSemifinal) && (
+                                                <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "auto", paddingTop: 12, borderTop: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)" }}>
+                                                    {hasPlace && item.Place != null && (
+                                                        <span style={{
+                                                            padding: "4px 12px",
+                                                            borderRadius: 10,
+                                                            fontSize: 13,
+                                                            fontWeight: 800,
+                                                            textTransform: "uppercase",
+                                                            ...(item.Place === 1 ? { background: "#facc15", color: "#000" } :
+                                                                item.Place === 2 ? { background: "#94a3b8", color: "#fff" } :
+                                                                item.Place === 3 ? { background: "#d97706", color: "#fff" } :
+                                                                { background: isLight ? "#1f2937" : isGray ? "#374151" : "#4f7cff", color: "#fff" })
+                                                        }}>
+                                                            {item.Place <= 3 ? placeWords[item.Place] : `${item.Place} место`}
+                                                        </span>
+                                                    )}
+                                                    {isSemifinal && (
+                                                        <span style={{
+                                                            padding: "4px 12px",
+                                                            borderRadius: 10,
+                                                            fontSize: 13,
+                                                            fontWeight: 800,
+                                                            textTransform: "uppercase",
+                                                            ...(isQualified
+                                                                ? { background: "rgba(34, 197, 94, 0.15)", color: isLight ? "#166534" : "#4ade80", border: "1px solid rgba(34, 197, 94, 0.3)" }
+                                                                : { background: "rgba(239, 68, 68, 0.15)", color: isLight ? "#991b1b" : "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)" })
+                                                        }}>
+                                                            {isQualified ? "В финале" : "Не прошла"}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+
+                        {profileTab === "ratings" && (
                         <div
                             style={{
                                 ...styles.list,
@@ -1374,8 +1569,13 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             <div key={rowKey} style={{ ...styles.card, background: itemCardBg, border: itemCardBorder }}>
                                 <div style={styles.cardMain}>
                                     <div style={styles.meta}>
-                                        <div style={{ ...styles.contestTag, color: contestTagColor }}>
-                                            {item.ContestYear} • {formatContestType(item.ContestType)}
+                                        <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
+                                            <div style={{ ...styles.contestTag, color: contestTagColor }}>
+                                                {item.ContestYear} • {formatContestType(item.ContestType)}
+                                            </div>
+                                            {isOwnProfile && item.PerformanceID && (
+                                                <FavoriteButton performanceId={item.PerformanceID} size={16} theme={theme} />
+                                            )}
                                         </div>
                                         <div style={styles.countryRow}>
                                             {supportsEmoji && country?.flag_emoji && (
@@ -1492,6 +1692,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                         );
                     })}
                         </div>
+                        )}
                     </main>
                 </div>
             </div>

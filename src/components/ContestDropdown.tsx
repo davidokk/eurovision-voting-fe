@@ -4,9 +4,10 @@ type Props = {
   contests: ContestItem[];
   onSelect: (id: string) => void;
   theme?: Theme;
+  selectedContestId?: string | null;
 };
 
-export function ContestDropdown({ contests, onSelect, theme = "dark-blue" }: Props) {
+export function ContestDropdown({ contests, onSelect, theme = "dark-blue", selectedContestId }: Props) {
   const getBg = () => {
     if (theme === "light") return "rgba(255, 255, 255, 0.98)";
     if (theme === "dark-gray") return "rgba(28, 28, 28, 0.98)";
@@ -31,94 +32,50 @@ export function ContestDropdown({ contests, onSelect, theme = "dark-blue" }: Pro
     return "rgba(79, 124, 255, 0.15)";
   };
 
-  const getYearPillStyle = () => {
-    if (theme === "light") {
-      return {
-        background: "rgba(0, 0, 0, 0.06)",
-        color: "#374151",
-        border: "1px solid rgba(0, 0, 0, 0.1)",
-      };
-    }
-    if (theme === "dark-gray") {
-      return {
-        background: "rgba(255, 255, 255, 0.08)",
-        color: "#9ca3af",
-        border: "1px solid rgba(255, 255, 255, 0.15)",
-      };
-    }
-    return {
-      background: "rgba(79, 124, 255, 0.1)",
-      color: "#7aa2ff",
-      border: "1px solid rgba(79, 124, 255, 0.15)",
-    };
+  const getActiveBg = () => {
+    if (theme === "light") return "rgba(79, 70, 229, 0.1)";
+    if (theme === "dark-gray") return "rgba(255, 255, 255, 0.08)";
+    return "rgba(79, 124, 255, 0.18)";
+  };
+
+  const getActiveColor = () => {
+    if (theme === "light") return "#4f46e5";
+    if (theme === "dark-gray") return "#e5e7eb";
+    return "#7aa2ff";
   };
 
   return (
     <div
+      className="ev-contest-dropdown"
       style={{
-        position: "absolute",
-        top: "calc(100% + 8px)",
-        left: 0,
-        minWidth: 220,
         background: getBg(),
-        backdropFilter: "blur(24px)",
-        WebkitBackdropFilter: "blur(24px)",
         border: getBorder(),
-        borderRadius: 16,
-        padding: 6,
-        zIndex: 3500,
-        boxShadow: theme === "light" 
-          ? "0 10px 30px rgba(0,0,0,0.1)" 
-          : "0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(79, 124, 255, 0.08), inset 0 1px rgba(255, 255, 255, 0.06)",
-        display: "flex",
-        flexDirection: "column",
-        gap: 4,
+        boxShadow:
+          theme === "light"
+            ? "0 10px 30px rgba(0,0,0,0.1)"
+            : "0 20px 60px rgba(0, 0, 0, 0.5), 0 0 40px rgba(79, 124, 255, 0.08), inset 0 1px rgba(255, 255, 255, 0.06)",
       }}
     >
       {contests.map((c) => {
-        const pillStyle = getYearPillStyle();
+        const isActive = selectedContestId === c.id;
         return (
           <button
             key={c.id}
+            type="button"
             onClick={() => onSelect(c.id)}
+            className={`ev-contest-dropdown__item${isActive ? " ev-contest-dropdown__item--active" : ""}`}
+            style={{
+              color: isActive ? getActiveColor() : getTextColor(),
+              background: isActive ? getActiveBg() : "transparent",
+            }}
             onMouseEnter={(e) => {
-              e.currentTarget.style.background = getHoverBg();
+              if (!isActive) e.currentTarget.style.background = getHoverBg();
             }}
             onMouseLeave={(e) => {
-              e.currentTarget.style.background = "transparent";
-            }}
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              width: "100%",
-              padding: "12px 16px",
-              border: "none",
-              borderRadius: 12,
-              background: "transparent",
-              color: getTextColor(),
-              cursor: "pointer",
-              fontSize: 14,
-              fontWeight: 600,
-              transition: "background 0.2s ease",
+              if (!isActive) e.currentTarget.style.background = "transparent";
             }}
           >
-            <span style={{ letterSpacing: "0.01em", flex: 1, textAlign: "left" }}>
-              {c.type}
-            </span>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                padding: "3px 10px",
-                borderRadius: 8,
-                flexShrink: 0,
-                marginLeft: 12,
-                ...pillStyle,
-              }}
-            >
-              {c.year}
-            </span>
+            {c.type}
           </button>
         );
       })}

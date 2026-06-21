@@ -49,3 +49,8 @@ export function catalogToPlaylistEntries(
   }
   return entries;
 }
+
+export function isCatalogPerformanceId(id?: string | null): boolean {
+  if (!id) return false;
+  return !id.startsWith("yt:");
+}

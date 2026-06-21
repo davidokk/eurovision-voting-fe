@@ -173,6 +173,9 @@ function preserveRound(prev: GameRoomView, next: GameRoomView): GameRoundView | 
     flag_emoji: revealed ? next.round?.flag_emoji ?? prev.round.flag_emoji : undefined,
     year: revealed ? next.round?.year ?? prev.round.year : undefined,
     contest_scores: next.round?.contest_scores ?? (revealed ? prev.round.contest_scores : undefined),
+    total_score: revealed ? next.round?.total_score ?? prev.round.total_score : undefined,
+    qualified: revealed ? next.round?.qualified ?? prev.round.qualified : undefined,
+    place: revealed ? next.round?.place ?? prev.round.place : undefined,
   };
 }
 

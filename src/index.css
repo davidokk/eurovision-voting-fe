@@ -64,3 +64,83 @@ html, body, #root {
 .ev-spin {
   animation: ev-spin 1s linear infinite;
 }
+
+.ev-favorite-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.15s ease, color 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+
+.ev-favorite-btn[data-theme="dark-blue"] {
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.72);
+}
+
+.ev-favorite-btn[data-theme="dark-gray"] {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(229, 231, 235, 0.75);
+}
+
+.ev-favorite-btn[data-theme="light"] {
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(0, 0, 0, 0.04);
+  color: rgba(15, 23, 42, 0.55);
+}
+
+.ev-favorite-btn[data-theme="dark-blue"]:hover:not(:disabled),
+.ev-favorite-btn[data-theme="dark-gray"]:hover:not(:disabled) {
+  transform: scale(1.05);
+  color: #f472b6;
+  border-color: rgba(244, 114, 182, 0.45);
+  background: rgba(244, 114, 182, 0.12);
+}
+
+.ev-favorite-btn[data-theme="light"]:hover:not(:disabled) {
+  transform: scale(1.05);
+  color: #db2777;
+  border-color: rgba(219, 39, 119, 0.35);
+  background: rgba(219, 39, 119, 0.08);
+}
+
+.ev-favorite-btn--active[data-theme="dark-blue"],
+.ev-favorite-btn--active[data-theme="dark-gray"] {
+  color: #f472b6;
+  border-color: rgba(244, 114, 182, 0.5);
+  background: rgba(244, 114, 182, 0.16);
+}
+
+.ev-favorite-btn--active[data-theme="light"] {
+  color: #db2777;
+  border-color: rgba(219, 39, 119, 0.4);
+  background: rgba(219, 39, 119, 0.1);
+}
+
+.ev-favorite-btn:disabled {
+  opacity: 0.55;
+  cursor: wait;
+}
+
+.ev-favorite-btn--bar {
+  width: 100%;
+  height: auto;
+  min-height: 40px;
+  padding: 10px 14px;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: 10px;
+  justify-content: center;
+}
+
+.ev-favorite-btn__label {
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}

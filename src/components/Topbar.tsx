@@ -7,6 +7,7 @@ import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
 import { applyAuthSession } from "../utils/jwt";
+import "../styles/topbar.css";
 
 type Props = {
   contests: ContestsByYear;
@@ -188,16 +189,28 @@ function UserAccountMenu({
   );
 }
 
+function resolveSelectedYear(contests: ContestsByYear, selectedContestId: string | null) {
+  if (!selectedContestId) return null;
+  for (const [year, items] of Object.entries(contests)) {
+    if (items.some((c) => c.id === selectedContestId)) return year;
+  }
+  return null;
+}
+
 export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Props) {
-  const [openYear, setOpenYear] = useState<string | null>(null);
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [guestThemeOpen, setGuestThemeOpen] = useState(false);
+  const [openYear, setOpenYear] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [selectedContestId, setSelectedContestId] = useState<string | null>(
+    () => localStorage.getItem("selectedContestId")
+  );
 
   const userMenuRef = useRef<HTMLDivElement>(null);
   const guestThemeRef = useRef<HTMLDivElement>(null);
+  const contestPickerRef = useRef<HTMLDivElement>(null);
 
   const [token, setToken] = useState<string | null>(null);
   const [username, setUsername] = useState<string | null>(null);
@@ -209,6 +222,11 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
     setUsername(localStorage.getItem("username"));
     setUserId(localStorage.getItem("user_id"));
   }
+
+  useEffect(() => {
+    const savedId = localStorage.getItem("selectedContestId");
+    setSelectedContestId(savedId);
+  }, [contests]);
 
   useEffect(() => {
     syncAuthFromStorage();
@@ -238,6 +256,20 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  useEffect(() => {
+    if (!openYear) return;
+
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (contestPickerRef.current && !contestPickerRef.current.contains(target)) {
+        setOpenYear(null);
+      }
+    };
+
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [openYear]);
 
   useEffect(() => {
     if (!userMenuOpen && !guestThemeOpen) return;
@@ -319,6 +351,16 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
     isGray,
   };
 
+  function selectContest(id: string) {
+    onSelectContest(id);
+    localStorage.setItem("selectedContestId", id);
+    setSelectedContestId(id);
+    setOpenYear(null);
+  }
+
+  const selectedYear = resolveSelectedYear(contests, selectedContestId);
+  const contestYears = Object.keys(contests).sort((a, b) => Number(a) - Number(b));
+
   const guestThemeMenu = guestThemeOpen && (
     <UserAccountMenu
       theme={theme}
@@ -334,47 +376,32 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   return (
     <>
       <div
+        className={`ev-topbar${isMobile ? " ev-topbar--mobile" : ""}`}
         style={{
-          height: 68,
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          padding: isMobile ? "0 16px" : "0 24px",
           background: topbarBg,
-          backdropFilter: "blur(24px)",
-          WebkitBackdropFilter: "blur(24px)",
           borderBottom: `1px solid ${borderColor}`,
           color: textColor,
           boxShadow: isLight ? "0 4px 20px rgba(0,0,0,0.05)" : "0 4px 30px rgba(0, 0, 0, 0.3)",
-          position: "relative",
-          zIndex: 3000,
+          // @ts-expect-error css variables
+          "--ev-topbar-border": borderColor,
+          "--ev-topbar-text": textColor,
+          "--ev-topbar-sub": subTextColor,
+          "--ev-topbar-chip-bg": btnBg,
+          "--ev-topbar-hover": btnHoverBg,
+          "--ev-topbar-accent": activeColor,
+          "--ev-topbar-accent-border": isLight ? "rgba(79, 70, 229, 0.35)" : "rgba(79, 124, 255, 0.45)",
         }}
       >
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            marginRight: isMobile ? 0 : 24,
-            flexShrink: 0,
-          }}
-        >
+        <div className="ev-topbar__brand">
           <img
             src="https://www.eurovision.com/static/images/70-heart-sm@2x.c3d0a545227c.webp"
             alt="Eurovision"
-            style={{
-              width: 28,
-              height: 28,
-              objectFit: "contain",
-              filter: "drop-shadow(0 2px 8px rgba(79, 124, 255, 0.3))",
-            }}
+            className="ev-topbar__logo"
           />
           {!isMobile && (
             <span
+              className="ev-topbar__title"
               style={{
-                fontSize: 16,
-                fontWeight: 1000,
-                letterSpacing: "0.12em",
                 background: isLight
                   ? "linear-gradient(135deg, #1f2937, #4b5563)"
                   : "linear-gradient(135deg, #4f7cff, #a78bfa)",
@@ -400,122 +427,63 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
           >
             <button
               type="button"
+              className="ev-topbar__menu-btn"
               onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "center",
-                alignItems: "center",
-                width: 40,
-                height: 40,
-                gap: 5,
-                border: `1px solid ${borderColor}`,
-                borderRadius: 12,
-                background: btnBg,
-                cursor: "pointer",
-                padding: 0,
-              }}
+              aria-label="Меню конкурсов"
             >
               <span
-                style={{
-                  display: "block",
-                  width: 18,
-                  height: 2,
-                  background: textColor,
-                  borderRadius: 2,
-                  transition: "all 0.3s ease",
-                  transform: mobileMenuOpen ? "rotate(45deg) translate(5px, 5px)" : "none",
-                }}
+                className={`ev-topbar__menu-line${mobileMenuOpen ? " ev-topbar__menu-line--open-top" : ""}`}
               />
               <span
-                style={{
-                  display: "block",
-                  width: 18,
-                  height: 2,
-                  background: textColor,
-                  borderRadius: 2,
-                  transition: "all 0.3s ease",
-                  opacity: mobileMenuOpen ? 0 : 1,
-                }}
+                className={`ev-topbar__menu-line${mobileMenuOpen ? " ev-topbar__menu-line--open-mid" : ""}`}
               />
               <span
-                style={{
-                  display: "block",
-                  width: 18,
-                  height: 2,
-                  background: textColor,
-                  borderRadius: 2,
-                  transition: "all 0.3s ease",
-                  transform: mobileMenuOpen ? "rotate(-45deg) translate(5px, -5px)" : "none",
-                }}
+                className={`ev-topbar__menu-line${mobileMenuOpen ? " ev-topbar__menu-line--open-bot" : ""}`}
               />
             </button>
           </div>
         )}
 
-        {!isMobile && (
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              gap: 8,
-              alignItems: "center",
-            }}
-          >
-            {Object.entries(contests).map(([year, items]) => (
-              <div key={year} style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => setOpenYear(openYear === year ? null : year)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: "10px 16px",
-                    borderRadius: 14,
-                    border: `1px solid ${openYear === year ? activeColor : borderColor}`,
-                    background: openYear === year ? btnHoverBg : btnBg,
-                    color: openYear === year ? activeColor : subTextColor,
-                    cursor: "pointer",
-                    fontSize: 14,
-                    fontWeight: 700,
-                    transition: "all 0.2s ease",
-                  }}
-                >
-                  {year}
-                  <span
-                    style={{
-                      fontSize: 10,
-                      opacity: 0.5,
-                      transform: openYear === year ? "rotate(180deg)" : "rotate(0deg)",
+        {!isMobile && contestYears.length > 0 && (
+          <div ref={contestPickerRef} className="ev-topbar__picker" aria-label="Выбор конкурса">
+            {contestYears.map((year) => {
+              const items = contests[year] ?? [];
+              const isOpen = openYear === year;
+              const isSelected = selectedYear === year;
+              return (
+                <div key={year} className={`ev-topbar__year-wrap${isOpen ? " ev-topbar__year-wrap--open" : ""}`}>
+                  <button
+                    type="button"
+                    className={`ev-topbar__year-btn${isOpen ? " ev-topbar__year-btn--open" : ""}${isSelected ? " ev-topbar__year-btn--selected" : ""}`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setOpenYear(isOpen ? null : year);
                     }}
+                    aria-expanded={isOpen}
                   >
-                    ▾
-                  </span>
-                </button>
-
-                {openYear === year && (
-                  <ContestDropdown
-                    theme={theme}
-                    contests={items.map((c) => ({
-                      ...c,
-                      type: translateContestType(c.type),
-                    }))}
-                    onSelect={(id) => {
-                      onSelectContest(id);
-                      localStorage.setItem("selectedContestId", id);
-                      setOpenYear(null);
-                    }}
-                  />
-                )}
-              </div>
-            ))}
+                    {year}
+                    <span className="ev-topbar__year-chevron" aria-hidden>
+                      ▾
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <ContestDropdown
+                      theme={theme}
+                      selectedContestId={selectedContestId}
+                      contests={items.map((c) => ({
+                        ...c,
+                        type: translateContestType(c.type),
+                      }))}
+                      onSelect={selectContest}
+                    />
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
-        <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+        <div className="ev-topbar__actions">
           <a
             href="/game"
             title="Угадай песню"
@@ -728,38 +696,24 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
                 <Music2 size={18} />
                 Угадай песню
               </a>
-              {Object.entries(contests).map(([year, items]) => (
+              {Object.entries(contests)
+                .sort(([a], [b]) => Number(a) - Number(b))
+                .map(([year, items]) => (
                 <div key={year} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div
-                    style={{
-                      fontSize: 20,
-                      fontWeight: 900,
-                      color: activeColor,
-                      letterSpacing: "0.05em",
-                      marginBottom: 4,
-                    }}
-                  >
-                    {year}
-                  </div>
+                  <div className="ev-topbar-mobile-drawer__year">{year}</div>
                   {items.map((c) => (
                     <button
                       key={c.id}
                       type="button"
                       onClick={() => {
-                        onSelectContest(c.id);
-                        localStorage.setItem("selectedContestId", c.id);
+                        selectContest(c.id);
                         setMobileMenuOpen(false);
                       }}
+                      className="ev-topbar-mobile-drawer__stage"
                       style={{
-                        padding: "12px 16px",
-                        border: `1px solid ${borderColor}`,
-                        borderRadius: 14,
-                        background: btnBg,
-                        color: textColor,
-                        cursor: "pointer",
-                        fontSize: 14,
-                        fontWeight: 600,
-                        textAlign: "left",
+                        borderColor: selectedContestId === c.id ? activeColor : borderColor,
+                        background: selectedContestId === c.id ? btnHoverBg : btnBg,
+                        color: selectedContestId === c.id ? activeColor : textColor,
                       }}
                     >
                       {translateContestType(c.type)}

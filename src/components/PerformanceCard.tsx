@@ -19,6 +19,7 @@ function getYouTubeId(url: string) {
 
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { getScoreColor, isScoreTwelve } from "../utils/scoreUtils";
+import { FavoriteButton } from "./FavoriteButton";
 
 export function PerformanceCard({
   performance,
@@ -180,6 +181,10 @@ export function PerformanceCard({
           >
             ОЦЕНИТЬ
           </button>
+        )}
+
+        {token && (
+          <FavoriteButton performanceId={performance.performance_id} size={20} theme={theme} />
         )}
       </div>
 
