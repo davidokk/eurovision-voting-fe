@@ -86,7 +86,7 @@ function plural(value: number, one: string, few: string, many: string) {
     return many;
 }
 
-function viewModeBtnStyle(active: boolean, isLight: boolean, isGray: boolean): CSSProperties {
+function viewModeBtnStyle(active: boolean, isLight: boolean): CSSProperties {
     return {
         padding: "10px 12px",
         borderRadius: 10,
@@ -883,8 +883,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                         }}
                                         style={viewModeBtnStyle(
                                             scoresViewMode === opt.mode,
-                                            isLight,
-                                            isGray
+                                            isLight
                                         )}
                                     >
                                         <span aria-hidden>{opt.icon}</span>
