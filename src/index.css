@@ -144,3 +144,14 @@ html, body, #root {
   line-height: 1.2;
   letter-spacing: 0.01em;
 }
+
+@keyframes ev-chat-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}

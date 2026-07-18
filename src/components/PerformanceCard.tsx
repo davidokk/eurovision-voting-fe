@@ -10,6 +10,8 @@ type Props = {
   theme?: Theme;
   contestType?: string;
   onRated?: () => void | Promise<void>;
+  /** Первое выступление без оценки текущего пользователя (очередь голосования) */
+  awaitingRating?: boolean;
 };
 
 function getYouTubeId(url: string) {
@@ -28,6 +30,7 @@ export function PerformanceCard({
   theme = "dark-blue",
   contestType,
   onRated,
+  awaitingRating = false,
 }: Props) {
   const token = localStorage.getItem("token");
   const myUsername = localStorage.getItem("username");
@@ -156,6 +159,31 @@ export function PerformanceCard({
                       : { background: "rgba(239, 68, 68, 0.15)", color: isLight ? "#991b1b" : "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)" })
                 }}>
                   {performance.qualified ? "В финале" : "Не прошла"}
+                </span>
+              )}
+
+              {awaitingRating && votingStarted && !votingEnded && (
+                <span
+                  style={{
+                    padding: "2px 8px",
+                    borderRadius: 6,
+                    fontSize: 11,
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.02em",
+                    background: isLight
+                      ? "rgba(245, 158, 11, 0.18)"
+                      : "rgba(255, 209, 102, 0.2)",
+                    color: isLight ? "#b45309" : "#ffd166",
+                    border: isLight
+                      ? "1px solid rgba(245, 158, 11, 0.35)"
+                      : "1px solid rgba(255, 209, 102, 0.4)",
+                    boxShadow: isLight
+                      ? "none"
+                      : "0 0 12px rgba(255, 209, 102, 0.2)",
+                  }}
+                >
+                  Ожидает оценки сейчас
                 </span>
               )}
 

@@ -5,6 +5,7 @@ import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { RatePerformanceModal } from "./RatePerformanceModal";
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { isScoreTwelve } from "../utils/scoreUtils";
+import { useNarrowScreen } from "./scores/useNarrowScreen";
 
 type Props = {
   performances: PerformanceWithScores[];
@@ -71,6 +72,7 @@ export function ScoresTableView({
   const myUsername = localStorage.getItem("username");
   const myUserId = localStorage.getItem("user_id");
   const token = localStorage.getItem("token");
+  const isNarrow = useNarrowScreen(720);
 
   /** null = порядок выступлений (performance.number) */
   const [activeSort, setActiveSort] = useState<SortKey | null>(null);
@@ -179,6 +181,9 @@ export function ScoresTableView({
       left: rect.left + rect.width / 2,
       top: rect.top,
     });
+    if (typeof window !== "undefined" && window.matchMedia("(max-width: 720px)").matches) {
+      window.setTimeout(() => setTooltip(null), 2200);
+    }
   }
 
   function myScoreFor(p: PerformanceWithScores): ScoreView | undefined {
@@ -220,6 +225,339 @@ export function ScoresTableView({
     return (
       <div style={{ textAlign: "center", padding: 40, color: colors.empty }}>
         Нет выступлений
+      </div>
+    );
+  }
+
+  const sortBar = (
+    <div
+      style={{
+        display: "flex",
+        gap: 8,
+        padding: isNarrow ? "10px 12px" : "12px 16px",
+        borderBottom: `1px solid ${colors.border}`,
+        flexWrap: "wrap",
+        alignItems: "center",
+      }}
+    >
+      <span style={{ fontSize: 12, fontWeight: 700, color: colors.sub, marginRight: 4 }}>
+        Сортировка:
+      </span>
+      <button
+        type="button"
+        onClick={() => {
+          if (activeSort === null) return;
+          setActiveSort(null);
+          setSortDir("asc");
+        }}
+        style={chipStyle(activeSort === null, colors)}
+      >
+        Порядок
+      </button>
+      <button
+        type="button"
+        onClick={() => toggleSort({ kind: "avg" })}
+        style={chipStyle(activeSort?.kind === "avg", colors)}
+      >
+        Средний {activeSort?.kind === "avg" ? sortIndicator(true, sortDir) : ""}
+      </button>
+      <button
+        type="button"
+        onClick={() => toggleSort({ kind: "country" })}
+        style={chipStyle(activeSort?.kind === "country", colors)}
+      >
+        Страна {activeSort?.kind === "country" ? sortIndicator(true, sortDir) : ""}
+      </button>
+    </div>
+  );
+
+  if (isNarrow) {
+    return (
+      <div
+        style={{
+          maxWidth: 1200,
+          margin: "0 auto",
+          borderRadius: 16,
+          border: colors.wrapBorder,
+          background: colors.wrapBg,
+          backdropFilter: "blur(12px)",
+          overflow: "hidden",
+          boxShadow: isLight
+            ? "0 12px 40px rgba(0,0,0,0.06)"
+            : "0 12px 40px rgba(0,0,0,0.35)",
+        }}
+      >
+        {sortBar}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+          {sortedRows.map((row, ri) => {
+            const p = row.performance;
+            const mine = myScoreFor(p);
+            const rowBg = ri % 2 === 0 ? colors.cellBg : colors.cellAlt;
+            const scored = row.cells
+              .map((cell, ci) => (cell ? { user: users[ci], cell } : null))
+              .filter((x): x is { user: { user_id: string; username: string }; cell: ScoreView } => !!x);
+
+            return (
+              <div
+                key={p.performance_id}
+                style={{
+                  padding: "14px 14px 12px",
+                  background: rowBg,
+                  borderBottom: `1px solid ${colors.border}`,
+                }}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: 10,
+                    marginBottom: 10,
+                  }}
+                >
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <CountryTableCell
+                      performance={p}
+                      theme={theme}
+                      contestType={contestType}
+                      supportsEmoji={supportsEmoji}
+                      textColor={colors.text}
+                      subColor={colors.sub}
+                    />
+                  </div>
+                  <div
+                    style={{
+                      flexShrink: 0,
+                      textAlign: "right",
+                      minWidth: 56,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: colors.sub,
+                        textTransform: "uppercase",
+                        letterSpacing: "0.04em",
+                        marginBottom: 2,
+                      }}
+                    >
+                      Средний
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 20,
+                        fontWeight: 900,
+                        color: colors.accent,
+                        lineHeight: 1.1,
+                      }}
+                    >
+                      {formatAvg(row.avg)}
+                    </div>
+                  </div>
+                </div>
+
+                {showMyColumn && (
+                  <div
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      gap: 10,
+                      padding: "8px 10px",
+                      borderRadius: 10,
+                      background: colors.myColBg,
+                      marginBottom: scored.length > 0 ? 10 : 0,
+                    }}
+                  >
+                    <span style={{ fontSize: 12, fontWeight: 700, color: colors.sub }}>
+                      Моя оценка
+                    </span>
+                    {canVote ? (
+                      mine ? (
+                        <button
+                          type="button"
+                          onClick={() => openRateModal(p)}
+                          style={{
+                            border: "none",
+                            background: "transparent",
+                            cursor: "pointer",
+                            fontWeight: 800,
+                            fontSize: 15,
+                            color: isLight ? "#d97706" : "#ffd166",
+                          }}
+                        >
+                          <ScoreTwelveDisplay
+                            score={mine.score}
+                            variant="cell"
+                            prefix={isScoreTwelve(mine.score) ? undefined : "⭐ "}
+                            style={
+                              !isScoreTwelve(mine.score)
+                                ? { color: isLight ? "#d97706" : "#ffd166" }
+                                : undefined
+                            }
+                          />
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => openRateModal(p)}
+                          style={{
+                            border: "none",
+                            borderRadius: 8,
+                            padding: "5px 12px",
+                            fontSize: 12,
+                            fontWeight: 800,
+                            color: "#fff",
+                            cursor: "pointer",
+                            background: colors.rateBtn,
+                          }}
+                        >
+                          Оценить
+                        </button>
+                      )
+                    ) : mine ? (
+                      <span
+                        style={{
+                          fontWeight: 800,
+                          fontSize: 15,
+                          color: isLight ? "#d97706" : "#ffd166",
+                        }}
+                      >
+                        <ScoreTwelveDisplay
+                          score={mine.score}
+                          variant="cell"
+                          prefix={isScoreTwelve(mine.score) ? undefined : "⭐ "}
+                          style={
+                            !isScoreTwelve(mine.score)
+                              ? { color: isLight ? "#d97706" : "#ffd166" }
+                              : undefined
+                          }
+                        />
+                      </span>
+                    ) : (
+                      <span style={{ color: colors.empty }}>—</span>
+                    )}
+                  </div>
+                )}
+
+                {scored.length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      flexWrap: "wrap",
+                      gap: 6,
+                    }}
+                  >
+                    {scored.map(({ user, cell }) => (
+                      <button
+                        key={user.user_id}
+                        type="button"
+                        onClick={(e) => showTooltipForCell(e.currentTarget, cell)}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 8px",
+                          borderRadius: 8,
+                          border: `1px solid ${colors.border}`,
+                          background: isLight ? "rgba(0,0,0,0.03)" : "rgba(255,255,255,0.05)",
+                          color: colors.text,
+                          cursor: "pointer",
+                          fontSize: 12,
+                          fontWeight: 700,
+                          maxWidth: "100%",
+                        }}
+                      >
+                        <span
+                          style={{
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                            maxWidth: 88,
+                            color: colors.sub,
+                            fontWeight: 600,
+                          }}
+                        >
+                          {user.username}
+                        </span>
+                        <ScoreTwelveDisplay score={cell.score} variant="cell" />
+                      </button>
+                    ))}
+                  </div>
+                ) : (
+                  <div style={{ fontSize: 12, color: colors.empty }}>Пока нет оценок</div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        {tooltip &&
+          createPortal(
+            <div
+              style={{
+                position: "fixed",
+                left: tooltip.left,
+                top: tooltip.top,
+                transform: "translate(-50%, calc(-100% - 8px))",
+                maxWidth: 280,
+                padding: "10px 12px",
+                borderRadius: 10,
+                background: tooltipTheme.bg,
+                border: tooltipTheme.border,
+                boxShadow: tooltipTheme.shadow,
+                pointerEvents: "none",
+                zIndex: 10000,
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 800,
+                  fontSize: 14,
+                  color: tooltipTheme.score,
+                  marginBottom: tooltip.comment ? 6 : 0,
+                }}
+              >
+                <ScoreTwelveDisplay
+                  score={tooltip.score}
+                  variant="inline"
+                  prefix={isScoreTwelve(tooltip.score) ? undefined : "⭐ "}
+                  style={
+                    isScoreTwelve(tooltip.score)
+                      ? undefined
+                      : { fontWeight: 800, fontSize: 14, color: tooltipTheme.score }
+                  }
+                />
+              </div>
+              {tooltip.comment ? (
+                <div
+                  style={{
+                    fontSize: 12,
+                    lineHeight: 1.45,
+                    color: tooltipTheme.comment,
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {tooltip.comment}
+                </div>
+              ) : null}
+            </div>,
+            document.body
+          )}
+
+        {rateTarget && (
+          <RatePerformanceModal
+            performance={rateTarget}
+            theme={theme}
+            open
+            initialScore={myScoreFor(rateTarget)?.score ?? null}
+            initialComment={myScoreFor(rateTarget)?.comment ?? ""}
+            initialGifUrl={myScoreFor(rateTarget)?.gif_url ?? null}
+            onClose={() => setRateTarget(null)}
+            onSuccess={() => onRated?.()}
+          />
+        )}
       </div>
     );
   }
@@ -701,6 +1039,23 @@ function headerBtnStyle(
     fontWeight: 700,
     background: active ? colors.btnActive : colors.btnBg,
     color: active ? colors.accent : "inherit",
+    whiteSpace: "nowrap",
+  };
+}
+
+function chipStyle(
+  active: boolean,
+  colors: { btnBg: string; btnActive: string; accent: string; text: string }
+): CSSProperties {
+  return {
+    border: "none",
+    borderRadius: 999,
+    padding: "6px 12px",
+    cursor: "pointer",
+    fontSize: 12,
+    fontWeight: 700,
+    background: active ? colors.btnActive : colors.btnBg,
+    color: active ? colors.accent : colors.text,
     whiteSpace: "nowrap",
   };
 }

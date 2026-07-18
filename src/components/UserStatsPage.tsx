@@ -1011,69 +1011,132 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                             <div
                                 style={{
                                     display: "flex",
-                                    flexWrap: "wrap",
+                                    flexDirection: "column",
                                     gap: 12,
                                     marginTop: 20,
-                                    justifyContent: isDesktop ? "flex-start" : "center",
+                                    alignItems: isDesktop ? "stretch" : "center",
                                 }}
                             >
-                                {isComparing ? (
-                                    <>
+                                <div
+                                    style={{
+                                        display: "flex",
+                                        flexWrap: "wrap",
+                                        gap: 12,
+                                        width: "100%",
+                                        justifyContent: isDesktop ? "flex-start" : "center",
+                                    }}
+                                >
+                                    {isComparing ? (
+                                        <>
+                                            <StatCard
+                                                label={`Средняя · ${displayUsername ?? "профиль"}`}
+                                                value={`${formatAvg(avgScore)} ★`}
+                                                sub={`${filteredData.length} ${pluralRatings(filteredData.length)}`}
+                                                cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                                cardBorder={surfaceBorder}
+                                                labelColor={subTextColor}
+                                                accent={scoreValColor}
+                                            />
+                                            <StatCard
+                                                label={`Средняя · ${compareUser.username}`}
+                                                value={
+                                                    compareLoading
+                                                        ? "…"
+                                                        : `${formatAvg(compareAvgScore)} ★`
+                                                }
+                                                sub={
+                                                    compareLoading
+                                                        ? "Загрузка…"
+                                                        : `${compareFilteredData.length} ${pluralRatings(compareFilteredData.length)}`
+                                                }
+                                                cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                                cardBorder={surfaceBorder}
+                                                labelColor={subTextColor}
+                                                accent={scoreValColor}
+                                            />
+                                        </>
+                                    ) : (
                                         <StatCard
-                                            label={`Средняя · ${displayUsername ?? "профиль"}`}
+                                            label="Средняя оценка"
                                             value={`${formatAvg(avgScore)} ★`}
-                                            sub={`${filteredData.length} ${pluralRatings(filteredData.length)}`}
                                             cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
                                             cardBorder={surfaceBorder}
                                             labelColor={subTextColor}
                                             accent={scoreValColor}
                                         />
+                                    )}
+                                    <StatCard
+                                        label="В выборке"
+                                        value={String(filteredData.length)}
+                                        sub={pluralRatings(filteredData.length)}
+                                        cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
+                                        cardBorder={surfaceBorder}
+                                        labelColor={subTextColor}
+                                        accent={accent}
+                                    />
+                                    {isDesktop && participationYears.length > 0 && (
                                         <StatCard
-                                            label={`Средняя · ${compareUser.username}`}
-                                            value={
-                                                compareLoading
-                                                    ? "…"
-                                                    : `${formatAvg(compareAvgScore)} ★`
-                                            }
-                                            sub={
-                                                compareLoading
-                                                    ? "Загрузка…"
-                                                    : `${compareFilteredData.length} ${pluralRatings(compareFilteredData.length)}`
-                                            }
+                                            label="Участвовал в"
+                                            value={participationYears.join(" · ")}
                                             cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
                                             cardBorder={surfaceBorder}
                                             labelColor={subTextColor}
-                                            accent={scoreValColor}
+                                            accent={textColor}
                                         />
-                                    </>
-                                ) : (
-                                    <StatCard
-                                        label="Средняя оценка"
-                                        value={`${formatAvg(avgScore)} ★`}
-                                        cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
-                                        cardBorder={surfaceBorder}
-                                        labelColor={subTextColor}
-                                        accent={scoreValColor}
-                                    />
-                                )}
-                                <StatCard
-                                    label="В выборке"
-                                    value={String(filteredData.length)}
-                                    sub={pluralRatings(filteredData.length)}
-                                    cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
-                                    cardBorder={surfaceBorder}
-                                    labelColor={subTextColor}
-                                    accent={accent}
-                                />
-                                {participationYears.length > 0 && (
-                                    <StatCard
-                                        label="Участвовал в"
-                                        value={participationYears.join(" · ")}
-                                        cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
-                                        cardBorder={surfaceBorder}
-                                        labelColor={subTextColor}
-                                        accent={textColor}
-                                    />
+                                    )}
+                                </div>
+
+                                {!isDesktop && participationYears.length > 0 && (
+                                    <div
+                                        style={{
+                                            width: "100%",
+                                            textAlign: "center",
+                                            padding: "12px 16px",
+                                            borderRadius: 16,
+                                            background: isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)",
+                                            border: surfaceBorder,
+                                        }}
+                                    >
+                                        <div
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 800,
+                                                textTransform: "uppercase",
+                                                letterSpacing: "0.08em",
+                                                color: subTextColor,
+                                                marginBottom: 8,
+                                            }}
+                                        >
+                                            Участвовал в
+                                        </div>
+                                        <div
+                                            style={{
+                                                display: "flex",
+                                                flexWrap: "wrap",
+                                                gap: 8,
+                                                justifyContent: "center",
+                                            }}
+                                        >
+                                            {participationYears.map((year) => (
+                                                <span
+                                                    key={year}
+                                                    style={{
+                                                        padding: "6px 12px",
+                                                        borderRadius: 999,
+                                                        fontSize: 14,
+                                                        fontWeight: 800,
+                                                        color: textColor,
+                                                        background: isLight
+                                                            ? "rgba(0,0,0,0.05)"
+                                                            : "rgba(255,255,255,0.08)",
+                                                        border: surfaceBorder,
+                                                    }}
+                                                >
+                                                    {year}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
                                 )}
                             </div>
 

@@ -484,28 +484,30 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
         )}
 
         <div className="ev-topbar__actions">
-          <a
-            href="/game"
-            title="Угадай песню"
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-              padding: isMobile ? "8px 12px" : "10px 14px",
-              borderRadius: 14,
-              border: `1px solid ${borderColor}`,
-              background: window.location.pathname.startsWith("/game")
-                ? btnHoverBg
-                : btnBg,
-              color: window.location.pathname.startsWith("/game") ? activeColor : subTextColor,
-              textDecoration: "none",
-              fontSize: 14,
-              fontWeight: 700,
-            }}
-          >
-            <Music2 size={16} />
-            {!isMobile && <span>Игра</span>}
-          </a>
+          {!isMobile && (
+            <a
+              href="/game"
+              title="Угадай песню"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 6,
+                padding: "10px 14px",
+                borderRadius: 14,
+                border: `1px solid ${borderColor}`,
+                background: window.location.pathname.startsWith("/game")
+                  ? btnHoverBg
+                  : btnBg,
+                color: window.location.pathname.startsWith("/game") ? activeColor : subTextColor,
+                textDecoration: "none",
+                fontSize: 14,
+                fontWeight: 700,
+              }}
+            >
+              <Music2 size={16} />
+              <span>Игра</span>
+            </a>
+          )}
           {!token ? (
             <>
               <div ref={guestThemeRef} style={{ position: "relative" }}>

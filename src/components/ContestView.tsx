@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, startTransition } from "react";
 import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { useChatWebSocket } from "../hooks/useChatWebSocket";
 import { PerformanceCard } from "./PerformanceCard";
@@ -15,6 +15,7 @@ import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { isScoreSystemMessage } from "../utils/chatMessage";
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { isScoreTwelve } from "../utils/scoreUtils";
+import { LayoutGrid, Settings2 } from "lucide-react";
 
 type Props = {
     contest: ContestViewType | null;
@@ -38,8 +39,33 @@ type ChatMessage = {
     avatarUrl?: string;
 };
 
+type ChatToast = {
+    id: string;
+    username: string;
+    message: string;
+    avatarUrl?: string;
+    kind?: "chat" | "system";
+};
+
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 const WS_URL = (import.meta as any).env?.VITE_WS_URL || "";
+const SCORES_VIEW_KEY = "ev_scores_view_mode";
+const CHAT_VISIBLE_BATCH = 50;
+const chatSeenKey = (contestId: string) => `ev_chat_seen_${contestId}`;
+
+const VIEW_MODE_OPTIONS: { mode: ScoresViewMode; label: string; icon: string }[] = [
+    { mode: "cards", label: "Карточки", icon: "🃏" },
+    { mode: "table", label: "Таблица", icon: "📊" },
+    { mode: "leaderboard", label: "Рейтинг", icon: "🏆" },
+    { mode: "heatmap", label: "Heatmap", icon: "🌡" },
+    { mode: "order", label: "Порядок", icon: "📋" },
+];
+
+function readStoredViewMode(): ScoresViewMode {
+    const raw = localStorage.getItem(SCORES_VIEW_KEY);
+    if (VIEW_MODE_OPTIONS.some((o) => o.mode === raw)) return raw as ScoresViewMode;
+    return "cards";
+}
 
 function translateContestType(type: string) {
     switch (type) {
@@ -62,24 +88,21 @@ function plural(value: number, one: string, few: string, many: string) {
 
 function viewModeBtnStyle(active: boolean, isLight: boolean, isGray: boolean): CSSProperties {
     return {
-        padding: "8px 16px",
+        padding: "10px 12px",
         borderRadius: 10,
-        border: active
-            ? "1px solid rgba(79,124,255,0.5)"
-            : isLight
-              ? "1px solid rgba(0,0,0,0.1)"
-              : "1px solid rgba(255,255,255,0.12)",
+        border: "none",
         background: active
             ? "rgba(79,124,255,0.2)"
-            : isLight
-              ? "rgba(255,255,255,0.7)"
-              : isGray
-                ? "rgba(40,40,40,0.8)"
-                : "rgba(15,23,42,0.6)",
-        color: active ? (isLight ? "#3b5bdb" : "#93b4ff") : isLight ? "#475569" : "#cbd5e1",
+            : "transparent",
+        color: active ? (isLight ? "#3b5bdb" : "#93b4ff") : isLight ? "#334155" : "#e2e8f0",
         fontWeight: 700,
         fontSize: 13,
         cursor: "pointer",
+        textAlign: "left",
+        display: "flex",
+        alignItems: "center",
+        gap: 8,
+        width: "100%",
     };
 }
 
@@ -108,10 +131,21 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
     const [input, setInput] = useState("");
     const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
     const [uiReady, setUiReady] = useState(false);
-    const [scoresViewMode, setScoresViewMode] = useState<ScoresViewMode>("cards");
+    const [scoresViewMode, setScoresViewMode] = useState<ScoresViewMode>(readStoredViewMode);
+    const [viewMenuOpen, setViewMenuOpen] = useState(false);
+    const [unreadChatCount, setUnreadChatCount] = useState(0);
+    const [chatToasts, setChatToasts] = useState<ChatToast[]>([]);
+    const [chatHistoryExtra, setChatHistoryExtra] = useState(0);
+    const [chatContentReady, setChatContentReady] = useState(false);
 
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const contestRefreshTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const viewMenuRef = useRef<HTMLDivElement>(null);
+    const chatOpenRef = useRef(chatOpen);
+    const initialChatSyncDoneRef = useRef(false);
+    const knownMessageKeysRef = useRef<Set<string>>(new Set());
+
+    chatOpenRef.current = chatOpen;
 
     const scheduleContestRefresh = useCallback(() => {
         if (!onRefreshContest) return;
@@ -132,12 +166,78 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         };
     }, []);
 
+    useEffect(() => {
+        localStorage.setItem(SCORES_VIEW_KEY, scoresViewMode);
+    }, [scoresViewMode]);
+
+    useEffect(() => {
+        if (!viewMenuOpen) return;
+        const onDocClick = (e: MouseEvent) => {
+            if (viewMenuRef.current && !viewMenuRef.current.contains(e.target as Node)) {
+                setViewMenuOpen(false);
+            }
+        };
+        document.addEventListener("mousedown", onDocClick);
+        return () => document.removeEventListener("mousedown", onDocClick);
+    }, [viewMenuOpen]);
+
     const myUsername = localStorage.getItem("username");
     const myUserId = localStorage.getItem("user_id");
     const myAvatarUrl = useAvatarUrl();
     const token = localStorage.getItem("token");
 
     const isAuthenticated = !!token;
+
+    const messageKey = (m: ChatMessage) =>
+        `${m.createdAt}-${m.username}-${m.message.slice(0, 20)}`;
+
+    const markChatSeen = useCallback((contestId: string, msgs: ChatMessage[]) => {
+        if (msgs.length === 0) {
+            localStorage.setItem(chatSeenKey(contestId), "");
+            setUnreadChatCount(0);
+            return;
+        }
+        const last = msgs[msgs.length - 1];
+        localStorage.setItem(chatSeenKey(contestId), messageKey(last));
+        setUnreadChatCount(0);
+    }, []);
+
+    const pushChatToast = useCallback((msg: ChatMessage) => {
+        if (msg.username === myUsername) return;
+
+        let preview: string;
+        let kind: ChatToast["kind"] = "chat";
+
+        if (isScoreSystemMessage(msg)) {
+            kind = "system";
+            const action =
+                msg.old_score != null && msg.old_score !== msg.score
+                    ? "переобувается"
+                    : "оценил(а)";
+            const country = msg.country ? ` ${msg.country}` : "";
+            const score = msg.score != null ? ` · ${msg.score}` : "";
+            preview = `${action}${country}${score}`.trim();
+        } else {
+            preview = (msg.message || "").trim() || (msg.gif ? "GIF" : "");
+        }
+
+        if (!preview) return;
+
+        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+        setChatToasts((prev) => [
+            ...prev.slice(-2),
+            {
+                id,
+                username: msg.username,
+                message: preview.length > 80 ? `${preview.slice(0, 80)}…` : preview,
+                avatarUrl: msg.avatarUrl,
+                kind,
+            },
+        ]);
+        window.setTimeout(() => {
+            setChatToasts((prev) => prev.filter((t) => t.id !== id));
+        }, 4200);
+    }, [myUsername]);
 
     useEffect(() => {
         const handleResize = () => {
@@ -164,42 +264,112 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
             });
             const res = await fetch(`${API_URL}/v1/message?${params.toString()}`);
             if (!res.ok) throw new Error("Failed");
-            const data = await res.json();
-            setMessages(data || []);
+            const data = (await res.json()) as ChatMessage[] | null;
+            const list = data || [];
+            setMessages(list);
+            for (const m of list) {
+                knownMessageKeysRef.current.add(messageKey(m));
+            }
+
+            if (chatOpenRef.current) {
+                markChatSeen(contest.contest.id, list);
+            } else if (!initialChatSyncDoneRef.current) {
+                const seen = localStorage.getItem(chatSeenKey(contest.contest.id));
+                if (!seen) {
+                    markChatSeen(contest.contest.id, list);
+                } else {
+                    let unread = 0;
+                    let counting = false;
+                    for (const m of list) {
+                        if (messageKey(m) === seen) {
+                            counting = true;
+                            continue;
+                        }
+                        if (counting) unread += 1;
+                    }
+                    // If seen key not found (messages pruned), treat all as seen
+                    if (!list.some((m) => messageKey(m) === seen)) {
+                        markChatSeen(contest.contest.id, list);
+                    } else {
+                        setUnreadChatCount(unread);
+                    }
+                }
+            }
+            initialChatSyncDoneRef.current = true;
         } catch (err) {
             console.error(err);
         }
-    }, [contest?.contest.id]);
+    }, [contest?.contest.id, markChatSeen]);
 
     useEffect(() => {
+        initialChatSyncDoneRef.current = false;
+        knownMessageKeysRef.current = new Set();
+        setUnreadChatCount(0);
+        setChatToasts([]);
+        setChatHistoryExtra(0);
         fetchMessages();
     }, [fetchMessages]);
 
-    const messageKey = (m: ChatMessage) =>
-        `${m.createdAt}-${m.username}-${m.message.slice(0, 20)}`;
+    useEffect(() => {
+        if (chatOpen && contest) {
+            markChatSeen(contest.contest.id, messages);
+        }
+    }, [chatOpen, contest?.contest.id, messages, markChatSeen]);
+
+    useEffect(() => {
+        if (!chatOpen) {
+            setChatContentReady(false);
+            return;
+        }
+        // Сначала рисуем оболочку чата, список — на следующий кадр (меньше лагов на телефоне)
+        const id = requestAnimationFrame(() => setChatContentReady(true));
+        return () => cancelAnimationFrame(id);
+    }, [chatOpen]);
 
     useChatWebSocket<ChatMessage>({
         wsUrl: WS_URL,
         token,
         enabled: Boolean(contest && WS_URL),
         onMessage: (msg) => {
+            const key = messageKey(msg);
             setMessages((prev) => {
-                const key = messageKey(msg);
                 if (prev.some((m) => messageKey(m) === key)) return prev;
                 return [...prev, msg];
             });
             if (isScoreSystemMessage(msg)) {
                 scheduleContestRefresh();
             }
+
+            if (knownMessageKeysRef.current.has(key)) return;
+            knownMessageKeysRef.current.add(key);
+
+            if (chatOpenRef.current) return;
+
+            if (msg.username !== myUsername) {
+                setUnreadChatCount((c) => c + 1);
+                pushChatToast(msg);
+            }
         },
         onConnected: fetchMessages,
     });
 
+    const visibleMessages = useMemo(() => {
+        const limit = CHAT_VISIBLE_BATCH + chatHistoryExtra;
+        if (messages.length <= limit) return messages;
+        return messages.slice(messages.length - limit);
+    }, [messages, chatHistoryExtra]);
+
+    const hasOlderChatMessages = visibleMessages.length < messages.length;
+
     useEffect(() => {
-        messagesEndRef.current?.scrollIntoView({
-            behavior: "smooth"
-        });
-    }, [messages, chatOpen]);
+        if (!chatOpen || !chatContentReady) return;
+        messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+    }, [chatOpen, chatContentReady]);
+
+    useEffect(() => {
+        if (!chatOpen || !chatContentReady) return;
+        messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, [messages.length]);
 
     useEffect(() => {
         const interval = setInterval(() => {
@@ -266,6 +436,14 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         return null;
     }, [contest, now, ended]);
 
+    const nextToRateId = useMemo(() => {
+        if (!contest || !myUserId) return null;
+        const unvoted = contest.performances.find(
+            (p) => !p.scores.some((s) => s.user_id === myUserId || s.username === myUsername)
+        );
+        return unvoted?.performance_id ?? null;
+    }, [contest, myUsername, myUserId]);
+
     const sortedPerformances = useMemo(() => {
         if (!contest) return [];
         
@@ -282,6 +460,9 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         
         return items;
     }, [contest, myUsername, myUserId]);
+
+    const activeViewLabel =
+        VIEW_MODE_OPTIONS.find((o) => o.mode === scoresViewMode)?.label ?? "Вид";
 
     const isLight = theme === "light";
     const isGray = theme === "dark-gray";
@@ -313,15 +494,31 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
     const chatBtnShadow = isLight ? "0 10px 30px rgba(0,0,0,0.15)" : "0 10px 30px rgba(79,124,255,0.35), inset 0 1px rgba(255,255,255,0.15)";
     const chatBtnBorder = isLight ? "1px solid rgba(0,0,0,0.1)" : "1px solid rgba(255,255,255,0.12)";
 
-    const chatPanelBg = isLight ? "rgba(255, 255, 255, 0.95)" : isGray ? "rgba(28, 28, 28, 0.95)" : "rgba(15, 23, 42, 0.72)";
+    const chatPanelBg = isLight
+        ? (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.95)")
+        : isGray
+          ? (isMobile ? "#1c1c1c" : "rgba(28, 28, 28, 0.95)")
+          : (isMobile ? "#0f172a" : "rgba(15, 23, 42, 0.72)");
     const chatPanelBorder = isLight ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)";
     const chatPanelShadow = isLight ? "-10px 0 40px rgba(0,0,0,0.1)" : "-10px 0 40px rgba(0,0,0,0.35), inset 1px 0 rgba(255,255,255,0.05)";
 
-    const chatHeaderBg = isLight ? "rgba(241, 245, 249, 0.8)" : isGray ? "rgba(45, 45, 45, 0.8)" : "rgba(30, 41, 59, 0.45)";
+    const chatHeaderBg = isLight
+        ? (isMobile ? "#f1f5f9" : "rgba(241, 245, 249, 0.8)")
+        : isGray
+          ? (isMobile ? "#2d2d2d" : "rgba(45, 45, 45, 0.8)")
+          : (isMobile ? "#1e293b" : "rgba(30, 41, 59, 0.45)");
     const chatCloseBg = isLight ? "rgba(0,0,0,0.06)" : "rgba(255,255,255,0.08)";
 
-    const chatInputWrapBg = isLight ? "rgba(241, 245, 249, 0.8)" : isGray ? "rgba(45, 45, 45, 0.8)" : "rgba(30,41,59,0.45)";
-    const inputInnerBg = isLight ? "rgba(255, 255, 255, 0.9)" : isGray ? "rgba(18, 18, 18, 0.8)" : "rgba(15,23,42,0.65)";
+    const chatInputWrapBg = isLight
+        ? (isMobile ? "#f1f5f9" : "rgba(241, 245, 249, 0.8)")
+        : isGray
+          ? (isMobile ? "#2d2d2d" : "rgba(45, 45, 45, 0.8)")
+          : (isMobile ? "#1e293b" : "rgba(30,41,59,0.45)");
+    const inputInnerBg = isLight
+        ? (isMobile ? "#ffffff" : "rgba(255, 255, 255, 0.9)")
+        : isGray
+          ? (isMobile ? "#121212" : "rgba(18, 18, 18, 0.8)")
+          : (isMobile ? "#0f172a" : "rgba(15,23,42,0.65)");
     const inputBorder = isLight ? "1px solid rgba(0,0,0,0.08)" : "1px solid rgba(255,255,255,0.08)";
     const inputTextColor = isLight ? "#0f172a" : "#fff";
 
@@ -600,47 +797,103 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         maxWidth: 1200,
                         margin: "0 auto 16px",
                         display: "flex",
-                        justifyContent: "center",
+                        justifyContent: isMobile ? "flex-end" : "center",
                         alignItems: "center",
-                        gap: 8,
-                        flexWrap: "wrap",
+                        padding: isMobile ? "0 12px" : 0,
                     }}
                 >
-                    <button
-                        type="button"
-                        onClick={() => setScoresViewMode("cards")}
-                        style={viewModeBtnStyle(scoresViewMode === "cards", isLight, isGray)}
-                    >
-                        🃏 Карточки
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScoresViewMode("table")}
-                        style={viewModeBtnStyle(scoresViewMode === "table", isLight, isGray)}
-                    >
-                        📊 Таблица
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScoresViewMode("leaderboard")}
-                        style={viewModeBtnStyle(scoresViewMode === "leaderboard", isLight, isGray)}
-                    >
-                        🏆 Рейтинг
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScoresViewMode("heatmap")}
-                        style={viewModeBtnStyle(scoresViewMode === "heatmap", isLight, isGray)}
-                    >
-                        🌡 Heatmap
-                    </button>
-                    <button
-                        type="button"
-                        onClick={() => setScoresViewMode("order")}
-                        style={viewModeBtnStyle(scoresViewMode === "order", isLight, isGray)}
-                    >
-                        📋 Порядок
-                    </button>
+                    <div ref={viewMenuRef} style={{ position: "relative" }}>
+                        <button
+                            type="button"
+                            onClick={() => setViewMenuOpen((v) => !v)}
+                            aria-expanded={viewMenuOpen}
+                            aria-label="Вид отображения"
+                            style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
+                                padding: isMobile ? "8px 12px" : "8px 14px",
+                                borderRadius: 12,
+                                border: isLight
+                                    ? "1px solid rgba(0,0,0,0.1)"
+                                    : "1px solid rgba(255,255,255,0.12)",
+                                background: isLight
+                                    ? "rgba(255,255,255,0.85)"
+                                    : isGray
+                                      ? "rgba(40,40,40,0.9)"
+                                      : "rgba(15,23,42,0.75)",
+                                color: isLight ? "#334155" : "#e2e8f0",
+                                fontWeight: 700,
+                                fontSize: 13,
+                                cursor: "pointer",
+                                boxShadow: isLight
+                                    ? "0 4px 14px rgba(0,0,0,0.06)"
+                                    : "0 4px 16px rgba(0,0,0,0.25)",
+                            }}
+                        >
+                            {isMobile ? <Settings2 size={16} /> : <LayoutGrid size={16} />}
+                            <span>{isMobile ? "Вид" : activeViewLabel}</span>
+                        </button>
+
+                        {viewMenuOpen && (
+                            <div
+                                style={{
+                                    position: "absolute",
+                                    top: "calc(100% + 8px)",
+                                    right: 0,
+                                    minWidth: 200,
+                                    padding: 8,
+                                    borderRadius: 14,
+                                    border: isLight
+                                        ? "1px solid rgba(0,0,0,0.08)"
+                                        : "1px solid rgba(255,255,255,0.1)",
+                                    background: isLight
+                                        ? "rgba(255,255,255,0.98)"
+                                        : isGray
+                                          ? "rgba(28,28,28,0.98)"
+                                          : "rgba(15,23,42,0.98)",
+                                    boxShadow: isLight
+                                        ? "0 12px 32px rgba(0,0,0,0.12)"
+                                        : "0 16px 40px rgba(0,0,0,0.45)",
+                                    zIndex: 50,
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: 2,
+                                }}
+                            >
+                                <div
+                                    style={{
+                                        fontSize: 11,
+                                        fontWeight: 800,
+                                        textTransform: "uppercase",
+                                        letterSpacing: "0.06em",
+                                        color: isLight ? "#94a3b8" : "#64748b",
+                                        padding: "4px 10px 8px",
+                                    }}
+                                >
+                                    Отображение
+                                </div>
+                                {VIEW_MODE_OPTIONS.map((opt) => (
+                                    <button
+                                        key={opt.mode}
+                                        type="button"
+                                        onClick={() => {
+                                            setScoresViewMode(opt.mode);
+                                            setViewMenuOpen(false);
+                                        }}
+                                        style={viewModeBtnStyle(
+                                            scoresViewMode === opt.mode,
+                                            isLight,
+                                            isGray
+                                        )}
+                                    >
+                                        <span aria-hidden>{opt.icon}</span>
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                    </div>
                 </div>
 
                 {scoresViewMode === "cards" && (
@@ -658,6 +911,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                 theme={theme}
                                 contestType={contest.contest.type}
                                 onRated={onRefreshContest}
+                                awaitingRating={p.performance_id === nextToRateId}
                             />
                         ))}
                     </div>
@@ -714,8 +968,13 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                 <button
                     onClick={(e) => {
                         e.stopPropagation();
-                        setChatOpen(!chatOpen);
+                        startTransition(() => setChatOpen(!chatOpen));
                     }}
+                    aria-label={
+                        unreadChatCount > 0
+                            ? `Чат, непрочитанных: ${unreadChatCount}`
+                            : "Чат"
+                    }
                     style={{
                         ...styles.chatButton,
                         background: chatBtnBg,
@@ -739,27 +998,138 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     <span style={{ fontSize: 24 }}>
                         💬
                     </span>
+                    {unreadChatCount > 0 && !chatOpen && (
+                        <span
+                            style={{
+                                position: "absolute",
+                                top: -4,
+                                right: -4,
+                                minWidth: 20,
+                                height: 20,
+                                padding: "0 6px",
+                                borderRadius: 999,
+                                background: "#ef4444",
+                                color: "#fff",
+                                fontSize: 11,
+                                fontWeight: 800,
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                boxShadow: "0 2px 8px rgba(239,68,68,0.45)",
+                                border: "2px solid rgba(255,255,255,0.9)",
+                            }}
+                        >
+                            {unreadChatCount > 99 ? "99+" : unreadChatCount}
+                        </span>
+                    )}
                 </button>
+
+                {chatToasts.length > 0 && !chatOpen && (
+                    <div
+                        style={{
+                            position: "fixed",
+                            right: isMobile ? 16 : ((chatOpen && !isMobile) ? 360 : 30),
+                            bottom: isMobile ? 110 : 110,
+                            zIndex: 2050,
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 8,
+                            width: isMobile ? "min(280px, calc(100vw - 32px))" : 280,
+                            pointerEvents: "none",
+                        }}
+                    >
+                        {chatToasts.map((t) => (
+                            <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => {
+                                    setChatOpen(true);
+                                    setChatToasts([]);
+                                }}
+                                style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: 10,
+                                    padding: "10px 12px",
+                                    borderRadius: 14,
+                                    border: isLight
+                                        ? "1px solid rgba(0,0,0,0.08)"
+                                        : "1px solid rgba(255,255,255,0.12)",
+                                    background: isLight
+                                        ? "rgba(255,255,255,0.96)"
+                                        : isGray
+                                          ? "rgba(32,32,32,0.96)"
+                                          : "rgba(15,23,42,0.96)",
+                                    boxShadow: isLight
+                                        ? "0 10px 28px rgba(0,0,0,0.12)"
+                                        : "0 12px 32px rgba(0,0,0,0.45)",
+                                    cursor: "pointer",
+                                    textAlign: "left",
+                                    pointerEvents: "auto",
+                                    animation: "ev-chat-toast-in 0.28s ease-out",
+                                }}
+                            >
+                                <UserAvatar
+                                    username={t.username}
+                                    avatarUrl={t.avatarUrl}
+                                    size={32}
+                                    theme={theme}
+                                />
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            fontWeight: 800,
+                                            color: isLight ? "#0f172a" : "#e2e8f0",
+                                            marginBottom: 2,
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                        }}
+                                    >
+                                        {t.kind === "system" ? `⭐ ${t.username}` : t.username}
+                                    </div>
+                                    <div
+                                        style={{
+                                            fontSize: 12,
+                                            color: isLight ? "#64748b" : "#94a3b8",
+                                            lineHeight: 1.35,
+                                            display: "-webkit-box",
+                                            WebkitLineClamp: 2,
+                                            WebkitBoxOrient: "vertical",
+                                            overflow: "hidden",
+                                        }}
+                                    >
+                                        {t.message}
+                                    </div>
+                                </div>
+                            </button>
+                        ))}
+                    </div>
+                )}
             </div>
 
-            {(chatOpen || isMobile) && (
+            {chatOpen && (
             <div
                 style={{
                     ...styles.chatPanel,
                     background: chatPanelBg,
                     borderLeft: chatPanelBorder,
-                    boxShadow: chatPanelShadow,
-                    width: chatOpen
-                        ? (isMobile ? "100%" : 340)
-                        : 0,
+                    boxShadow: isMobile ? "none" : chatPanelShadow,
+                    backdropFilter: isMobile ? "none" : undefined,
+                    WebkitBackdropFilter: isMobile ? "none" : undefined,
+                    width: isMobile ? "100%" : 340,
                     transform: isMobile
-                        ? chatOpen
+                        ? chatContentReady
                             ? "translateX(0)"
-                            : "translateX(100%)"
+                            : "translateX(12px)"
                         : undefined,
-                    transition: uiReady
-                        ? "width 0.35s cubic-bezier(0.4, 0, 0.2, 1), transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)"
-                        : "none",
+                    opacity: 1,
+                    transition: uiReady && isMobile
+                        ? "transform 0.18s ease-out"
+                        : uiReady
+                          ? "width 0.35s cubic-bezier(0.4, 0, 0.2, 1)"
+                          : "none",
                     position: isMobile ? "absolute" : "relative",
                     top: 0,
                     bottom: 0,
@@ -768,31 +1138,83 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     zIndex: 2000,
                 }}
             >
-                {chatOpen && (
-                    <>
-                        <div style={{ ...styles.chatHeader, background: chatHeaderBg, borderBottom: chatPanelBorder }}>
-                            <div style={{ ...styles.chatTitle, color: titleColor }}>
-                                Чат
-                            </div>
+                <div style={{
+                    ...styles.chatHeader,
+                    background: chatHeaderBg,
+                    borderBottom: chatPanelBorder,
+                    backdropFilter: isMobile ? "none" : undefined,
+                    WebkitBackdropFilter: isMobile ? "none" : undefined,
+                }}>
+                    <div style={{ ...styles.chatTitle, color: titleColor }}>
+                        Чат
+                    </div>
 
-                            <button
-                                onClick={(e) => {
-                                    e.stopPropagation();
-                                    setChatOpen(false);
-                                }}
-                                style={{ ...styles.closeChatHeader, background: chatCloseBg, color: titleColor }}
-                            >
-                                ✕
-                            </button>
-                        </div>
+                    <button
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            setChatOpen(false);
+                        }}
+                        style={{
+                            ...styles.closeChatHeader,
+                            background: chatCloseBg,
+                            color: titleColor,
+                            backdropFilter: isMobile ? "none" : undefined,
+                        }}
+                    >
+                        ✕
+                    </button>
+                </div>
 
-                        <div style={styles.chatMessages}>
-                            {messages.map((m, i) => {
-                                if (m.type === "system") {
+                <div
+                    style={{
+                        ...styles.chatMessages,
+                        WebkitOverflowScrolling: "touch",
+                        overscrollBehavior: "contain",
+                    }}
+                >
+                    {chatContentReady ? (
+                        <>
+                            {hasOlderChatMessages && (
+                                <button
+                                    type="button"
+                                    onClick={() =>
+                                        setChatHistoryExtra((n) => n + CHAT_VISIBLE_BATCH)
+                                    }
+                                    style={{
+                                        alignSelf: "center",
+                                        marginBottom: 4,
+                                        padding: "8px 14px",
+                                        borderRadius: 999,
+                                        border: isLight
+                                            ? "1px solid rgba(0,0,0,0.1)"
+                                            : "1px solid rgba(255,255,255,0.12)",
+                                        background: isLight
+                                            ? "rgba(0,0,0,0.04)"
+                                            : "rgba(255,255,255,0.06)",
+                                        color: isLight ? "#475569" : "#94a3b8",
+                                        fontSize: 12,
+                                        fontWeight: 700,
+                                        cursor: "pointer",
+                                    }}
+                                >
+                                    Загрузить раньше
+                                </button>
+                            )}
+
+                            {visibleMessages.map((m) => {
+                                const key = messageKey(m);
+                                if (m.type === "system" || isScoreSystemMessage(m)) {
                                     const scoreIsTwelve =
                                         m.score != null && isScoreTwelve(m.score);
                                     return (
-                                        <div key={i} style={styles.systemMsg}>
+                                        <div
+                                            key={key}
+                                            style={{
+                                                ...styles.systemMsg,
+                                                contentVisibility: "auto",
+                                                containIntrinsicSize: "80px",
+                                            }}
+                                        >
                                             <div
                                                 className={
                                                     scoreIsTwelve ? "ev-score-12-chat-msg" : undefined
@@ -801,6 +1223,13 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                                     ...styles.systemMsgInner,
                                                     background: sysMsgBg,
                                                     border: sysMsgBorder,
+                                                    ...(isMobile
+                                                        ? {
+                                                              backdropFilter: "none",
+                                                              WebkitBackdropFilter: "none",
+                                                              boxShadow: "none",
+                                                          }
+                                                        : {}),
                                                 }}
                                             >
                                                 <div style={styles.systemHeader}>
@@ -871,6 +1300,8 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                                     <img
                                                         src={m.gif}
                                                         alt="reaction"
+                                                        loading="lazy"
+                                                        decoding="async"
                                                         style={styles.systemGif}
                                                     />
                                                 )}
@@ -895,13 +1326,15 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
 
                                 return (
                                     <div
-                                        key={i}
+                                        key={key}
                                         style={{
                                             ...styles.msgWrap,
                                             flexDirection:
                                                 isMe
                                                     ? "row-reverse"
                                                     : "row",
+                                            contentVisibility: "auto",
+                                            containIntrinsicSize: "56px",
                                         }}
                                     >
                                         <UserAvatar
@@ -932,7 +1365,11 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                                                 borderRadius: isMe
                                                     ? "14px 14px 4px 14px"
                                                     : "14px 14px 14px 4px",
-                                                boxShadow: isLight ? "0 4px 15px rgba(0,0,0,0.05)" : styles.bubble.boxShadow,
+                                                boxShadow: isLight || isMobile
+                                                    ? isLight
+                                                        ? "0 4px 15px rgba(0,0,0,0.05)"
+                                                        : "none"
+                                                    : styles.bubble.boxShadow,
                                             }}
                                         >
                                             {!isMe && (
@@ -962,47 +1399,59 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                             })}
 
                             <div ref={messagesEndRef} />
+                        </>
+                    ) : (
+                        <div
+                            style={{
+                                padding: 24,
+                                textAlign: "center",
+                                color: promptText,
+                                fontSize: 13,
+                                fontWeight: 600,
+                            }}
+                        >
+                            Загрузка…
                         </div>
+                    )}
+                </div>
 
-                        <div style={{ ...styles.chatInput, background: chatInputWrapBg, borderTop: chatPanelBorder }}>
-                            {started ? (
-                                <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
-                                    Конкурс еще не начался. Чат закрыт
-                                </div>
-                            ) : ended ? (
-                                <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
-                                    Конкурс завершился. Чат закрыт
-                                </div>
-                            ) : isAuthenticated ? (
-                                <div style={{ ...styles.inputWrapper, background: inputInnerBg, border: inputBorder }}>
-                                    <input
-                                        value={input}
-                                        onChange={(e) => {
-                                            setInput(e.target.value);
-                                        }}
-                                        placeholder="Напиши что-нибудь..."
-                                        style={{ ...styles.input, color: inputTextColor }}
-                                        onKeyDown={(e) =>
-                                            e.key === "Enter" &&
-                                            sendMessage()
-                                        }
-                                    />
-
-                                    <button
-                                        onClick={sendMessage}
-                                        style={{ ...styles.sendBtn, background: chatBtnBg, boxShadow: isLight ? "0 4px 10px rgba(0,0,0,0.1)" : styles.sendBtn.boxShadow }}
-                                    >
-                                        ➤
-                                    </button>
-                                </div>
-                            ) : (
-                                <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
-                                    Войдите для участия в чате
-                                </div>
-                            )}
+                <div style={{ ...styles.chatInput, background: chatInputWrapBg, borderTop: chatPanelBorder }}>
+                    {started ? (
+                        <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
+                            Конкурс еще не начался. Чат закрыт
                         </div>
-                    </>
-                )}
+                    ) : ended ? (
+                        <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
+                            Конкурс завершился. Чат закрыт
+                        </div>
+                    ) : isAuthenticated ? (
+                        <div style={{ ...styles.inputWrapper, background: inputInnerBg, border: inputBorder }}>
+                            <input
+                                value={input}
+                                onChange={(e) => {
+                                    setInput(e.target.value);
+                                }}
+                                placeholder="Напиши что-нибудь..."
+                                style={{ ...styles.input, color: inputTextColor }}
+                                onKeyDown={(e) =>
+                                    e.key === "Enter" &&
+                                    sendMessage()
+                                }
+                            />
+
+                            <button
+                                onClick={sendMessage}
+                                style={{ ...styles.sendBtn, background: chatBtnBg, boxShadow: isLight ? "0 4px 10px rgba(0,0,0,0.1)" : styles.sendBtn.boxShadow }}
+                            >
+                                ➤
+                            </button>
+                        </div>
+                    ) : (
+                        <div style={{ ...styles.authPrompt, background: promptBg, border: promptBorder, color: promptText }}>
+                            Войдите для участия в чате
+                        </div>
+                    )}
+                </div>
             </div>
             )}
         </div>
