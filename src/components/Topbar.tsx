@@ -436,7 +436,7 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
             >
               <span
                 className={`ev-topbar__contest-year-main${
-                  pickerMain.length > 4 ? " ev-topbar__contest-year-main--text" : ""
+                  String(pickerMain).length > 4 ? " ev-topbar__contest-year-main--text" : ""
                 }`}
               >
                 {pickerMain}

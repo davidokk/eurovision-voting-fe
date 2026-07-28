@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, startTransition } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, startTransition } from "react";
 import type { ContestView as ContestViewType, Theme } from "../types/contest";
 import { useChatWebSocket } from "../hooks/useChatWebSocket";
 import { PerformanceCard } from "./PerformanceCard";
