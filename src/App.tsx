@@ -3,6 +3,7 @@ import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
 import { CountryStatsPage } from "./components/CountryStatsPage";
 import { GuessTheSongPage } from "./components/game/GuessTheSongPage";
+import { SettingsPage } from "./components/SettingsPage";
 import { getContest, getContests } from "./api/contest";
 import type { ContestView, ContestsByYear, Theme } from "./types/contest";
 import { Topbar } from "./components/Topbar";
@@ -11,6 +12,7 @@ import { ContestView as ContestViewComponent } from "./components/ContestView";
 import { SidebarLeaderboard } from "./components/SidebarLeaderboard";
 import { fetchMe, setStoredAvatarUrl } from "./api/user";
 import { applyAuthSession } from "./utils/jwt";
+import { Trophy, X } from "lucide-react";
 
 const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 const CHAT_OPEN_KEY = "ev_chat_open";
@@ -49,6 +51,7 @@ export default function App() {
   const gameRoomCode = window.location.pathname.startsWith("/game/")
     ? window.location.pathname.split("/game/")[1]?.split("/")[0]?.toUpperCase()
     : undefined;
+  const isSettingsPage = window.location.pathname === "/settings";
 
   useEffect(() => {
     getContests().then(setContests);
@@ -160,7 +163,30 @@ export default function App() {
     );
   }
   if (isCountryPage && countryId) {
-    return <CountryStatsPage countryId={countryId} theme={theme} />;
+    return (
+      <AppShell
+        theme={theme}
+        onSelectTheme={handleSelectTheme}
+        contests={contests}
+        onSelectContest={handleSelectContest}
+        navigateHomeOnContest
+      >
+        <CountryStatsPage countryId={countryId} theme={theme} />
+      </AppShell>
+    );
+  }
+  if (isSettingsPage) {
+    return (
+      <AppShell
+        theme={theme}
+        onSelectTheme={handleSelectTheme}
+        contests={contests}
+        onSelectContest={handleSelectContest}
+        navigateHomeOnContest
+      >
+        <SettingsPage theme={theme} onSelectTheme={handleSelectTheme} />
+      </AppShell>
+    );
   }
   if (isGamePage) {
     return (
@@ -277,8 +303,8 @@ export default function App() {
             pointerEvents: (isMobile && (chatOpen || leaderboardOpen)) ? "none" : "auto",
           }}
         >
-          <span style={{ fontSize: 24, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            {leaderboardOpen ? "✕" : "🏆"}
+          <span style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {leaderboardOpen ? <X size={26} strokeWidth={2.5} /> : <Trophy size={26} strokeWidth={2.25} />}
           </span>
         </button>
       )}

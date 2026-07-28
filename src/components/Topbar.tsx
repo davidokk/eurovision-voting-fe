@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { ContestsByYear, Theme } from "../types/contest";
-import { ContestDropdown } from "./ContestDropdown";
 import { AuthModal } from "./AuthModal";
-import { Palette, LogOut, User as UserIcon, ChevronDown, Music2 } from "lucide-react";
+import { LogOut, User as UserIcon, ChevronDown, Music2, Settings } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
@@ -29,10 +28,17 @@ function translateContestType(type: string) {
   }
 }
 
-function getThemeLabel(t: Theme) {
-  if (t === "light") return "☀️ Светлая";
-  if (t === "dark-gray") return "🌑 Темная (серая)";
-  return "🌌 Темная (синяя)";
+function shortContestType(type: string) {
+  switch (type) {
+    case "first-semifinal":
+      return "1ПФ";
+    case "second-semifinal":
+      return "2ПФ";
+    case "final":
+      return "Финал";
+    default:
+      return type;
+  }
 }
 
 type MenuColors = {
@@ -48,26 +54,19 @@ type MenuColors = {
 };
 
 function UserAccountMenu({
-  theme,
-  onSelectTheme,
   onProfile,
+  onSettings,
   onLogout,
-  onClose,
   colors,
-  showProfile,
 }: {
-  theme: Theme;
-  onSelectTheme: (t: Theme) => void;
   onProfile: () => void;
+  onSettings: () => void;
   onLogout: () => void;
-  onClose: () => void;
   colors: MenuColors;
-  showProfile: boolean;
 }) {
   const {
     borderColor,
     textColor,
-    subTextColor,
     btnHoverBg,
     activeColor,
     dropdownBg,
@@ -92,116 +91,83 @@ function UserAccountMenu({
           : "0 20px 60px rgba(0, 0, 0, 0.6)",
         display: "flex",
         flexDirection: "column",
-        gap: 12,
+        gap: 4,
       }}
     >
-      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        <span
-          style={{
-            fontSize: 11,
-            fontWeight: 800,
-            color: subTextColor,
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
-            paddingLeft: 4,
-          }}
-        >
-          Внешний вид
-        </span>
-        {(["light", "dark-gray", "dark-blue"] as Theme[]).map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => {
-              onSelectTheme(t);
-              onClose();
-            }}
-            style={{
-              width: "100%",
-              padding: "10px 12px",
-              border: "none",
-              borderRadius: 10,
-              background: theme === t ? btnHoverBg : "transparent",
-              color: theme === t ? activeColor : textColor,
-              cursor: "pointer",
-              fontSize: 14,
-              fontWeight: 600,
-              textAlign: "left",
-            }}
-          >
-            {getThemeLabel(t)}
-          </button>
-        ))}
-      </div>
-
-      {showProfile && (
-        <>
-          <div style={{ height: 1, background: borderColor, margin: "2px 0" }} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <button
-              type="button"
-              onClick={onProfile}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                border: "none",
-                borderRadius: 10,
-                background: btnHoverBg,
-                color: activeColor,
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 700,
-                textAlign: "left",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <UserIcon size={16} />
-              <span>Мой профиль</span>
-            </button>
-            <button
-              type="button"
-              onClick={onLogout}
-              style={{
-                width: "100%",
-                padding: "12px 14px",
-                border: "none",
-                borderRadius: 10,
-                background: "rgba(255, 107, 107, 0.1)",
-                color: "#ff6b6b",
-                cursor: "pointer",
-                fontSize: 14,
-                fontWeight: 700,
-                textAlign: "left",
-                display: "flex",
-                alignItems: "center",
-                gap: 8,
-              }}
-            >
-              <LogOut size={16} />
-              <span>Выйти</span>
-            </button>
-          </div>
-        </>
-      )}
+      <button
+        type="button"
+        onClick={onProfile}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          border: "none",
+          borderRadius: 10,
+          background: btnHoverBg,
+          color: activeColor,
+          cursor: "pointer",
+          fontSize: 14,
+          fontWeight: 700,
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <UserIcon size={16} />
+        <span>Мой профиль</span>
+      </button>
+      <button
+        type="button"
+        onClick={onSettings}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          border: "none",
+          borderRadius: 10,
+          background: "transparent",
+          color: textColor,
+          cursor: "pointer",
+          fontSize: 14,
+          fontWeight: 700,
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <Settings size={16} />
+        <span>Настройки</span>
+      </button>
+      <button
+        type="button"
+        onClick={onLogout}
+        style={{
+          width: "100%",
+          padding: "12px 14px",
+          border: "none",
+          borderRadius: 10,
+          background: "rgba(255, 107, 107, 0.1)",
+          color: "#ff6b6b",
+          cursor: "pointer",
+          fontSize: 14,
+          fontWeight: 700,
+          textAlign: "left",
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <LogOut size={16} />
+        <span>Выйти</span>
+      </button>
     </div>
   );
 }
 
-function resolveSelectedYear(contests: ContestsByYear, selectedContestId: string | null) {
-  if (!selectedContestId) return null;
-  for (const [year, items] of Object.entries(contests)) {
-    if (items.some((c) => c.id === selectedContestId)) return year;
-  }
-  return null;
-}
-
-export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Props) {
+export function Topbar({ contests, onSelectContest, theme }: Props) {
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [guestThemeOpen, setGuestThemeOpen] = useState(false);
   const [openYear, setOpenYear] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [selectedContestId, setSelectedContestId] = useState<string | null>(
@@ -209,7 +175,6 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   );
 
   const userMenuRef = useRef<HTMLDivElement>(null);
-  const guestThemeRef = useRef<HTMLDivElement>(null);
   const contestPickerRef = useRef<HTMLDivElement>(null);
 
   const [token, setToken] = useState<string | null>(null);
@@ -272,21 +237,18 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
   }, [openYear]);
 
   useEffect(() => {
-    if (!userMenuOpen && !guestThemeOpen) return;
+    if (!userMenuOpen) return;
 
     const onDocClick = (e: MouseEvent) => {
       const target = e.target as Node;
-      if (userMenuOpen && userMenuRef.current && !userMenuRef.current.contains(target)) {
+      if (userMenuRef.current && !userMenuRef.current.contains(target)) {
         setUserMenuOpen(false);
-      }
-      if (guestThemeOpen && guestThemeRef.current && !guestThemeRef.current.contains(target)) {
-        setGuestThemeOpen(false);
       }
     };
 
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [userMenuOpen, guestThemeOpen]);
+  }, [userMenuOpen]);
 
   function handleLogin(token: string) {
     applyAuthSession(token, { avatar_url: null });
@@ -358,20 +320,36 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
     setOpenYear(null);
   }
 
-  const selectedYear = resolveSelectedYear(contests, selectedContestId);
   const contestYears = Object.keys(contests).sort((a, b) => Number(a) - Number(b));
 
-  const guestThemeMenu = guestThemeOpen && (
-    <UserAccountMenu
-      theme={theme}
-      onSelectTheme={onSelectTheme}
-      onProfile={() => {}}
-      onLogout={() => {}}
-      onClose={() => setGuestThemeOpen(false)}
-      colors={menuColors}
-      showProfile={false}
-    />
-  );
+  const selectedContest = selectedContestId
+    ? contestYears
+        .flatMap((year) => contests[year] ?? [])
+        .find((c) => c.id === selectedContestId)
+    : null;
+
+  const isGamePage = window.location.pathname.startsWith("/game");
+  const isSettingsPage = window.location.pathname.startsWith("/settings");
+  const isProfilePage = window.location.pathname.startsWith("/user/");
+  const isContestContext = !isGamePage && !isSettingsPage && !isProfilePage;
+
+  const pickerMain = isGamePage
+    ? "Игра"
+    : isSettingsPage
+      ? "Настройки"
+      : isProfilePage
+        ? "Профиль"
+        : (selectedContest?.year ?? "—");
+
+  const pickerSub = isGamePage
+    ? "Угадай песню"
+    : isSettingsPage
+      ? "Тема и вид"
+      : isProfilePage
+        ? (username ?? "Статистика")
+        : selectedContest
+          ? translateContestType(selectedContest.type)
+          : "Конкурс";
 
   return (
     <>
@@ -390,6 +368,7 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
           "--ev-topbar-hover": btnHoverBg,
           "--ev-topbar-accent": activeColor,
           "--ev-topbar-accent-border": isLight ? "rgba(79, 70, 229, 0.35)" : "rgba(79, 124, 255, 0.45)",
+          "--ev-topbar-menu-bg": dropdownBg,
         }}
       >
         <div className="ev-topbar__brand">
@@ -446,101 +425,131 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
 
         {!isMobile && contestYears.length > 0 && (
           <div ref={contestPickerRef} className="ev-topbar__picker" aria-label="Выбор конкурса">
-            {contestYears.map((year) => {
-              const items = contests[year] ?? [];
-              const isOpen = openYear === year;
-              const isSelected = selectedYear === year;
-              return (
-                <div key={year} className={`ev-topbar__year-wrap${isOpen ? " ev-topbar__year-wrap--open" : ""}`}>
-                  <button
-                    type="button"
-                    className={`ev-topbar__year-btn${isOpen ? " ev-topbar__year-btn--open" : ""}${isSelected ? " ev-topbar__year-btn--selected" : ""}`}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setOpenYear(isOpen ? null : year);
-                    }}
-                    aria-expanded={isOpen}
-                  >
-                    {year}
-                    <span className="ev-topbar__year-chevron" aria-hidden>
-                      ▾
-                    </span>
-                  </button>
-                  {isOpen && (
-                    <ContestDropdown
-                      theme={theme}
-                      selectedContestId={selectedContestId}
-                      contests={items.map((c) => ({
-                        ...c,
-                        type: translateContestType(c.type),
-                      }))}
-                      onSelect={selectContest}
-                    />
-                  )}
+            <button
+              type="button"
+              className={`ev-topbar__contest-btn${openYear ? " ev-topbar__contest-btn--open" : ""}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                setOpenYear(openYear ? null : "__menu__");
+              }}
+              aria-expanded={Boolean(openYear)}
+            >
+              <span
+                className={`ev-topbar__contest-year-main${
+                  pickerMain.length > 4 ? " ev-topbar__contest-year-main--text" : ""
+                }`}
+              >
+                {pickerMain}
+              </span>
+              <span className="ev-topbar__contest-meta">
+                <span className="ev-topbar__contest-stage-label">{pickerSub}</span>
+                <ChevronDown
+                  size={14}
+                  className="ev-topbar__contest-chevron"
+                  style={{ transform: openYear ? "rotate(180deg)" : "none" }}
+                />
+              </span>
+            </button>
+
+            {openYear && (
+              <div className="ev-topbar__contest-menu">
+                <div className="ev-topbar__contest-menu-scroll">
+                  <div className="ev-topbar__contest-years-grid">
+                    {contestYears.map((year) => {
+                      const items = contests[year] ?? [];
+                      const onlyFinal =
+                        items.length === 1 && items[0].type === "final";
+                      const yearSelected =
+                        isContestContext &&
+                        items.some((c) => c.id === selectedContestId);
+
+                      if (onlyFinal) {
+                        return (
+                          <button
+                            key={year}
+                            type="button"
+                            className={`ev-topbar__contest-cell${
+                              isContestContext && selectedContestId === items[0].id
+                                ? " ev-topbar__contest-cell--active"
+                                : ""
+                            }`}
+                            onClick={() => selectContest(items[0].id)}
+                          >
+                            <span className="ev-topbar__contest-cell-year">{year}</span>
+                          </button>
+                        );
+                      }
+
+                      return (
+                        <div
+                          key={year}
+                          className={`ev-topbar__contest-cell ev-topbar__contest-cell--multi${
+                            yearSelected ? " ev-topbar__contest-cell--active" : ""
+                          }`}
+                        >
+                          <div className="ev-topbar__contest-cell-year">{year}</div>
+                          <div className="ev-topbar__contest-cell-stages">
+                            {items.map((c) => (
+                              <button
+                                key={c.id}
+                                type="button"
+                                className={`ev-topbar__contest-pill${
+                                  isContestContext && selectedContestId === c.id
+                                    ? " ev-topbar__contest-pill--active"
+                                    : ""
+                                }`}
+                                onClick={() => selectContest(c.id)}
+                                title={translateContestType(c.type)}
+                              >
+                                {shortContestType(c.type)}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
-              );
-            })}
+                <a
+                  href="/game"
+                  className={`ev-topbar__contest-game${
+                    isGamePage ? " ev-topbar__contest-game--active" : ""
+                  }`}
+                  onClick={() => setOpenYear(null)}
+                >
+                  <Music2 size={16} />
+                  <span>Угадай песню</span>
+                </a>
+              </div>
+            )}
           </div>
         )}
 
         <div className="ev-topbar__actions">
-          {!isMobile && (
-            <a
-              href="/game"
-              title="Угадай песню"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                padding: "10px 14px",
-                borderRadius: 14,
-                border: `1px solid ${borderColor}`,
-                background: window.location.pathname.startsWith("/game")
-                  ? btnHoverBg
-                  : btnBg,
-                color: window.location.pathname.startsWith("/game") ? activeColor : subTextColor,
-                textDecoration: "none",
-                fontSize: 14,
-                fontWeight: 700,
-              }}
-            >
-              <Music2 size={16} />
-              <span>Игра</span>
-            </a>
-          )}
           {!token ? (
             <>
-              <div ref={guestThemeRef} style={{ position: "relative" }}>
-                <button
-                  type="button"
-                  onClick={() => setGuestThemeOpen(!guestThemeOpen)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    padding: isMobile ? "8px 12px" : "10px 16px",
-                    borderRadius: 14,
-                    border: `1px solid ${borderColor}`,
-                    background: btnBg,
-                    color: subTextColor,
-                    cursor: "pointer",
-                    fontSize: 14,
-                    fontWeight: 700,
-                  }}
-                >
-                  <Palette size={16} />
-                  {!isMobile && <span>{getThemeLabel(theme)}</span>}
-                  <ChevronDown
-                    size={14}
-                    style={{
-                      opacity: 0.6,
-                      transform: guestThemeOpen ? "rotate(180deg)" : "none",
-                      transition: "transform 0.2s",
-                    }}
-                  />
-                </button>
-                {guestThemeMenu}
-              </div>
+              <a
+                href="/settings"
+                title="Настройки"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  width: isMobile ? 40 : 42,
+                  height: isMobile ? 40 : 42,
+                  borderRadius: 14,
+                  border: `1px solid ${borderColor}`,
+                  background: window.location.pathname.startsWith("/settings")
+                    ? btnHoverBg
+                    : btnBg,
+                  color: window.location.pathname.startsWith("/settings")
+                    ? activeColor
+                    : subTextColor,
+                  textDecoration: "none",
+                }}
+              >
+                <Settings size={18} />
+              </a>
 
               <button
                 type="button"
@@ -620,19 +629,19 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
 
               {userMenuOpen && (
                 <UserAccountMenu
-                  theme={theme}
-                  onSelectTheme={onSelectTheme}
                   onProfile={() => {
                     if (userId) window.location.href = `/user/${userId}`;
+                    setUserMenuOpen(false);
+                  }}
+                  onSettings={() => {
+                    window.location.href = "/settings";
                     setUserMenuOpen(false);
                   }}
                   onLogout={() => {
                     logout();
                     setUserMenuOpen(false);
                   }}
-                  onClose={() => setUserMenuOpen(false)}
                   colors={menuColors}
-                  showProfile
                 />
               )}
             </div>
@@ -702,25 +711,51 @@ export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Prop
                 .sort(([a], [b]) => Number(a) - Number(b))
                 .map(([year, items]) => (
                 <div key={year} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                  <div className="ev-topbar-mobile-drawer__year">{year}</div>
-                  {items.map((c) => (
+                  {items.length === 1 && items[0].type === "final" ? (
                     <button
-                      key={c.id}
                       type="button"
+                      className="ev-topbar-mobile-drawer__year-btn"
                       onClick={() => {
-                        selectContest(c.id);
+                        selectContest(items[0].id);
                         setMobileMenuOpen(false);
                       }}
-                      className="ev-topbar-mobile-drawer__stage"
                       style={{
-                        borderColor: selectedContestId === c.id ? activeColor : borderColor,
-                        background: selectedContestId === c.id ? btnHoverBg : btnBg,
-                        color: selectedContestId === c.id ? activeColor : textColor,
+                        borderColor:
+                          selectedContestId === items[0].id ? activeColor : borderColor,
+                        background:
+                          selectedContestId === items[0].id ? btnHoverBg : btnBg,
+                        color:
+                          selectedContestId === items[0].id ? activeColor : textColor,
                       }}
                     >
-                      {translateContestType(c.type)}
+                      {year}
                     </button>
-                  ))}
+                  ) : (
+                    <>
+                      <div className="ev-topbar-mobile-drawer__year">{year}</div>
+                      {items.map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => {
+                            selectContest(c.id);
+                            setMobileMenuOpen(false);
+                          }}
+                          className="ev-topbar-mobile-drawer__stage"
+                          style={{
+                            borderColor:
+                              selectedContestId === c.id ? activeColor : borderColor,
+                            background:
+                              selectedContestId === c.id ? btnHoverBg : btnBg,
+                            color:
+                              selectedContestId === c.id ? activeColor : textColor,
+                          }}
+                        >
+                          {translateContestType(c.type)}
+                        </button>
+                      ))}
+                    </>
+                  )}
                 </div>
               ))}
             </div>

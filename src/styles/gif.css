@@ -1,0 +1,13 @@
+.ev-gif-preview {
+  object-fit: contain;
+  width: auto;
+  height: auto;
+}
+
+.ev-gif-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  max-width: 100%;
+}

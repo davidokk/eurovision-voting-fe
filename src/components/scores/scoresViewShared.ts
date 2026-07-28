@@ -1,6 +1,32 @@
 import type { PerformanceWithScores, ScoreView, Theme } from "../../types/contest";
 
-export type ScoresViewMode = "cards" | "table" | "leaderboard" | "heatmap" | "order";
+export type ScoresViewMode = "cards" | "cards-v2" | "table" | "leaderboard" | "heatmap" | "order";
+
+export const SCORES_VIEW_STORAGE_KEY = "ev_scores_view_mode";
+
+export const SCORES_VIEW_MODE_OPTIONS: {
+  mode: ScoresViewMode;
+  label: string;
+  description: string;
+}[] = [
+  { mode: "cards", label: "Карточки", description: "Классические карточки выступлений" },
+  { mode: "cards-v2", label: "Карточки V2", description: "Новый медиа-first дизайн" },
+  { mode: "table", label: "Таблица", description: "Сводная таблица оценок" },
+  { mode: "leaderboard", label: "Рейтинг", description: "Ранжированный список" },
+  { mode: "heatmap", label: "Heatmap", description: "Тепловая карта оценок" },
+  { mode: "order", label: "Порядок", description: "По порядку выступления" },
+];
+
+export function readScoresViewMode(): ScoresViewMode {
+  const raw = localStorage.getItem(SCORES_VIEW_STORAGE_KEY);
+  if (SCORES_VIEW_MODE_OPTIONS.some((o) => o.mode === raw)) return raw as ScoresViewMode;
+  return "cards";
+}
+
+export function writeScoresViewMode(mode: ScoresViewMode) {
+  localStorage.setItem(SCORES_VIEW_STORAGE_KEY, mode);
+  window.dispatchEvent(new Event("ev-scores-view-updated"));
+}
 
 export type ScoresViewProps = {
   performances: PerformanceWithScores[];

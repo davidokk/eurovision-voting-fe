@@ -22,6 +22,7 @@ function getYouTubeId(url: string) {
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { getScoreColor, isScoreTwelve } from "../utils/scoreUtils";
 import { FavoriteButton } from "./FavoriteButton";
+import { GifPreview } from "./GifPreview";
 
 export function PerformanceCard({
   performance,
@@ -304,8 +305,8 @@ export function PerformanceCard({
                   </div>
 
                   {s.gif_url && (
-                    <div style={styles.feedGifContainer}>
-                      <img src={s.gif_url} style={styles.feedGif} alt="reaction" />
+                    <div style={styles.feedGifContainer} className="ev-gif-wrap">
+                      <GifPreview src={s.gif_url} maxWidth={64} maxHeight={52} />
                     </div>
                   )}
                 </div>
@@ -520,12 +521,10 @@ const styles: Record<string, React.CSSProperties> = {
     wordBreak: "break-word"
   },
   feedGifContainer: {
-    width: "50px",
-    height: "35px",
-    borderRadius: "6px",
-    overflow: "hidden",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
     flexShrink: 0,
   },
-  feedGif: { width: "100%", height: "100%", objectFit: "cover" },
   emptyFeed: { textAlign: "center", padding: "10px", fontSize: "12px" },
 };

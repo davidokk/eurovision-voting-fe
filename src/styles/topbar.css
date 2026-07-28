@@ -39,94 +39,191 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  max-width: min(560px, calc(100vw - 380px));
-  padding: 4px 2px;
   z-index: 10;
-  overflow: visible;
 }
 
-.ev-topbar__year-wrap {
-  position: relative;
-  flex-shrink: 0;
-}
-
-.ev-topbar__year-wrap--open {
-  z-index: 30;
-}
-
-.ev-topbar__year-btn {
+.ev-topbar__contest-btn {
   display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 9px 14px;
+  align-items: baseline;
+  gap: 10px;
+  padding: 6px 12px 6px 14px;
   border-radius: 12px;
-  border: 1px solid var(--ev-topbar-border);
-  background: var(--ev-topbar-chip-bg);
-  color: var(--ev-topbar-sub);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--ev-topbar-text);
   cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
-  white-space: nowrap;
-  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  transition: background 0.15s ease, border-color 0.15s ease;
 }
 
-.ev-topbar__year-btn:hover {
+.ev-topbar__contest-btn:hover,
+.ev-topbar__contest-btn--open {
   background: var(--ev-topbar-hover);
+  border-color: var(--ev-topbar-border);
+}
+
+.ev-topbar__contest-year-main {
+  font-family: "Syne", sans-serif;
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  line-height: 1;
   color: var(--ev-topbar-text);
 }
 
-.ev-topbar__year-btn--open {
+.ev-topbar__contest-year-main--text {
+  font-size: 22px;
+  letter-spacing: -0.02em;
+}
+
+.ev-topbar__contest-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ev-topbar__contest-stage-label {
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--ev-topbar-sub);
+  white-space: nowrap;
+  max-width: 140px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ev-topbar__contest-chevron {
+  flex-shrink: 0;
+  color: var(--ev-topbar-sub);
+  opacity: 0.85;
+  transition: transform 0.2s ease;
+}
+
+.ev-topbar__contest-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(480px, calc(100vw - 32px));
+  max-height: min(70vh, 520px);
+  display: flex;
+  flex-direction: column;
+  background: var(--ev-topbar-menu-bg, rgba(15, 23, 42, 0.98));
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid var(--ev-topbar-border);
+  border-radius: 16px;
+  box-shadow: 0 20px 48px rgba(0, 0, 0, 0.35);
+  overflow: hidden;
+  z-index: 3500;
+}
+
+.ev-topbar__contest-menu-scroll {
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.ev-topbar__contest-years-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.ev-topbar__contest-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 48px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  border: 1px solid var(--ev-topbar-border);
+  background: var(--ev-topbar-chip-bg);
+  color: var(--ev-topbar-text);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+button.ev-topbar__contest-cell:hover {
+  background: var(--ev-topbar-hover);
+  border-color: var(--ev-topbar-accent-border);
+  color: var(--ev-topbar-accent);
+}
+
+.ev-topbar__contest-cell--multi {
+  grid-column: span 2;
+  align-items: stretch;
+  cursor: default;
+}
+
+.ev-topbar__contest-cell--active {
   border-color: var(--ev-topbar-accent-border);
   background: var(--ev-topbar-hover);
   color: var(--ev-topbar-accent);
 }
 
-.ev-topbar__year-btn--selected:not(.ev-topbar__year-btn--open) {
-  color: var(--ev-topbar-text);
-  border-color: var(--ev-topbar-accent-border);
-}
-
-.ev-topbar__year-chevron {
-  font-size: 10px;
-  opacity: 0.55;
+.ev-topbar__contest-cell-year {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
   line-height: 1;
-  transition: transform 0.2s ease;
+  text-align: center;
 }
 
-.ev-topbar__year-btn--open .ev-topbar__year-chevron {
-  transform: rotate(180deg);
-}
-
-.ev-contest-dropdown {
-  position: absolute;
-  top: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%);
-  min-width: 200px;
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
-  border-radius: 14px;
-  padding: 6px;
-  z-index: 3500;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.ev-contest-dropdown__item {
-  width: 100%;
-  padding: 11px 14px;
-  border: none;
-  border-radius: 10px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 600;
+.ev-topbar__contest-cell--multi .ev-topbar__contest-cell-year {
   text-align: left;
-  letter-spacing: 0.01em;
-  transition: background 0.15s ease;
+  color: var(--ev-topbar-text);
+}
+
+.ev-topbar__contest-cell-stages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.ev-topbar__contest-pill {
+  padding: 5px 9px;
+  border-radius: 7px;
+  border: 1px solid transparent;
+  background: var(--ev-topbar-menu-bg, rgba(15, 23, 42, 0.98));
+  color: var(--ev-topbar-sub);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 650;
+  white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.ev-topbar__contest-pill:hover {
+  color: var(--ev-topbar-text);
+  border-color: var(--ev-topbar-border);
+}
+
+.ev-topbar__contest-pill--active {
+  color: var(--ev-topbar-accent);
+  border-color: var(--ev-topbar-accent-border);
+  background: var(--ev-topbar-hover);
+}
+
+.ev-topbar__contest-game {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin: 0;
+  padding: 12px 14px;
+  border-top: 1px solid var(--ev-topbar-border);
+  background: transparent;
+  color: var(--ev-topbar-accent);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.ev-topbar__contest-game:hover,
+.ev-topbar__contest-game--active {
+  background: var(--ev-topbar-hover);
 }
 
 .ev-topbar__actions {
@@ -178,6 +275,20 @@
   color: var(--ev-topbar-accent);
   letter-spacing: 0.05em;
   margin-bottom: 4px;
+}
+
+.ev-topbar-mobile-drawer__year-btn {
+  width: 100%;
+  text-align: left;
+  padding: 12px 16px;
+  border: 1px solid var(--ev-topbar-border);
+  border-radius: 14px;
+  background: var(--ev-topbar-chip-bg);
+  font-size: 20px;
+  font-weight: 900;
+  color: var(--ev-topbar-accent);
+  letter-spacing: 0.05em;
+  cursor: pointer;
 }
 
 .ev-topbar-mobile-drawer__stage {

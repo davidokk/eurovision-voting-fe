@@ -1,491 +1,616 @@
 import { useEffect, useState, useMemo } from "react";
+import { Play, Star } from "lucide-react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
+import { GifPreview } from "./GifPreview";
 
 type ScoreFiltered = {
-    Username: string;
-    CountryName: string;
-    ContestYear: number;
-    ContestType: string;
-    Score: number;
-    Comment: string | null;
-    YoutubeLink: string;
-    GifURL: string | null;
-    Song: string;
-    Artist: string;
-    Qualified?: boolean;
-    Place?: number;
+  Username: string;
+  CountryName: string;
+  ContestYear: number;
+  ContestType: string;
+  Score: number;
+  Comment: string | null;
+  YoutubeLink: string;
+  GifURL: string | null;
+  Song: string;
+  Artist: string;
+  Qualified?: boolean;
+  Place?: number;
 };
 
 type SortType = "time" | "score";
 
 type Country = {
-    id: string;
-    name_ru: string;
-    flag_emoji: string;
+  id: string;
+  name_ru: string;
+  flag_emoji: string;
 };
 
 type ContestMap = Record<
-    string,
-    {
-        id: string;
-        type: string;
-        year: number;
-        starts: string;
-        ends: string;
-    }[]
+  string,
+  {
+    id: string;
+    type: string;
+    year: number;
+    starts: string;
+    ends: string;
+  }[]
 >;
 
 type Props = {
-    countryId: string;
-    theme?: Theme;
+  countryId: string;
+  theme?: Theme;
 };
 
 function getYouTubeId(url: string) {
-    const match = url.match(
-        /(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i
-    );
-    return match?.[1] || null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i);
+  return match?.[1] || null;
 }
 
 function formatContestType(type: string) {
-    switch (type) {
-        case "final":
-            return "Финал";
-        case "first-semifinal":
-            return "Первый полуфинал";
-        case "second-semifinal":
-            return "Второй полуфинал";
-        default:
-            return type;
-    }
+  switch (type) {
+    case "final":
+      return "Финал";
+    case "first-semifinal":
+      return "Первый полуфинал";
+    case "second-semifinal":
+      return "Второй полуфинал";
+    default:
+      return type;
+  }
 }
 
 function formatAvg(value: number) {
-    if (!value || Number.isNaN(value)) return "0";
-    const rounded = Math.round(value * 100) / 100;
-    return Number.isInteger(rounded)
-        ? String(rounded)
-        : rounded.toFixed(2);
+  if (!value || Number.isNaN(value)) return "0";
+  const rounded = Math.round(value * 100) / 100;
+  return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
 }
 
 export function CountryStatsPage({ countryId, theme = "dark-blue" }: Props) {
-    const API_URL = (import.meta as any).env?.VITE_API_URL || "";
+  const API_URL = (import.meta as any).env?.VITE_API_URL || "";
 
-    const [data, setData] = useState<ScoreFiltered[]>([]);
-    const [loading, setLoading] = useState(false);
+  const [data, setData] = useState<ScoreFiltered[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [countries, setCountries] = useState<Country[]>([]);
+  const [contests, setContests] = useState<ContestMap>({});
+  const [selectedYear, setSelectedYear] = useState<string>("");
+  const [filterType, setFilterType] = useState<string>("");
+  const supportsEmoji = getDoesBrowserSupportFlagEmojis();
+  const [sort] = useState<SortType>("score");
 
-    const [countries, setCountries] = useState<Country[]>([]);
-    const [contests, setContests] = useState<ContestMap>({});
-    const [selectedYear, setSelectedYear] = useState<string>("");
-    const [filterType, setFilterType] = useState<string>("");
+  useEffect(() => {
+    if (!API_URL) return;
+    fetch(`${API_URL}/v1/countries`)
+      .then((r) => r.json())
+      .then(setCountries)
+      .catch(() => setCountries([]));
+  }, []);
 
-    const supportsEmoji = getDoesBrowserSupportFlagEmojis();
-    const [sort] = useState<SortType>("score");
+  useEffect(() => {
+    if (!API_URL) return;
+    fetch(`${API_URL}/v1/contest`)
+      .then((r) => r.json())
+      .then(setContests)
+      .catch(() => setContests({}));
+  }, []);
 
-    useEffect(() => {
-        if (!API_URL) return;
-        fetch(`${API_URL}/v1/countries`)
-            .then((r) => r.json())
-            .then(setCountries)
-            .catch(() => setCountries([]));
-    }, []);
+  useEffect(() => {
+    load();
+  }, [countryId, selectedYear, sort]);
 
-    useEffect(() => {
-        if (!API_URL) return;
-        fetch(`${API_URL}/v1/contest`)
-            .then((r) => r.json())
-            .then(setContests)
-            .catch(() => setContests({}));
-    }, []);
+  async function load() {
+    setLoading(true);
+    try {
+      if (!API_URL) {
+        setData([]);
+        setLoading(false);
+        return;
+      }
+      const params = new URLSearchParams();
+      params.append("country_id", countryId);
+      if (selectedYear) params.append("year", selectedYear);
+      params.append("sort", sort);
 
-    useEffect(() => {
-        load();
-    }, [countryId, selectedYear, sort]);
-
-    async function load() {
-        setLoading(true);
-        try {
-            if (!API_URL) {
-                setData([]);
-                setLoading(false);
-                return;
-            }
-            const params = new URLSearchParams();
-            params.append("country_id", countryId);
-            if (selectedYear) params.append("year", selectedYear);
-            params.append("sort", sort);
-
-            const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
-            const json = await res.json();
-            setData(Array.isArray(json) ? json : []);
-        } catch {
-            setData([]);
-        } finally {
-            setLoading(false);
-        }
+      const res = await fetch(`${API_URL}/v1/scores?${params.toString()}`);
+      const json = await res.json();
+      setData(Array.isArray(json) ? json : []);
+    } catch {
+      setData([]);
+    } finally {
+      setLoading(false);
     }
+  }
 
-    const filteredData = useMemo(() => {
-        if (!filterType) return data;
-        return data.filter(item => item.ContestType === filterType);
-    }, [data, filterType]);
+  const filteredData = useMemo(() => {
+    if (!filterType) return data;
+    return data.filter((item) => item.ContestType === filterType);
+  }, [data, filterType]);
 
-    const avgScore =
-        filteredData.length > 0
-            ? filteredData.reduce((sum: any, i: any) => sum + (i.Score || 0), 0) / filteredData.length
-            : 0;
+  const avgScore =
+    filteredData.length > 0
+      ? filteredData.reduce((sum, i) => sum + (i.Score || 0), 0) / filteredData.length
+      : 0;
 
-    const country = countries.find(c => c.id === countryId);
+  const country = countries.find((c) => c.id === countryId);
 
-    const performances = useMemo(() => {
-        const groups: Record<string, {
-            info: ScoreFiltered;
-            scores: { Username: string; Score: number; Comment: string | null }[];
-            avg: number;
-        }> = {};
+  const performances = useMemo(() => {
+    const groups: Record<
+      string,
+      {
+        info: ScoreFiltered;
+        scores: { Username: string; Score: number; Comment: string | null; GifURL: string | null }[];
+        avg: number;
+      }
+    > = {};
 
-        filteredData.forEach(item => {
-            const key = `${item.ContestYear}-${item.ContestType}-${item.Artist}-${item.Song}`;
-            if (!groups[key]) {
-                groups[key] = {
-                    info: item,
-                    scores: [],
-                    avg: 0
-                };
-            }
-            groups[key].scores.push({
-                Username: item.Username,
-                Score: item.Score,
-                Comment: item.Comment
-            });
-        });
+    filteredData.forEach((item) => {
+      const key = `${item.ContestYear}-${item.ContestType}-${item.Artist}-${item.Song}`;
+      if (!groups[key]) {
+        groups[key] = { info: item, scores: [], avg: 0 };
+      }
+      groups[key].scores.push({
+        Username: item.Username,
+        Score: item.Score,
+        Comment: item.Comment,
+        GifURL: item.GifURL,
+      });
+    });
 
-        return Object.values(groups).map(g => ({
-            ...g,
-            avg: g.scores.reduce((s: any, sc: any) => s + sc.Score, 0) / g.scores.length
-        })).sort((a, b) => b.avg - a.avg);
-    }, [filteredData]);
+    return Object.values(groups)
+      .map((g) => ({
+        ...g,
+        avg: g.scores.reduce((s, sc) => s + sc.Score, 0) / g.scores.length,
+      }))
+      .sort((a, b) => b.avg - a.avg);
+  }, [filteredData]);
 
-    const isLight = theme === "light";
-    const isGray = theme === "dark-gray";
+  const isLight = theme === "light";
+  const isGray = theme === "dark-gray";
 
-    const pageBg = isLight 
-        ? "radial-gradient(circle at top left, rgba(55, 65, 81, 0.06), transparent 40%), radial-gradient(circle at bottom right, rgba(75, 85, 99, 0.06), transparent 40%), #f8fafc" 
-        : isGray 
-        ? "radial-gradient(circle at top left, rgba(255, 255, 255, 0.03), transparent 40%), radial-gradient(circle at bottom right, rgba(255, 255, 255, 0.02), transparent 40%), #121212" 
-        : "radial-gradient(circle at top left, rgba(79,124,255,0.15), transparent 40%), radial-gradient(circle at bottom right, rgba(167,139,250,0.15), transparent 40%), #020617";
+  const text = isLight ? "#0f1a2a" : "#eef2f7";
+  const muted = isLight ? "#5a6b80" : "#8fa0b8";
+  const accent = isLight ? "#0d7377" : "#e8b931";
+  const cardBg = isLight
+    ? "rgba(255,255,255,0.92)"
+    : isGray
+      ? "rgba(28,28,28,0.95)"
+      : "rgba(15,23,42,0.78)";
+  const border = isLight ? "1px solid #c5d0de" : "1px solid rgba(255,255,255,0.1)";
+  const soft = isLight ? "rgba(15,26,42,0.04)" : "rgba(255,255,255,0.04)";
+  const activeBg = isLight ? "rgba(13,115,119,0.12)" : "rgba(232,185,49,0.14)";
 
-    const textColor = isLight ? "#0f172a" : "#fff";
-    const subTextColor = isLight ? "#64748b" : "#94a3b8";
+  const placeWords: Record<number, string> = {
+    1: "Первое место",
+    2: "Второе место",
+    3: "Третье место",
+  };
 
-    const titleShadow = isLight ? "0 10px 30px rgba(0,0,0,0.05)" : "0 10px 30px rgba(79,124,255,0.3)";
-    const highlightColor = isLight ? "#1f2937" : isGray ? "#e5e7eb" : "#7aa2ff";
-
-    const boxBg = isLight ? "#ffffff" : isGray ? "#1e1e1e" : "rgba(15, 23, 42, 0.4)";
-    const boxBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2d2d2d" : "1px solid rgba(79, 124, 255, 0.2)";
-    const boxShadow = isLight ? "0 10px 30px rgba(0,0,0,0.05)" : "0 15px 35px rgba(0,0,0,0.2)";
-
-    const filtersBg = isLight ? "rgba(255, 255, 255, 0.8)" : isGray ? "rgba(30, 30, 30, 0.4)" : "rgba(15, 23, 42, 0.3)";
-    const filtersBorder = isLight ? "1px solid #cbd5e1" : isGray ? "1px solid #333" : "1px solid rgba(255, 255, 255, 0.06)";
-
-    const btnBg = isLight ? "rgba(0, 0, 0, 0.04)" : "rgba(255, 255, 255, 0.03)";
-    const btnBorder = isLight ? "1px solid rgba(0, 0, 0, 0.08)" : "1px solid rgba(255, 255, 255, 0.08)";
-    const btnColor = isLight ? "#475569" : "#94a3b8";
-
-    const baseCardBg = isLight ? "#ffffff" : isGray ? "#1c1c1c" : "rgba(30, 41, 59, 0.4)";
-    const baseCardBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2d2d2d" : "1px solid rgba(255, 255, 255, 0.06)";
-
-    const contestTagColor = isLight ? "#1f2937" : isGray ? "#9ca3af" : "#7aa2ff";
-    const artistColor = isLight ? "#0f172a" : "#e2e8f0";
-
-    const scoreBoxBg = isLight ? "rgba(245, 158, 11, 0.1)" : "rgba(255, 209, 102, 0.1)";
-    const scoreBoxBorder = isLight ? "1px solid rgba(245, 158, 11, 0.2)" : "1px solid rgba(255, 209, 102, 0.2)";
-    const scoreValColor = isLight ? "#d97706" : "#ffd166";
-
-    const userScoresBg = isLight ? "#f8fafc" : isGray ? "#242424" : "rgba(15, 23, 42, 0.3)";
-    const userScoresBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2f2f2f" : "1px solid rgba(255, 255, 255, 0.04)";
-    const userScoreItemBorder = isLight ? "1px solid #e2e8f0" : isGray ? "1px solid #2f2f2f" : "1px solid rgba(255, 255, 255, 0.05)";
-
-    const placeWords: Record<number, string> = {
-        1: "Первое место",
-        2: "Второе место",
-        3: "Третье место",
+  function chipStyle(active: boolean): React.CSSProperties {
+    return {
+      padding: "8px 12px",
+      borderRadius: 10,
+      border: active ? `1px solid ${accent}` : border,
+      background: active ? activeBg : soft,
+      color: active ? accent : muted,
+      cursor: "pointer",
+      fontSize: 13,
+      fontWeight: 700,
     };
+  }
 
-    return (
-        <div style={{ ...styles.page, background: pageBg, color: textColor }}>
-            <div style={styles.container}>
-                <header style={styles.header}>
-                    <h2 style={{ ...styles.title, textShadow: titleShadow }}>
-                        История {supportsEmoji && country?.flag_emoji} <span style={{ ...styles.usernameHighlight, color: highlightColor }}>{country?.name_ru || countryId}</span>
-                    </h2>
-                </header>
+  return (
+    <div
+      style={{
+        padding: "28px 20px 64px",
+        color: text,
+        fontFamily: '"DM Sans", system-ui, sans-serif',
+        minHeight: "100%",
+      }}
+    >
+      <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+        <header style={{ marginBottom: 28 }}>
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 800,
+              letterSpacing: "0.1em",
+              textTransform: "uppercase",
+              color: muted,
+              marginBottom: 8,
+            }}
+          >
+            Страна
+          </div>
+          <h1
+            style={{
+              margin: 0,
+              fontFamily: '"Syne", sans-serif',
+              fontSize: "clamp(1.9rem, 4vw, 2.6rem)",
+              fontWeight: 800,
+              letterSpacing: "-0.03em",
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              flexWrap: "wrap",
+            }}
+          >
+            {supportsEmoji && country?.flag_emoji && (
+              <span style={{ fontSize: "1.1em", lineHeight: 1 }}>{country.flag_emoji}</span>
+            )}
+            {country?.name_ru || countryId}
+          </h1>
+        </header>
 
-                <div style={{ ...styles.avgBox, background: boxBg, border: boxBorder, boxShadow: boxShadow }}>
-                    <div style={{ ...styles.avgLabelBig, color: subTextColor }}>Средний балл за всё время</div>
-                    <div style={{ ...styles.avgValue, color: scoreValColor }}>{formatAvg(avgScore)} ⭐</div>
-                </div>
-
-                <div style={{ ...styles.filters, background: filtersBg, border: filtersBorder }}>
-                    <div style={styles.block}>
-                        <div style={{ ...styles.label, color: subTextColor }}>Этап</div>
-                        <div style={styles.row}>
-                            <button
-                                onClick={() => setFilterType("")}
-                                style={{
-                                    ...styles.btn,
-                                    background: filterType === "" ? "#ec4899" : btnBg,
-                                    color: filterType === "" ? "#fff" : btnColor,
-                                    border: filterType === "" ? "none" : btnBorder,
-                                    boxShadow: filterType === "" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
-                                }}
-                            >
-                                Все этапы
-                            </button>
-                            <button
-                                onClick={() => setFilterType("final")}
-                                style={{
-                                    ...styles.btn,
-                                    background: filterType === "final" ? "#ec4899" : btnBg,
-                                    color: filterType === "final" ? "#fff" : btnColor,
-                                    border: filterType === "final" ? "none" : btnBorder,
-                                    boxShadow: filterType === "final" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
-                                }}
-                            >
-                                Финал
-                            </button>
-                            <button
-                                onClick={() => setFilterType("first-semifinal")}
-                                style={{
-                                    ...styles.btn,
-                                    background: filterType === "first-semifinal" ? "#ec4899" : btnBg,
-                                    color: filterType === "first-semifinal" ? "#fff" : btnColor,
-                                    border: filterType === "first-semifinal" ? "none" : btnBorder,
-                                    boxShadow: filterType === "first-semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
-                                }}
-                            >
-                                Первый полуфинал
-                            </button>
-                            <button
-                                onClick={() => setFilterType("second-semifinal")}
-                                style={{
-                                    ...styles.btn,
-                                    background: filterType === "second-semifinal" ? "#ec4899" : btnBg,
-                                    color: filterType === "second-semifinal" ? "#fff" : btnColor,
-                                    border: filterType === "second-semifinal" ? "none" : btnBorder,
-                                    boxShadow: filterType === "second-semifinal" ? "0 4px 12px rgba(236, 72, 153, 0.3)" : "none",
-                                }}
-                            >
-                                Второй полуфинал
-                            </button>
-                        </div>
-                    </div>
-
-                    <div style={styles.block}>
-                        <div style={{ ...styles.label, color: subTextColor }}>Год</div>
-                        <div style={styles.row}>
-                            <button
-                                onClick={() => setSelectedYear("")}
-                                style={{
-                                    ...styles.btn,
-                                    background: selectedYear === "" ? "#22c55e" : btnBg,
-                                    color: selectedYear === "" ? "#fff" : btnColor,
-                                    border: selectedYear === "" ? "none" : btnBorder,
-                                    boxShadow: selectedYear === "" ? "0 4px 12px rgba(34, 197, 94, 0.3)" : "none",
-                                }}
-                            >
-                                Все годы
-                            </button>
-                            {Object.keys(contests)
-                                .sort((a, b) => Number(b) - Number(a))
-                                .map((year) => (
-                                    <button
-                                        key={year}
-                                        onClick={() => setSelectedYear(year)}
-                                        style={{
-                                            ...styles.btn,
-                                            background: selectedYear === year ? "#22c55e" : btnBg,
-                                            color: selectedYear === year ? "#fff" : btnColor,
-                                            border: selectedYear === year ? "none" : btnBorder,
-                                            boxShadow: selectedYear === year ? "0 4px 12px rgba(34, 197, 94, 0.3)" : "none",
-                                        }}
-                                    >
-                                        {year}
-                                    </button>
-                                ))}
-                        </div>
-                    </div>
-                </div>
-
-                {loading && <div style={{ ...styles.loading, color: highlightColor }}>Обновление данных...</div>}
-
-                <div style={styles.list}>
-                    {performances.map((perf, i) => {
-                        const item = perf.info;
-                        const youtubeId = item.YoutubeLink ? getYouTubeId(item.YoutubeLink) : null;
-
-                        const isSemifinal = item.ContestType?.includes("semifinal");
-                        const hasPlace = item.Place !== undefined && item.Place !== null;
-                        const isQualified = item.Qualified === true;
-
-                        let itemCardBg = baseCardBg;
-                        let itemCardBorder = baseCardBorder;
-
-                        if (hasPlace && item.Place! <= 3) {
-                            if (item.Place === 1) {
-                                itemCardBg = isLight ? "rgba(250, 204, 21, 0.15)" : "rgba(250, 204, 21, 0.12)";
-                                itemCardBorder = "1px solid rgba(250, 204, 21, 0.4)";
-                            } else if (item.Place === 2) {
-                                itemCardBg = isLight ? "rgba(148, 163, 184, 0.15)" : "rgba(148, 163, 184, 0.12)";
-                                itemCardBorder = "1px solid rgba(148, 163, 184, 0.4)";
-                            } else {
-                                itemCardBg = isLight ? "rgba(217, 119, 6, 0.15)" : "rgba(217, 119, 6, 0.12)";
-                                itemCardBorder = "1px solid rgba(217, 119, 6, 0.4)";
-                            }
-                        } else if (isSemifinal) {
-                            if (isQualified) {
-                                itemCardBg = isLight ? "rgba(34, 197, 94, 0.08)" : "rgba(34, 197, 94, 0.12)";
-                                itemCardBorder = "1px solid rgba(34, 197, 94, 0.3)";
-                            } else {
-                                itemCardBg = isLight ? "rgba(239, 68, 68, 0.08)" : "rgba(239, 68, 68, 0.12)";
-                                itemCardBorder = "1px solid rgba(239, 68, 68, 0.3)";
-                            }
-                        }
-
-                        return (
-                            <div key={i} style={{ ...styles.card, background: itemCardBg, border: itemCardBorder }}>
-                                <div style={styles.cardMain}>
-                                    <div style={styles.meta}>
-                                        <div style={{ ...styles.contestTag, color: contestTagColor }}>
-                                            {item.ContestYear} • {formatContestType(item.ContestType)}
-                                        </div>
-                                        <div style={{ ...styles.artistInfo, color: subTextColor }}>
-                                            <div style={{ ...styles.artist, color: artistColor }}>{item.Artist}</div>
-                                            <div style={styles.song}>{item.Song}</div>
-                                        </div>
-                                    </div>
-
-                                    <div style={{ ...styles.scoreContainer, background: scoreBoxBg, border: scoreBoxBorder }}>
-                                        <div style={styles.avgLabelSmall}>СРЕДНИЙ</div>
-                                        <div style={{ ...styles.scoreBig, color: scoreValColor }}>{formatAvg(perf.avg)}</div>
-                                        <div style={styles.starSmall}>⭐</div>
-                                    </div>
-                                </div>
-
-                                {youtubeId && (
-                                    <div style={styles.mediaContainer}>
-                                        <a href={item.YoutubeLink} target="_blank" rel="noreferrer" style={styles.thumbnailWrapper}>
-                                            <img
-                                                src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
-                                                style={styles.thumbnailImg}
-                                            />
-                                            <div style={styles.playOverlay}>▶ Смотреть</div>
-                                        </a>
-                                    </div>
-                                )}
-
-                                <div style={{ ...styles.userScoresList, background: userScoresBg, border: userScoresBorder }}>
-                                    <div style={styles.scoresHeader}>Оценки зрителей:</div>
-                                    {perf.scores.map((s, idx) => (
-                                        <div key={idx} style={{ ...styles.userScoreItem, borderBottom: userScoreItemBorder }}>
-                                            <div style={styles.userScoreRow}>
-                                                <span style={{ ...styles.userScoreName, color: artistColor }}>{s.Username}</span>
-                                                <span style={{ ...styles.userScoreValue, color: scoreValColor }}>⭐ {s.Score}</span>
-                                            </div>
-                                            {s.Comment && (
-                                                <div style={{ ...styles.userScoreComment, color: subTextColor }}>
-                                                    “{s.Comment}”
-                                                </div>
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                {/* Подписи статуса (Qualified / Place) */}
-                                {(hasPlace || isSemifinal) && (
-                                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: "auto", paddingTop: 12, borderTop: isLight ? "1px solid rgba(0,0,0,0.06)" : "1px solid rgba(255,255,255,0.06)" }}>
-                                        {hasPlace && (
-                                            <span style={{
-                                                padding: "4px 12px",
-                                                borderRadius: 10,
-                                                fontSize: 13,
-                                                fontWeight: 800,
-                                                textTransform: "uppercase",
-                                                ...(item.Place! === 1 ? { background: "#facc15", color: "#000" } :
-                                                    item.Place! === 2 ? { background: "#94a3b8", color: "#fff" } :
-                                                    item.Place! === 3 ? { background: "#d97706", color: "#fff" } :
-                                                    { background: isLight ? "#1f2937" : isGray ? "#374151" : "#4f7cff", color: "#fff" })
-                                            }}>
-                                                {item.Place! <= 3 ? placeWords[item.Place!] : `${item.Place} место`}
-                                            </span>
-                                        )}
-
-                                        {isSemifinal && (
-                                            <span style={{
-                                                padding: "4px 12px",
-                                                borderRadius: 10,
-                                                fontSize: 13,
-                                                fontWeight: 800,
-                                                textTransform: "uppercase",
-                                                ...(isQualified 
-                                                    ? { background: "rgba(34, 197, 94, 0.15)", color: isLight ? "#166534" : "#4ade80", border: "1px solid rgba(34, 197, 94, 0.3)" } 
-                                                    : { background: "rgba(239, 68, 68, 0.15)", color: isLight ? "#991b1b" : "#f87171", border: "1px solid rgba(239, 68, 68, 0.3)" })
-                                            }}>
-                                                {isQualified ? "В финале" : "Не прошла"}
-                                            </span>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        );
-                    })}
-                </div>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(0, 220px) minmax(0, 1fr)",
+            gap: 16,
+            marginBottom: 24,
+          }}
+          className="country-stats-top"
+        >
+          <div
+            style={{
+              background: cardBg,
+              border,
+              borderRadius: 18,
+              padding: 20,
+              display: "flex",
+              flexDirection: "column",
+              justifyContent: "center",
+              gap: 6,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+                color: muted,
+              }}
+            >
+              Средний балл
             </div>
-        </div>
-    );
-}
+            <div
+              style={{
+                fontFamily: '"Syne", sans-serif',
+                fontSize: 40,
+                fontWeight: 800,
+                color: accent,
+                letterSpacing: "-0.04em",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              {formatAvg(avgScore)}
+              <Star size={20} fill="currentColor" />
+            </div>
+          </div>
 
-const styles: Record<string, React.CSSProperties> = {
-    page: {
-        padding: "40px 20px",
-        minHeight: "100vh",
-        fontFamily: "'Inter', sans-serif",
-    },
-    container: { maxWidth: 1200, margin: "0 auto" },
-    header: { textAlign: "center", marginBottom: 32 },
-    title: { fontSize: "2.2rem", fontWeight: 900, letterSpacing: "-0.04em", margin: 0 },
-    usernameHighlight: { fontWeight: 900 },
-    avgBox: { textAlign: "center", margin: "0 auto 48px", padding: "24px", maxWidth: 360, borderRadius: "28px", backdropFilter: "blur(12px)" },
-    avgLabelBig: { fontSize: 13, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.1em", marginBottom: 8 },
-    avgValue: { fontSize: 48, fontWeight: 950 },
-    filters: { display: "flex", flexDirection: "column", gap: 24, marginBottom: 40, padding: "24px", borderRadius: "24px", backdropFilter: "blur(8px)" },
-    block: { display: "flex", flexDirection: "column", gap: 12 },
-    label: { fontWeight: 800, fontSize: 12, textTransform: "uppercase", letterSpacing: "0.1em", paddingLeft: 4 },
-    row: { display: "flex", gap: 8, flexWrap: "wrap" },
-    btn: { padding: "8px 14px", borderRadius: "10px", cursor: "pointer", fontSize: 13, fontWeight: 700, transition: "all 0.2s ease" },
-    loading: { textAlign: "center", fontSize: 14, fontWeight: 600, marginBottom: 20 },
-    list: { display: "grid", gap: 20, gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))" },
-    card: { padding: "24px", borderRadius: "24px", backdropFilter: "blur(12px)", display: "flex", flexDirection: "column", gap: 16 },
-    cardMain: { display: "flex", justifyContent: "space-between", gap: 16, alignItems: "flex-start" },
-    meta: { display: "flex", flexDirection: "column", gap: 6, flex: 1 },
-    contestTag: { fontSize: 11, fontWeight: 800, textTransform: "uppercase", letterSpacing: "0.05em" },
-    artistInfo: { fontSize: 15, fontWeight: 600, lineHeight: "1.4" },
-    artist: { fontWeight: 700 },
-    song: { fontStyle: "italic" },
-    scoreContainer: { textAlign: "center", padding: "10px 16px", borderRadius: "18px" },
-    scoreBig: { fontSize: 44, fontWeight: 1000, lineHeight: 1 },
-    starSmall: { fontSize: 12, marginTop: 4 },
-    mediaContainer: { display: "flex", gap: 12, width: "100%" },
-    thumbnailWrapper: { width: "100%", maxWidth: "320px", position: "relative", borderRadius: "12px", overflow: "hidden", border: "1px solid rgba(255, 255, 255, 0.1)", aspectRatio: "16/9" },
-    thumbnailImg: { width: "100%", height: "100%", objectFit: "contain", background: "#000" },
-    playOverlay: { position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0, 0, 0, 0.4)", color: "#fff", fontSize: 10, fontWeight: 800, textTransform: "uppercase" },
-    avgLabelSmall: { fontSize: 9, fontWeight: 800, color: "#64748b", marginBottom: 2 },
-    userScoresList: { display: "flex", flexDirection: "column", gap: 12, padding: 16, borderRadius: 16 },
-    scoresHeader: { fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 },
-    userScoreItem: { paddingBottom: 10 },
-    userScoreRow: { display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
-    userScoreName: { fontSize: 14, fontWeight: 700 },
-    userScoreValue: { fontSize: 14, fontWeight: 800 },
-    userScoreComment: { fontSize: 13, fontStyle: "italic", lineHeight: "1.4" },
-};
+          <div
+            style={{
+              background: cardBg,
+              border,
+              borderRadius: 18,
+              padding: 18,
+              display: "flex",
+              flexDirection: "column",
+              gap: 14,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: muted,
+                  marginBottom: 8,
+                }}
+              >
+                Этап
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                {[
+                  { id: "", label: "Все" },
+                  { id: "final", label: "Финал" },
+                  { id: "first-semifinal", label: "1-й полуфинал" },
+                  { id: "second-semifinal", label: "2-й полуфинал" },
+                ].map((opt) => (
+                  <button
+                    key={opt.id || "all"}
+                    type="button"
+                    onClick={() => setFilterType(opt.id)}
+                    style={chipStyle(filterType === opt.id)}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div>
+              <div
+                style={{
+                  fontSize: 11,
+                  fontWeight: 800,
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                  color: muted,
+                  marginBottom: 8,
+                }}
+              >
+                Год
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+                <button type="button" onClick={() => setSelectedYear("")} style={chipStyle(selectedYear === "")}>
+                  Все
+                </button>
+                {Object.keys(contests)
+                  .sort((a, b) => Number(b) - Number(a))
+                  .map((year) => (
+                    <button
+                      key={year}
+                      type="button"
+                      onClick={() => setSelectedYear(year)}
+                      style={chipStyle(selectedYear === year)}
+                    >
+                      {year}
+                    </button>
+                  ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <style>{`
+          @media (max-width: 720px) {
+            .country-stats-top { grid-template-columns: 1fr !important; }
+          }
+        `}</style>
+
+        {loading && (
+          <div style={{ color: muted, fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
+            Обновление данных...
+          </div>
+        )}
+
+        <div
+          style={{
+            display: "grid",
+            gap: 16,
+            gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))",
+          }}
+        >
+          {performances.map((perf, i) => {
+            const item = perf.info;
+            const youtubeId = item.YoutubeLink ? getYouTubeId(item.YoutubeLink) : null;
+            const isSemifinal = item.ContestType?.includes("semifinal");
+            const hasPlace = item.Place !== undefined && item.Place !== null;
+
+            return (
+              <article
+                key={i}
+                style={{
+                  background: cardBg,
+                  border,
+                  borderRadius: 18,
+                  overflow: "hidden",
+                  display: "flex",
+                  flexDirection: "column",
+                }}
+              >
+                {youtubeId && (
+                  <a
+                    href={item.YoutubeLink}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "block",
+                      position: "relative",
+                      aspectRatio: "16 / 9",
+                      background: "#000",
+                    }}
+                  >
+                    <img
+                      src={`https://img.youtube.com/vi/${youtubeId}/mqdefault.jpg`}
+                      alt=""
+                      style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }}
+                    />
+                    <span
+                      style={{
+                        position: "absolute",
+                        inset: 0,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        background: "rgba(0,0,0,0.25)",
+                      }}
+                    >
+                      <span
+                        style={{
+                          width: 40,
+                          height: 40,
+                          borderRadius: "50%",
+                          background: "rgba(255,255,255,0.92)",
+                          color: "#0b1528",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                        }}
+                      >
+                        <Play size={16} fill="currentColor" />
+                      </span>
+                    </span>
+                  </a>
+                )}
+
+                <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 12, flex: 1 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: "0.06em",
+                          textTransform: "uppercase",
+                          color: accent,
+                          marginBottom: 4,
+                        }}
+                      >
+                        {item.ContestYear} · {formatContestType(item.ContestType)}
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: '"Syne", sans-serif',
+                          fontSize: 17,
+                          fontWeight: 800,
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {item.Artist}
+                      </div>
+                      <div style={{ fontSize: 13, color: muted, fontStyle: "italic", marginTop: 2 }}>
+                        {item.Song}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        flexShrink: 0,
+                        textAlign: "right",
+                        padding: "6px 10px",
+                        borderRadius: 12,
+                        background: soft,
+                        border,
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 9,
+                          fontWeight: 800,
+                          letterSpacing: "0.08em",
+                          textTransform: "uppercase",
+                          color: muted,
+                        }}
+                      >
+                        Средний
+                      </div>
+                      <div
+                        style={{
+                          fontFamily: '"Syne", sans-serif',
+                          fontSize: 22,
+                          fontWeight: 800,
+                          color: accent,
+                          lineHeight: 1.1,
+                        }}
+                      >
+                        {formatAvg(perf.avg)}
+                      </div>
+                    </div>
+                  </div>
+
+                  {(hasPlace || isSemifinal) && (
+                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                      {hasPlace && (
+                        <span
+                          style={{
+                            padding: "4px 9px",
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            ...(item.Place! === 1
+                              ? { background: "#facc15", color: "#000" }
+                              : item.Place! === 2
+                                ? { background: "#94a3b8", color: "#fff" }
+                                : item.Place! === 3
+                                  ? { background: "#d97706", color: "#fff" }
+                                  : {
+                                      background: isLight ? "#0f1a2a" : accent,
+                                      color: isLight ? "#fff" : "#0b1528",
+                                    }),
+                          }}
+                        >
+                          {item.Place! <= 3 ? placeWords[item.Place!] : `${item.Place} место`}
+                        </span>
+                      )}
+                      {isSemifinal && (
+                        <span
+                          style={{
+                            padding: "4px 9px",
+                            borderRadius: 8,
+                            fontSize: 11,
+                            fontWeight: 800,
+                            textTransform: "uppercase",
+                            ...(item.Qualified
+                              ? {
+                                  background: "rgba(34,197,94,0.15)",
+                                  color: isLight ? "#166534" : "#4ade80",
+                                  border: "1px solid rgba(34,197,94,0.3)",
+                                }
+                              : {
+                                  background: "rgba(239,68,68,0.15)",
+                                  color: isLight ? "#991b1b" : "#f87171",
+                                  border: "1px solid rgba(239,68,68,0.3)",
+                                }),
+                          }}
+                        >
+                          {item.Qualified ? "В финале" : "Не прошла"}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      marginTop: "auto",
+                      padding: 10,
+                      borderRadius: 12,
+                      background: soft,
+                      border,
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 8,
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 800,
+                        letterSpacing: "0.06em",
+                        textTransform: "uppercase",
+                        color: muted,
+                      }}
+                    >
+                      Оценки
+                    </div>
+                    {perf.scores.map((s, idx) => (
+                      <div key={idx} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", gap: 8 }}>
+                          <span style={{ fontSize: 13, fontWeight: 700 }}>{s.Username}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: accent }}>{s.Score}</span>
+                        </div>
+                        {s.Comment && (
+                          <div style={{ fontSize: 12, color: muted, fontStyle: "italic" }}>
+                            «{s.Comment}»
+                          </div>
+                        )}
+                        {s.GifURL && (
+                          <GifPreview src={s.GifURL} maxWidth={96} maxHeight={72} style={{ borderRadius: 8 }} />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
