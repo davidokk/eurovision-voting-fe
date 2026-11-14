@@ -6,6 +6,7 @@ export type ContestItem = {
   year: number;
   starts: string;
   ends: string;
+  has_scores?: boolean;
 };
 
 export type ContestsByYear = Record<string, ContestItem[]>;

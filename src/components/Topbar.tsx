@@ -1,7 +1,7 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContestsByYear, Theme } from "../types/contest";
 import { AuthModal } from "./AuthModal";
-import { LogOut, User as UserIcon, ChevronDown, Music2, Settings } from "lucide-react";
+import { Check, Clock, LogOut, User as UserIcon, ChevronDown, Music2, Settings } from "lucide-react";
 import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
@@ -14,6 +14,29 @@ type Props = {
   theme: Theme;
   onSelectTheme: (theme: Theme) => void;
 };
+
+const CURRENT_STAGE_PRIORITY = [
+  "first-semifinal",
+  "second-semifinal",
+  "final",
+] as const;
+
+function getCurrentContestId(contests: ContestsByYear): string | null {
+  const years = Object.keys(contests)
+    .map(Number)
+    .filter((y) => Number.isFinite(y));
+  if (years.length === 0) return null;
+
+  const newestYear = Math.max(...years);
+  const stages = contests[String(newestYear)] ?? [];
+  if (stages.length === 0) return null;
+
+  for (const type of CURRENT_STAGE_PRIORITY) {
+    const found = stages.find((c) => c.type === type);
+    if (found) return found.id;
+  }
+  return stages[0]?.id ?? null;
+}
 
 function translateContestType(type: string) {
   switch (type) {
@@ -39,6 +62,40 @@ function shortContestType(type: string) {
     default:
       return type;
   }
+}
+
+function ContestStatusIcons({
+  hasScores,
+  isCurrent,
+  checkSize = 14,
+  clockSize = 14,
+}: {
+  hasScores?: boolean;
+  isCurrent?: boolean;
+  checkSize?: number;
+  clockSize?: number;
+}) {
+  if (!hasScores && !isCurrent) return null;
+  return (
+    <>
+      {isCurrent && (
+        <Clock
+          size={clockSize}
+          strokeWidth={2.5}
+          className="ev-topbar__contest-current-clock"
+          aria-label="Текущий этап"
+        />
+      )}
+      {hasScores && (
+        <Check
+          size={checkSize}
+          strokeWidth={3}
+          className="ev-topbar__contest-year-check"
+          aria-label="Есть оценки"
+        />
+      )}
+    </>
+  );
 }
 
 type MenuColors = {
@@ -321,6 +378,7 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
   }
 
   const contestYears = Object.keys(contests).sort((a, b) => Number(a) - Number(b));
+  const currentContestId = useMemo(() => getCurrentContestId(contests), [contests]);
 
   const selectedContest = selectedContestId
     ? contestYears
@@ -442,7 +500,19 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                 {pickerMain}
               </span>
               <span className="ev-topbar__contest-meta">
-                <span className="ev-topbar__contest-stage-label">{pickerSub}</span>
+                <span className="ev-topbar__contest-stage-label">
+                  {pickerSub}
+                  {isContestContext &&
+                    selectedContestId &&
+                    selectedContestId === currentContestId && (
+                      <Clock
+                        size={13}
+                        strokeWidth={2.5}
+                        className="ev-topbar__contest-current-clock"
+                        aria-label="Текущий этап"
+                      />
+                    )}
+                </span>
                 <ChevronDown
                   size={14}
                   className="ev-topbar__contest-chevron"
@@ -475,7 +545,13 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                             }`}
                             onClick={() => selectContest(items[0].id)}
                           >
-                            <span className="ev-topbar__contest-cell-year">{year}</span>
+                            <span className="ev-topbar__contest-cell-year">
+                              <span>{year}</span>
+                              <ContestStatusIcons
+                                hasScores={items[0].has_scores}
+                                isCurrent={items[0].id === currentContestId}
+                              />
+                            </span>
                           </button>
                         );
                       }
@@ -501,7 +577,13 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                                 onClick={() => selectContest(c.id)}
                                 title={translateContestType(c.type)}
                               >
-                                {shortContestType(c.type)}
+                                <span>{shortContestType(c.type)}</span>
+                                <ContestStatusIcons
+                                  hasScores={c.has_scores}
+                                  isCurrent={c.id === currentContestId}
+                                  checkSize={12}
+                                  clockSize={12}
+                                />
                               </button>
                             ))}
                           </div>
@@ -728,7 +810,15 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                           selectedContestId === items[0].id ? activeColor : textColor,
                       }}
                     >
-                      {year}
+                      <span className="ev-topbar-mobile-drawer__year-row">
+                        {year}
+                        <ContestStatusIcons
+                          hasScores={items[0].has_scores}
+                          isCurrent={items[0].id === currentContestId}
+                          checkSize={16}
+                          clockSize={16}
+                        />
+                      </span>
                     </button>
                   ) : (
                     <>
@@ -751,7 +841,15 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                               selectedContestId === c.id ? activeColor : textColor,
                           }}
                         >
-                          {translateContestType(c.type)}
+                          <span className="ev-topbar-mobile-drawer__year-row">
+                            {translateContestType(c.type)}
+                            <ContestStatusIcons
+                              hasScores={c.has_scores}
+                              isCurrent={c.id === currentContestId}
+                              checkSize={14}
+                              clockSize={14}
+                            />
+                          </span>
                         </button>
                       ))}
                     </>

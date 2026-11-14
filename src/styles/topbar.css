@@ -83,6 +83,9 @@
 }
 
 .ev-topbar__contest-stage-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   font-size: 12px;
   font-weight: 650;
   color: var(--ev-topbar-sub);
@@ -164,6 +167,10 @@ button.ev-topbar__contest-cell:hover {
 }
 
 .ev-topbar__contest-cell-year {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -171,7 +178,18 @@ button.ev-topbar__contest-cell:hover {
   text-align: center;
 }
 
+.ev-topbar__contest-year-check {
+  flex-shrink: 0;
+  color: #22c55e;
+}
+
+.ev-topbar__contest-current-clock {
+  flex-shrink: 0;
+  color: #eab308;
+}
+
 .ev-topbar__contest-cell--multi .ev-topbar__contest-cell-year {
+  justify-content: flex-start;
   text-align: left;
   color: var(--ev-topbar-text);
 }
@@ -183,6 +201,9 @@ button.ev-topbar__contest-cell:hover {
 }
 
 .ev-topbar__contest-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   padding: 5px 9px;
   border-radius: 7px;
   border: 1px solid transparent;
@@ -275,6 +296,12 @@ button.ev-topbar__contest-cell:hover {
   color: var(--ev-topbar-accent);
   letter-spacing: 0.05em;
   margin-bottom: 4px;
+}
+
+.ev-topbar-mobile-drawer__year-row {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .ev-topbar-mobile-drawer__year-btn {

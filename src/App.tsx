@@ -271,6 +271,7 @@ export default function App() {
                 const data = await getContest(selectedContest.contest.id);
                 setSelectedContest(data);
               }
+              getContests().then(setContests);
             }}
           />
         </div>
