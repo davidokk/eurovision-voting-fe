@@ -1,0 +1,232 @@
+.ev-auth-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.58);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.ev-auth-modal {
+  position: relative;
+  width: 400px;
+  max-width: 100%;
+  border-radius: 24px;
+  padding: 28px 24px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+}
+
+.ev-auth-close {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: inherit;
+  opacity: 0.7;
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+
+.ev-auth-close:hover {
+  opacity: 1;
+}
+
+.ev-auth-head {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding-top: 4px;
+  text-align: center;
+}
+
+.ev-auth-badge {
+  width: 52px;
+  height: 52px;
+  border-radius: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ev-auth-title {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.ev-auth-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ev-auth-btn {
+  width: 100%;
+  min-height: 48px;
+  padding: 12px 16px;
+  border: none;
+  border-radius: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  font-size: 15px;
+  font-weight: 750;
+  cursor: pointer;
+  text-decoration: none;
+  box-sizing: border-box;
+  transition: transform 0.12s ease, opacity 0.15s ease, filter 0.15s ease;
+}
+
+.ev-auth-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.ev-auth-btn:not(:disabled):hover {
+  filter: brightness(1.06);
+}
+
+.ev-auth-btn:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+.ev-auth-btn--telegram {
+  background: #2aabee;
+  color: #fff;
+  box-shadow: 0 10px 24px rgba(42, 171, 238, 0.28);
+}
+
+.ev-auth-btn--primary {
+  color: #fff;
+}
+
+.ev-auth-btn--ghost {
+  background: transparent;
+  border: 1px solid transparent;
+  font-weight: 650;
+  font-size: 14px;
+  min-height: 42px;
+}
+
+.ev-auth-btn--soft {
+  min-height: 44px;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.ev-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: inherit;
+  opacity: 0.55;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ev-auth-divider::before,
+.ev-auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: currentColor;
+  opacity: 0.25;
+}
+
+.ev-auth-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+}
+
+.ev-auth-tab {
+  flex: 1;
+  min-height: 40px;
+  border: none;
+  border-radius: 11px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 750;
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ev-auth-input {
+  width: 100%;
+  padding: 13px 14px;
+  border-radius: 14px;
+  border: 1px solid transparent;
+  font-size: 15px;
+  font-weight: 600;
+  box-sizing: border-box;
+  outline: none;
+}
+
+.ev-auth-input:focus {
+  border-color: rgba(42, 171, 238, 0.55);
+}
+
+.ev-auth-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 13px;
+  font-weight: 650;
+  text-align: center;
+  box-sizing: border-box;
+}
+
+.ev-auth-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 11px 13px;
+  border-radius: 12px;
+  background: rgba(255, 107, 107, 0.1);
+  color: #ff6b6b;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+
+.ev-auth-closed {
+  padding: 12px 14px;
+  border-radius: 14px;
+  text-align: center;
+}
+
+.ev-auth-closed__title {
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.ev-auth-closed__text {
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  opacity: 0.85;
+}
