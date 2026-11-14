@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from "react";
+import { Play } from "lucide-react";
 import type { PerformanceWithScores, ScoreView, Theme } from "../types/contest";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { RatePerformanceModal } from "./RatePerformanceModal";
@@ -228,7 +229,7 @@ export function PerformanceCardV2({
             />
             <div className="pcv2__media-scrim" style={{ background: palette.mediaScrim }} />
             <span className="pcv2__play" aria-hidden>
-              ▶
+              <Play size={18} fill="currentColor" strokeWidth={0} />
             </span>
           </a>
         ) : (

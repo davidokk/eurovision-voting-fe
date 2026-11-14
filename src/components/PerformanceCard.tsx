@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Play } from "lucide-react";
 import type { PerformanceWithScores, ScoreView, Theme } from "../types/contest";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { RatePerformanceModal } from "./RatePerformanceModal";
@@ -228,7 +229,9 @@ export function PerformanceCard({
                 alt="yt"
               />
               <div style={styles.videoOverlay}>
-                <div style={styles.playIconSmall}>▶</div>
+                <div style={styles.playIconSmall}>
+                  <Play size={12} fill="currentColor" strokeWidth={0} />
+                </div>
               </div>
             </a>
           </div>
@@ -449,8 +452,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "11px",
-    paddingLeft: "2px",
+    paddingLeft: "1px",
   },
   trackDetails: {
     flex: "1 1 150px",
