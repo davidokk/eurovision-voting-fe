@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Loader2, X } from "lucide-react";
+import { X } from "lucide-react";
+import { EvLoader } from "./EvLoader";
 import { fetchUserList, type UserPublic } from "../api/user";
 import { UserAvatar } from "./UserAvatar";
 
@@ -24,7 +25,6 @@ export function ProfileComparePicker({
     textColor,
     subTextColor,
     border,
-    accentSolid,
     activeRowBg,
     chipBg,
 }: Props) {
@@ -112,8 +112,7 @@ export function ProfileComparePicker({
                         fontWeight: 600,
                     }}
                 >
-                    <Loader2 size={18} className="ev-spin" color={accentSolid} />
-                    Загрузка пользователей…
+                    <EvLoader size="sm" label="Собираем участников" />
                 </div>
             ) : error ? (
                 <div style={{ padding: 16, color: subTextColor, fontSize: 13 }}>

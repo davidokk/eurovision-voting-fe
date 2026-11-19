@@ -19,6 +19,7 @@ import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { GifPreview } from "./GifPreview";
 import { isScoreTwelve } from "../utils/scoreUtils";
 import { MessageCircle, X } from "lucide-react";
+import { EvLoader } from "./EvLoader";
 
 type Props = {
     contest: ContestViewType | null;
@@ -1411,13 +1412,12 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         <div
                             style={{
                                 padding: 24,
-                                textAlign: "center",
+                                display: "flex",
+                                justifyContent: "center",
                                 color: promptText,
-                                fontSize: 13,
-                                fontWeight: 600,
                             }}
                         >
-                            Загрузка…
+                            <EvLoader size="sm" label="Открываем чат" />
                         </div>
                     )}
                 </div>

@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Loader2, Search } from "lucide-react";
+import { Search } from "lucide-react";
+import { EvLoader } from "../EvLoader";
 import type { GameCatalogItem } from "../../types/game";
 import { searchYouTubeVideos, type YouTubeSearchItem } from "../../api/game";
 import { getYouTubeThumb } from "../../utils/youtube";
@@ -56,7 +57,6 @@ export function GameYouTubeSearchTab({
   sub,
   cardBorder,
   inputBg,
-  accent,
 }: Props) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -95,7 +95,7 @@ export function GameYouTubeSearchTab({
           }}
         />
         <button type="submit" className="gts-btn gts-btn--primary" disabled={loading || !query.trim()}>
-          {loading ? <Loader2 size={16} className="gts-spin" /> : <Search size={16} />}
+          {loading ? <EvLoader size="xs" /> : <Search size={16} />}
         </button>
       </form>
 
@@ -103,7 +103,7 @@ export function GameYouTubeSearchTab({
         <div className="gts-song-grid">
         {loading && (
           <p className="gts-song-grid__empty" style={{ color: sub }}>
-            <Loader2 size={20} className="gts-spin" color={accent} /> Ищем…
+            <EvLoader size="sm" label="Ищем песню" />
           </p>
         )}
         {!loading && searched && results.length === 0 && (

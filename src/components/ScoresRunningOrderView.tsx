@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
-import { PerformanceCard } from "./PerformanceCard";
+import { PerformanceCardV2 } from "./PerformanceCardV2";
 import { formatTotal, getScoresViewColors, type ScoresViewProps } from "./scores/scoresViewShared";
 import { readScoresAuth } from "./scores/scoresViewShared";
 
@@ -149,14 +149,15 @@ export function ScoresRunningOrderView({
       </div>
 
       {selected && (
-        <div style={{ marginTop: 8 }}>
-          <PerformanceCard
+        <div style={{ marginTop: 8, width: "100%" }}>
+          <PerformanceCardV2
             performance={selected}
             votingStarted={votingStarted}
             votingEnded={votingEnded}
             theme={theme}
             contestType={contestType}
             onRated={onRated}
+            layout="order"
           />
         </div>
       )}

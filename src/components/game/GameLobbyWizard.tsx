@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ChevronLeft, ChevronRight, Loader2, Play, Save } from "lucide-react";
+import { ChevronLeft, ChevronRight, Play, Save } from "lucide-react";
+import { EvLoader } from "../EvLoader";
 import type { Theme } from "../../types/contest";
 import type { GameCatalogItem, GamePlayMode, GamePlaylistMode, GamePlayer, SavedPlaylistSummary } from "../../types/game";
 import { createSavedPlaylist, fetchSavedPlaylists } from "../../api/game";
@@ -293,7 +294,7 @@ export function GameLobbyWizard(props: Props) {
               {sourceKind === "saved" && (
                 <div className="gts-saved-pick">
                   {savedLoading || applyingSaved ? (
-                    <Loader2 size={24} className="gts-spin" color={accent} />
+                    <EvLoader size="sm" label="Открываем плейлисты" />
                   ) : savedError ? (
                     <p className="gts-saved-editor__error">{savedError}</p>
                   ) : savedList.length === 0 ? (
@@ -414,7 +415,7 @@ export function GameLobbyWizard(props: Props) {
                   disabled={savingPlaylist}
                   onClick={() => void saveCurrentPlaylist()}
                 >
-                  {savingPlaylist ? <Loader2 size={14} className="gts-spin" /> : <Save size={14} />}
+                  {savingPlaylist ? <EvLoader size="xs" /> : <Save size={14} />}
                   Сохранить плейлист
                 </button>
               )}
@@ -508,7 +509,7 @@ export function GameLobbyWizard(props: Props) {
               disabled={startDisabled || startLoading}
               onClick={() => void onStart()}
             >
-              {startLoading ? <Loader2 size={18} className="gts-spin" /> : <Play size={18} />}
+              {startLoading ? <EvLoader size="xs" /> : <Play size={18} />}
               Начать игру
             </button>
           ) : step === "review" ? (

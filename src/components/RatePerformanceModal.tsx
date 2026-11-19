@@ -8,6 +8,7 @@ import {
   SCORE_TWELVE,
 } from "../utils/scoreUtils";
 import { ScoreTwelveCelebration } from "./ScoreTwelveCelebration";
+import { EvLoader } from "./EvLoader";
 
 type GifItem = {
   id: string;
@@ -449,14 +450,16 @@ export function RatePerformanceModal({
               {loadingGifs && (
                 <div
                   style={{
-                    textAlign: "center",
+                    display: "flex",
+                    justifyContent: "center",
                     padding: 8,
                     color: gifSearchColor,
                     width: "100%",
                     fontSize: 13,
+                    fontWeight: 650,
                   }}
                 >
-                  Ищем...
+                  <EvLoader size="sm" label="Ищем гифку" />
                 </div>
               )}
               {gifs.map((gif) => (

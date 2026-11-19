@@ -7,6 +7,7 @@ import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { getScoreColor, isScoreTwelve } from "../utils/scoreUtils";
 import { FavoriteButton } from "./FavoriteButton";
 import { GifPreview } from "./GifPreview";
+import { contestTypeLabel } from "../utils/contestLabels";
 import "./PerformanceCardV2.css";
 
 type Props = {
@@ -18,7 +19,100 @@ type Props = {
   onRated?: () => void | Promise<void>;
   /** Первое выступление без оценки текущего пользователя (очередь голосования) */
   awaitingRating?: boolean;
+  /** Широкая раскладка для вида «Порядок» на ПК. На узком экране карточка остаётся прежней. */
+  layout?: "default" | "order";
 };
+
+function VoteBoard({
+  scores,
+  myUsername,
+  text,
+  muted,
+  accent,
+  empty,
+  meBg,
+  softBorder,
+}: {
+  scores: ScoreView[];
+  myUsername: string | null;
+  text: string;
+  muted: string;
+  accent: string;
+  empty: string;
+  meBg: string;
+  softBorder: string;
+}) {
+  if (scores.length === 0) {
+    return (
+      <div className="pcv2__empty" style={{ color: empty }}>
+        Пока никто не проголосовал
+      </div>
+    );
+  }
+
+  const ordered = [...scores].sort((a, b) => b.score - a.score || a.username.localeCompare(b.username));
+
+  return (
+    <ul className="pcv3__sheet">
+      {ordered.map((s, index) => {
+        const isMe = s.username === myUsername;
+        const color = getScoreColor(s.score);
+        return (
+          <li
+            key={s.user_id}
+            className={`pcv3__vote${s.gif_url ? "" : " pcv3__vote--plain"}`}
+            style={{
+              background: isMe ? meBg : "transparent",
+              borderTop: index === 0 || isMe ? "none" : softBorder,
+            }}
+          >
+            <span className="pcv3__score" style={{ color }}>
+              {isScoreTwelve(s.score) ? (
+                <ScoreTwelveDisplay
+                  score={s.score}
+                  variant="inline"
+                  style={{ fontSize: 22, fontWeight: 800, lineHeight: 1 }}
+                />
+              ) : (
+                s.score
+              )}
+            </span>
+            <div className="pcv3__copy">
+              <a
+                href={`/user/${s.user_id}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="pcv3__name"
+                style={{ color: isMe ? accent : text }}
+              >
+                {s.username}
+                {isMe ? " (вы)" : ""}
+              </a>
+              {s.comment && (
+                <p className="pcv3__comment" style={{ color: muted }}>
+                  {s.comment}
+                </p>
+              )}
+            </div>
+            {s.gif_url && (
+              <GifPreview
+                className="pcv3__gif"
+                src={s.gif_url}
+                style={{
+                  width: "auto",
+                  height: "auto",
+                  maxWidth: 88,
+                  maxHeight: 72,
+                  objectFit: "contain",
+                }}
+              />
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 function getYouTubeId(url: string) {
   const match = url.match(/(?:youtu\.be\/|youtube\.com.*v=)([^&?/]+)/i);
@@ -33,6 +127,7 @@ export function PerformanceCardV2({
   contestType,
   onRated,
   awaitingRating = false,
+  layout = "default",
 }: Props) {
   const token = localStorage.getItem("token");
   const myUsername = localStorage.getItem("username");
@@ -204,13 +299,113 @@ export function PerformanceCardV2({
     );
   }
 
+  const orderLayout = layout === "order";
+
+  const lead = (
+    <>
+      <div
+        className="pcv2__meta"
+        style={{ background: palette.metaBg, border: palette.softBorder }}
+      >
+        <div className="pcv2__country-row">
+          {supportsEmoji && (
+            <span className="pcv2__flag" aria-hidden>
+              {performance.country.flag_emoji}
+            </span>
+          )}
+          <a
+            href={`/country/${performance.country.id}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="pcv2__country"
+            style={{ color: palette.text }}
+          >
+            {performance.country.name_ru}
+          </a>
+          {performance.year ? (
+            <span className="pcv2__year" style={{ color: palette.muted }}>
+              {performance.year}
+              {performance.contest_type ? ` · ${contestTypeLabel(performance.contest_type)}` : ""}
+            </span>
+          ) : null}
+          {placeBadge}
+        </div>
+
+        {token && (
+          <div className="pcv2__fav">
+            <FavoriteButton performanceId={performance.performance_id} size={16} theme={theme} />
+          </div>
+        )}
+      </div>
+
+      <div className="pcv2__track">
+        <h3 className="pcv2__artist">{performance.artist}</h3>
+        <p className="pcv2__song" style={{ color: palette.muted }}>
+          {performance.song}
+        </p>
+      </div>
+
+      {(otherBadges.length > 0 || canRate) && (
+        <div className="pcv2__toolbar">
+          <div className="pcv2__statuses">{otherBadges}</div>
+          {canRate && (
+            <button
+              type="button"
+              className="pcv2__rate"
+              style={{ background: palette.rateBg, color: palette.rateFg }}
+              onClick={() => setOpen(true)}
+            >
+              Оценить
+            </button>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  const score = (
+      <div
+        className="pcv2__avg"
+        style={{
+          background: `linear-gradient(135deg, ${avgColor} 0%, ${palette.scoreGradEnd} 140%)`,
+          border: palette.softBorder,
+        }}
+      >
+        <div className="pcv2__avg-text">
+          <span className="pcv2__avg-label" style={{ color: palette.scoreLabel }}>
+            Средний балл
+          </span>
+          <span className="pcv2__avg-hint" style={{ color: palette.muted }}>
+            по оценкам жюри
+          </span>
+        </div>
+        <span className="pcv2__avg-value" style={{ color: palette.scoreValue }}>
+          {formatScore(performance.total_score)}
+        </span>
+      </div>
+  );
+
+  const votes = (
+    <VoteBoard
+      scores={performance.scores}
+      myUsername={myUsername}
+      text={palette.text}
+      muted={palette.muted}
+      accent={palette.accent}
+      empty={palette.empty}
+      meBg={palette.feedMeBg}
+      softBorder={palette.softBorder}
+    />
+  );
+
   return (
     <article
-      className={`pcv2${hasTwelveOnCard ? " ev-score-12-card" : ""}`}
+      className={`pcv2${orderLayout ? " pcv2--order" : ""}${hasTwelveOnCard ? " ev-score-12-card" : ""}`}
       style={{
         background: palette.cardBg,
         border: palette.cardBorder,
         color: palette.text,
+        ["--pcv2-line" as string]: palette.softBorder,
       }}
     >
       {/* Media — number overlay + play */}
@@ -242,144 +437,18 @@ export function PerformanceCardV2({
       </div>
 
       <div className="pcv2__body">
-        {/* Meta: country · place · fav */}
-        <div
-          className="pcv2__meta"
-          style={{ background: palette.metaBg, border: palette.softBorder }}
-        >
-          <div className="pcv2__country-row">
-            {supportsEmoji && (
-              <span className="pcv2__flag" aria-hidden>
-                {performance.country.flag_emoji}
-              </span>
-            )}
-            <a
-              href={`/country/${performance.country.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="pcv2__country"
-              style={{ color: palette.text }}
-            >
-              {performance.country.name_ru}
-            </a>
-            {placeBadge}
+        {orderLayout ? (
+          <div className="pcv2__side">
+            <div className="pcv2__lead">{lead}</div>
+            {score}
           </div>
-
-          {token && (
-            <div className="pcv2__fav">
-              <FavoriteButton performanceId={performance.performance_id} size={16} theme={theme} />
-            </div>
-          )}
-        </div>
-
-        {/* Track */}
-        <div className="pcv2__track">
-          <h3 className="pcv2__artist">{performance.artist}</h3>
-          <p className="pcv2__song" style={{ color: palette.muted }}>
-            {performance.song}
-          </p>
-        </div>
-
-        {/* Other statuses + rate */}
-        {(otherBadges.length > 0 || canRate) && (
-          <div className="pcv2__toolbar">
-            <div className="pcv2__statuses">{otherBadges}</div>
-            {canRate && (
-              <button
-                type="button"
-                className="pcv2__rate"
-                style={{ background: palette.rateBg, color: palette.rateFg }}
-                onClick={() => setOpen(true)}
-              >
-                Оценить
-              </button>
-            )}
-          </div>
+        ) : (
+          <>
+            {lead}
+            {score}
+          </>
         )}
-
-        {/* Average score — own prominent block */}
-        <div
-          className="pcv2__avg"
-          style={{
-            background: `linear-gradient(135deg, ${avgColor} 0%, ${palette.scoreGradEnd} 140%)`,
-            border: palette.softBorder,
-          }}
-        >
-          <div className="pcv2__avg-text">
-            <span className="pcv2__avg-label" style={{ color: palette.scoreLabel }}>
-              Средний балл
-            </span>
-            <span className="pcv2__avg-hint" style={{ color: palette.muted }}>
-              по оценкам жюри
-            </span>
-          </div>
-          <span className="pcv2__avg-value" style={{ color: palette.scoreValue }}>
-            {formatScore(performance.total_score)}
-          </span>
-        </div>
-
-        {/* Votes feed */}
-        <div className="pcv2__feed" style={{ background: palette.feedBg, border: palette.softBorder }}>
-          {performance.scores.length === 0 ? (
-            <div className="pcv2__empty" style={{ color: palette.empty }}>
-              Пока никто не проголосовал
-            </div>
-          ) : (
-            <ul className="pcv2__feed-list">
-              {performance.scores.map((s, i) => {
-                const isMe = s.username === myUsername;
-                return (
-                  <li
-                    key={i}
-                    className={`pcv2__feed-item${isMe ? " pcv2__feed-item--me" : ""}`}
-                    style={
-                      isMe
-                        ? { background: palette.feedMeBg, border: palette.feedMeBorder }
-                        : { borderBottom: palette.softBorder }
-                    }
-                  >
-                    <div className="pcv2__feed-main">
-                      <a
-                        href={`/user/${s.user_id}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="pcv2__feed-user"
-                        style={{ color: isMe ? palette.accent : palette.text }}
-                      >
-                        {s.username}
-                        {isMe ? " (вы)" : ""}
-                      </a>
-                      {s.comment && (
-                        <p className="pcv2__feed-comment" style={{ color: palette.muted }}>
-                          «{s.comment}»
-                        </p>
-                      )}
-                    </div>
-
-                    {s.gif_url && (
-                      <div className="pcv2__feed-gif ev-gif-wrap">
-                        <GifPreview src={s.gif_url} maxWidth={72} maxHeight={56} />
-                      </div>
-                    )}
-
-                    <div className="pcv2__feed-score">
-                      <ScoreTwelveDisplay
-                        score={s.score}
-                        variant="badge"
-                        showEmoji
-                        style={
-                          !isScoreTwelve(s.score)
-                            ? { fontSize: 14, fontWeight: 800, color: getScoreColor(s.score) }
-                            : undefined
-                        }
-                      />
-                    </div>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </div>
+        {orderLayout ? <div className="pcv2__votes">{votes}</div> : votes}
       </div>
 
       <RatePerformanceModal

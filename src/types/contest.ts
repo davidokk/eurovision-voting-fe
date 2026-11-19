@@ -37,6 +37,8 @@ export type PerformanceWithScores = {
   place?: number | null;
 
   scores: ScoreView[];
+  year?: number;
+  contest_type?: string;
 };
 
 export type Contest = {

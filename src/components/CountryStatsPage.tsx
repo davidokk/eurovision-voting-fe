@@ -3,6 +3,7 @@ import { Play, Star } from "lucide-react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
 import { GifPreview } from "./GifPreview";
+import { EvLoader } from "./EvLoader";
 
 type ScoreFiltered = {
   Username: string;
@@ -374,8 +375,8 @@ export function CountryStatsPage({ countryId, theme = "dark-blue" }: Props) {
         `}</style>
 
         {loading && (
-          <div style={{ color: muted, fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-            Обновление данных...
+          <div style={{ display: "flex", justifyContent: "center", color: muted, marginBottom: 16 }}>
+            <EvLoader size="sm" label="Обновляем статистику" />
           </div>
         )}
 

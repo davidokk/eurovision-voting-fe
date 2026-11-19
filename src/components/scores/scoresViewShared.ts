@@ -9,8 +9,7 @@ export const SCORES_VIEW_MODE_OPTIONS: {
   label: string;
   description: string;
 }[] = [
-  { mode: "cards", label: "Карточки", description: "Классические карточки выступлений" },
-  { mode: "cards-v2", label: "Карточки V2", description: "Новый медиа-first дизайн" },
+  { mode: "cards-v2", label: "Карточки", description: "Карточки выступлений с оценками" },
   { mode: "table", label: "Таблица", description: "Сводная таблица оценок" },
   { mode: "leaderboard", label: "Рейтинг", description: "Ранжированный список" },
   { mode: "heatmap", label: "Heatmap", description: "Тепловая карта оценок" },
@@ -19,8 +18,9 @@ export const SCORES_VIEW_MODE_OPTIONS: {
 
 export function readScoresViewMode(): ScoresViewMode {
   const raw = localStorage.getItem(SCORES_VIEW_STORAGE_KEY);
+  if (raw === "cards" || raw === "cards-v3") return "cards-v2";
   if (SCORES_VIEW_MODE_OPTIONS.some((o) => o.mode === raw)) return raw as ScoresViewMode;
-  return "cards";
+  return "cards-v2";
 }
 
 export function writeScoresViewMode(mode: ScoresViewMode) {

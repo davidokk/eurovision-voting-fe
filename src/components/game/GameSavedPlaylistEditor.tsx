@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
+import { EvLoader } from "../EvLoader";
 import type { GameCatalogItem, GamePlaylistEntryInput, SavedPlaylist } from "../../types/game";
 import { catalogToPlaylistEntries, playlistEntriesToCatalog } from "../../utils/gamePlaylist";
 import { GamePlaylistPanel } from "./GamePlaylistPanel";
@@ -107,7 +108,7 @@ export function GameSavedPlaylistEditor({
           style={{ border: cardBorder, background: inputBg, color: textColor }}
         />
         <button type="button" className="gts-btn gts-btn--primary" disabled={saving} onClick={() => void handleSave()}>
-          {saving ? <Loader2 size={16} className="gts-spin" /> : <Save size={16} />}
+          {saving ? <EvLoader size="xs" /> : <Save size={16} />}
           Сохранить
         </button>
       </div>

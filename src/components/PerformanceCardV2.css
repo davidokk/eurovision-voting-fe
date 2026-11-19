@@ -1,3 +1,40 @@
+.ev-top-grid {
+  display: grid;
+  gap: 24px;
+  max-width: 1200px;
+  margin: 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+@media (min-width: 768px) {
+  .ev-top-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .ev-top-card {
+    display: flex;
+    min-width: 0;
+    min-height: 100%;
+  }
+
+  .ev-top-card > .pcv2 {
+    flex: 1;
+    width: 100%;
+    height: 100%;
+  }
+
+  .ev-top-card .pcv2__body {
+    flex: 1;
+  }
+}
+
+@media (min-width: 1100px) {
+  .ev-top-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
 .pcv2 {
   --pcv2-radius: 18px;
   display: flex;
@@ -106,6 +143,18 @@
   padding: 12px;
 }
 
+/* Order view keeps the stacked card on narrow screens; the wrapper only preserves the same gaps. */
+.pcv2__side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.pcv2__lead {
+  display: contents;
+}
+
 /* Meta: country · fav */
 .pcv2__meta {
   display: flex;
@@ -123,6 +172,18 @@
   align-items: center;
   gap: 8px;
   flex-wrap: wrap;
+}
+
+.pcv2__year {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid currentColor;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.02em;
+  line-height: 1.2;
+  opacity: 0.9;
 }
 
 .pcv2__place {
@@ -382,6 +443,164 @@
   padding: 12px 8px;
   font-size: 12px;
   font-weight: 500;
+}
+
+.pcv3__sheet {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pcv3__vote {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 8px 2px;
+}
+
+.pcv3__vote--plain {
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.pcv3__score {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.pcv3__copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.pcv3__name {
+  font-size: 13px;
+  font-weight: 750;
+  line-height: 1.2;
+  text-decoration: none;
+}
+
+.pcv3__name:hover {
+  text-decoration: underline;
+}
+
+.pcv3__comment {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.pcv3__gif {
+  justify-self: end;
+  width: auto;
+  height: auto;
+  max-width: 88px;
+  max-height: 72px;
+  border-radius: 8px;
+  object-fit: contain;
+}
+
+/* Order view, desktop: compact header. Photo stays a thumbnail, score stays a thin bar. */
+@media (min-width: 768px) {
+  .pcv2.pcv2--order {
+    display: grid;
+    grid-template-columns: 260px minmax(0, 1fr);
+    grid-template-areas:
+      "media side"
+      "votes votes";
+    align-items: center;
+  }
+
+  .pcv2.pcv2--order:hover {
+    transform: none;
+  }
+
+  .pcv2.pcv2--order .pcv2__body {
+    display: contents;
+  }
+
+  .pcv2.pcv2--order .pcv2__media {
+    grid-area: media;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    align-self: center;
+  }
+
+  .pcv2.pcv2--order .pcv2__side {
+    grid-area: side;
+    align-self: center;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+    height: auto;
+    padding: 8px 14px 8px 12px;
+  }
+
+  .pcv2.pcv2--order .pcv2__lead {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .pcv2.pcv2--order .pcv2__meta {
+    width: auto;
+    max-width: 100%;
+    min-height: 0;
+    padding: 4px 8px;
+  }
+
+  .pcv2.pcv2--order .pcv2__avg {
+    align-self: center;
+    flex: 0 0 auto;
+    width: auto;
+    max-width: 46%;
+    min-width: 0;
+    justify-content: flex-start;
+    margin: 0;
+    padding: 6px 10px;
+    gap: 10px;
+  }
+
+  .pcv2.pcv2--order .pcv2__avg-value {
+    font-size: 26px;
+  }
+
+  .pcv2.pcv2--order .pcv2__votes {
+    grid-area: votes;
+    align-self: stretch;
+    min-width: 0;
+    padding: 4px 10px 8px;
+    border-top: var(--pcv2-line, 1px solid rgba(255, 255, 255, 0.08));
+  }
+
+  .pcv2.pcv2--order .pcv3__sheet {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    column-gap: 18px;
+    row-gap: 0;
+  }
+
+  .pcv2.pcv2--order .pcv3__vote {
+    border-top: none !important;
+    padding: 5px 2px;
+  }
+
+  .pcv2.pcv2--order .pcv2__empty {
+    text-align: left;
+    padding: 6px 2px;
+  }
 }
 
 @media (max-width: 380px) {

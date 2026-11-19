@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
-import { Camera, Check, ChevronDown, GitCompare, Heart, Loader2, Pencil, Search, Star, Trash2, X } from "lucide-react";
+import { Camera, Check, ChevronDown, GitCompare, Heart, Pencil, Search, Star, Trash2, X } from "lucide-react";
+import { EvLoader } from "./EvLoader";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import type { Theme } from "../types/contest";
 import {
@@ -851,7 +852,9 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                 </button>
                             )}
                             {isOwnProfile && avatarUploading && (
-                                <span style={{ fontSize: 11, color: subTextColor }}>Загрузка…</span>
+                                <span style={{ color: subTextColor, fontSize: 12, fontWeight: 650 }}>
+                                    <EvLoader size="xs" label="Загружаем фото" />
+                                </span>
                             )}
                         </div>
 
@@ -1041,12 +1044,12 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                                 label={`Средняя · ${compareUser.username}`}
                                                 value={
                                                     compareLoading
-                                                        ? "…"
+                                                        ? "—"
                                                         : `${formatAvg(compareAvgScore)} ★`
                                                 }
                                                 sub={
                                                     compareLoading
-                                                        ? "Загрузка…"
+                                                        ? "Считаем баллы"
                                                         : `${compareFilteredData.length} ${pluralRatings(compareFilteredData.length)}`
                                                 }
                                                 cardBg={isLight ? "rgba(255,255,255,0.85)" : "rgba(0,0,0,0.2)"}
@@ -1391,18 +1394,8 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                     Сравнить
                                 </button>
                                 {(loading || compareLoading) && (
-                                    <span
-                                        style={{
-                                            display: "inline-flex",
-                                            alignItems: "center",
-                                            gap: 8,
-                                            fontSize: 13,
-                                            fontWeight: 600,
-                                            color: accent,
-                                        }}
-                                    >
-                                        <Loader2 size={16} className="ev-spin" />
-                                        Обновление…
+                                    <span style={{ color: accent, fontSize: 13, fontWeight: 650 }}>
+                                        <EvLoader size="xs" label="Обновление" />
                                     </span>
                                 )}
                             </div>
@@ -1485,8 +1478,8 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                         )}
 
                         {profileTab === "favorites" && favoritesLoading && (
-                            <div style={{ textAlign: "center", padding: 40, color: subTextColor }}>
-                                <Loader2 size={28} className="ev-spin" />
+                            <div style={{ display: "flex", justifyContent: "center", padding: 40, color: subTextColor }}>
+                                <EvLoader size="md" label="Собираем избранное" />
                             </div>
                         )}
 
@@ -1668,7 +1661,7 @@ export function UserStatsPage({ userId, theme = "dark-blue" }: Props) {
                                                     {compareUser?.username}
                                                 </div>
                                                 <div style={{ ...styles.scoreBig, color: theirRating ? scoreValColor : subTextColor, fontSize: theirRating ? 36 : 28 }}>
-                                                    {compareLoading && !theirRating ? "…" : theirRating?.Score ?? "—"}
+                                                    {compareLoading && !theirRating ? <EvLoader size="xs" /> : theirRating?.Score ?? "—"}
                                                 </div>
                                                 {theirRating && <div style={styles.starSmall}>⭐</div>}
                                             </div>

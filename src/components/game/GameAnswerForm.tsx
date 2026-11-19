@@ -1,5 +1,6 @@
 import { useState } from "react";
-import { Loader2, Send } from "lucide-react";
+import { Send } from "lucide-react";
+import { EvLoader } from "../EvLoader";
 
 type Props = {
   onSubmit: (answer: string) => Promise<void>;
@@ -43,7 +44,7 @@ export function GameAnswerForm({ onSubmit, disabled, inputBg, border, textColor 
         autoFocus
       />
       <button type="submit" className="gts-btn gts-btn--primary gts-answer-form__btn" disabled={loading || disabled || !answer.trim()}>
-        {loading ? <Loader2 size={16} className="gts-spin" /> : <Send size={16} />}
+        {loading ? <EvLoader size="xs" /> : <Send size={16} />}
         Отправить
       </button>
       {error && <p className="gts-answer-form__error">{error}</p>}

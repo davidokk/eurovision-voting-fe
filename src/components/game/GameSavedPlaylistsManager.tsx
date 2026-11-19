@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { ArrowLeft, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2 } from "lucide-react";
+import { EvLoader } from "../EvLoader";
 import type { Theme } from "../../types/contest";
 import type { GameCatalogItem, SavedPlaylist, SavedPlaylistSummary } from "../../types/game";
 import {
@@ -83,7 +84,7 @@ export function GameSavedPlaylistsManager({
       {editing ? (
         loadingEdit ? (
           <div className="gts-saved-page__loading">
-            <Loader2 size={32} className="gts-spin" color={accent} />
+            <EvLoader size="md" label="Открываем плейлист" />
           </div>
         ) : (
           <GameSavedPlaylistEditor
@@ -127,7 +128,7 @@ export function GameSavedPlaylistsManager({
 
           {loading ? (
             <div className="gts-saved-page__loading">
-              <Loader2 size={32} className="gts-spin" color={accent} />
+              <EvLoader size="md" label="Собираем плейлисты" />
             </div>
           ) : (
             <div className="gts-saved-page__list">

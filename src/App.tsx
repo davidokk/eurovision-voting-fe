@@ -3,7 +3,7 @@ import { AdminPage } from "./components/AdminPage";
 import { UserStatsPage } from "./components/UserStatsPage";
 import { CountryStatsPage } from "./components/CountryStatsPage";
 import { GuessTheSongPage } from "./components/game/GuessTheSongPage";
-import { SettingsPage } from "./components/SettingsPage";
+import { TopPage } from "./components/TopPage";
 import { getContest, getContests } from "./api/contest";
 import type { ContestView, ContestsByYear, Theme } from "./types/contest";
 import { Topbar } from "./components/Topbar";
@@ -51,7 +51,7 @@ export default function App() {
   const gameRoomCode = window.location.pathname.startsWith("/game/")
     ? window.location.pathname.split("/game/")[1]?.split("/")[0]?.toUpperCase()
     : undefined;
-  const isSettingsPage = window.location.pathname === "/settings";
+  const isTopPage = window.location.pathname === "/top";
 
   useEffect(() => {
     getContests().then(setContests);
@@ -175,7 +175,7 @@ export default function App() {
       </AppShell>
     );
   }
-  if (isSettingsPage) {
+  if (isTopPage) {
     return (
       <AppShell
         theme={theme}
@@ -184,9 +184,13 @@ export default function App() {
         onSelectContest={handleSelectContest}
         navigateHomeOnContest
       >
-        <SettingsPage theme={theme} onSelectTheme={handleSelectTheme} />
+        <TopPage theme={theme} />
       </AppShell>
     );
+  }
+  if (window.location.pathname === "/settings") {
+    window.location.replace("/");
+    return null;
   }
   if (isGamePage) {
     return (

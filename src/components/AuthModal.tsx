@@ -13,6 +13,7 @@ import { fetchMe, setStoredAvatarUrl } from "../api/user";
 import type { Theme } from "../types/contest";
 import { formatAuthError } from "../api/authErrors";
 import { CodeInput } from "./CodeInput";
+import { EvLoader } from "./EvLoader";
 import { applyAuthSession } from "../utils/jwt";
 import "../styles/auth-modal.css";
 
@@ -296,8 +297,7 @@ export function AuthModal({
                 disabled={loading}
                 onClick={() => void startTelegramFlow()}
               >
-                <TelegramIcon size={20} />
-                {loading ? "Загрузка…" : "Войти через Telegram"}
+                {loading ? <EvLoader size="xs" label="Подключаем Telegram" /> : <><TelegramIcon size={20} />Войти через Telegram</>}
               </button>
 
               <div className="ev-auth-divider" style={{ color: mutedColor }}>
@@ -391,11 +391,13 @@ export function AuthModal({
                 onClick={() => void submitCredentials()}
                 style={{ background: primaryGradient, boxShadow: primaryShadow }}
               >
-                {loading
-                  ? "Загрузка…"
-                  : credentialMode === "signin"
-                    ? "Войти"
-                    : "Создать аккаунт"}
+                {loading ? (
+                  <EvLoader size="xs" label="Проверяем" />
+                ) : credentialMode === "signin" ? (
+                  "Войти"
+                ) : (
+                  "Создать аккаунт"
+                )}
               </button>
 
               <button
@@ -448,7 +450,7 @@ export function AuthModal({
                 onClick={() => void confirmCode()}
                 style={{ background: primaryGradient, boxShadow: primaryShadow }}
               >
-                {loading ? "Загрузка…" : "Продолжить"}
+                {loading ? <EvLoader size="xs" label="Проверяем код" /> : "Продолжить"}
               </button>
 
               <button

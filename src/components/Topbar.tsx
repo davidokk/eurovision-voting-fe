@@ -1,7 +1,29 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ContestsByYear, Theme } from "../types/contest";
 import { AuthModal } from "./AuthModal";
-import { Check, Clock, LogOut, User as UserIcon, ChevronDown, Music2, Settings } from "lucide-react";
+import {
+  Check,
+  Clock,
+  Crown,
+  Flame,
+  LayoutGrid,
+  ListOrdered,
+  LogOut,
+  Moon,
+  Music2,
+  Sparkles,
+  Sun,
+  User as UserIcon,
+  ChevronDown,
+  Table2,
+  Trophy,
+} from "lucide-react";
+import {
+  SCORES_VIEW_MODE_OPTIONS,
+  readScoresViewMode,
+  writeScoresViewMode,
+  type ScoresViewMode,
+} from "./scores/scoresViewShared";
 import { UserAvatar } from "./UserAvatar";
 import { useAvatarUrl } from "../hooks/useAvatarUrl";
 import { fetchMe, setStoredAvatarUrl } from "../api/user";
@@ -98,6 +120,21 @@ function ContestStatusIcons({
   );
 }
 
+const VIEW_ICONS: Record<ScoresViewMode, typeof LayoutGrid> = {
+  cards: LayoutGrid,
+  "cards-v2": LayoutGrid,
+  table: Table2,
+  leaderboard: Trophy,
+  heatmap: Flame,
+  order: ListOrdered,
+};
+
+const THEME_OPTIONS: { id: Theme; label: string; Icon: typeof Sun }[] = [
+  { id: "light", label: "Светлая", Icon: Sun },
+  { id: "dark-gray", label: "Тёмная серая", Icon: Moon },
+  { id: "dark-blue", label: "Тёмная синяя", Icon: Sparkles },
+];
+
 type MenuColors = {
   borderColor: string;
   textColor: string;
@@ -112,18 +149,15 @@ type MenuColors = {
 
 function UserAccountMenu({
   onProfile,
-  onSettings,
   onLogout,
   colors,
 }: {
   onProfile: () => void;
-  onSettings: () => void;
   onLogout: () => void;
   colors: MenuColors;
 }) {
   const {
     borderColor,
-    textColor,
     btnHoverBg,
     activeColor,
     dropdownBg,
@@ -175,28 +209,6 @@ function UserAccountMenu({
       </button>
       <button
         type="button"
-        onClick={onSettings}
-        style={{
-          width: "100%",
-          padding: "12px 14px",
-          border: "none",
-          borderRadius: 10,
-          background: "transparent",
-          color: textColor,
-          cursor: "pointer",
-          fontSize: 14,
-          fontWeight: 700,
-          textAlign: "left",
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
-        <Settings size={16} />
-        <span>Настройки</span>
-      </button>
-      <button
-        type="button"
         onClick={onLogout}
         style={{
           width: "100%",
@@ -221,10 +233,12 @@ function UserAccountMenu({
   );
 }
 
-export function Topbar({ contests, onSelectContest, theme }: Props) {
+export function Topbar({ contests, onSelectContest, theme, onSelectTheme }: Props) {
   const [authMode, setAuthMode] = useState<"signin" | "signup" | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [viewMenuOpen, setViewMenuOpen] = useState(false);
+  const [viewMode, setViewMode] = useState<ScoresViewMode>(readScoresViewMode);
   const [openYear, setOpenYear] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
   const [selectedContestId, setSelectedContestId] = useState<string | null>(
@@ -232,6 +246,7 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
   );
 
   const userMenuRef = useRef<HTMLDivElement>(null);
+  const viewMenuRef = useRef<HTMLDivElement>(null);
   const contestPickerRef = useRef<HTMLDivElement>(null);
 
   const [token, setToken] = useState<string | null>(null);
@@ -272,6 +287,28 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
     window.addEventListener("ev-auth-updated", onAuth);
     return () => window.removeEventListener("ev-auth-updated", onAuth);
   }, []);
+
+  useEffect(() => {
+    const sync = () => setViewMode(readScoresViewMode());
+    window.addEventListener("ev-scores-view-updated", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("ev-scores-view-updated", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!viewMenuOpen) return;
+    const onDocClick = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (viewMenuRef.current && !viewMenuRef.current.contains(target)) {
+        setViewMenuOpen(false);
+      }
+    };
+    document.addEventListener("click", onDocClick);
+    return () => document.removeEventListener("click", onDocClick);
+  }, [viewMenuOpen]);
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 768);
@@ -387,27 +424,111 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
     : null;
 
   const isGamePage = window.location.pathname.startsWith("/game");
-  const isSettingsPage = window.location.pathname.startsWith("/settings");
+  const isTopPage = window.location.pathname === "/top";
   const isProfilePage = window.location.pathname.startsWith("/user/");
-  const isContestContext = !isGamePage && !isSettingsPage && !isProfilePage;
+  const isCountryPage = window.location.pathname.startsWith("/country/");
+  const isContestContext = !isGamePage && !isTopPage && !isProfilePage;
+  const isContestPage = isContestContext && !isCountryPage;
 
   const pickerMain = isGamePage
     ? "Игра"
-    : isSettingsPage
-      ? "Настройки"
+    : isTopPage
+      ? "Топ"
       : isProfilePage
         ? "Профиль"
         : (selectedContest?.year ?? "—");
 
   const pickerSub = isGamePage
     ? "Угадай песню"
-    : isSettingsPage
-      ? "Тема и вид"
+    : isTopPage
+      ? "Все годы"
       : isProfilePage
         ? (username ?? "Статистика")
         : selectedContest
           ? translateContestType(selectedContest.type)
           : "Конкурс";
+
+  const currentTheme = THEME_OPTIONS.find((option) => option.id === theme) ?? THEME_OPTIONS[2];
+  const CurrentThemeIcon = currentTheme.Icon;
+
+  const viewSwitcher = isContestPage ? (
+    <div ref={viewMenuRef} className="ev-topbar__view">
+      <button
+        type="button"
+        className={`ev-topbar__view-btn${viewMenuOpen ? " ev-topbar__view-btn--open" : ""}`}
+        aria-expanded={viewMenuOpen}
+        aria-label="Вид отображения"
+        title={SCORES_VIEW_MODE_OPTIONS.find((o) => o.mode === viewMode)?.label}
+        onClick={(e) => {
+          e.stopPropagation();
+          setUserMenuOpen(false);
+          setOpenYear(null);
+          setViewMenuOpen((open) => !open);
+        }}
+      >
+        {(() => {
+          const Icon = VIEW_ICONS[viewMode];
+          return <Icon size={18} />;
+        })()}
+        {!isMobile && (
+          <span className="ev-topbar__view-label">
+            {SCORES_VIEW_MODE_OPTIONS.find((o) => o.mode === viewMode)?.label}
+          </span>
+        )}
+        {!isMobile && (
+          <ChevronDown
+            size={14}
+            className="ev-topbar__contest-chevron"
+            style={{ transform: viewMenuOpen ? "rotate(180deg)" : "none" }}
+          />
+        )}
+      </button>
+      {viewMenuOpen && (
+        <div className="ev-topbar__view-menu" role="menu">
+          {SCORES_VIEW_MODE_OPTIONS.map((opt) => {
+            const Icon = VIEW_ICONS[opt.mode];
+            const active = viewMode === opt.mode;
+            return (
+              <button
+                key={opt.mode}
+                type="button"
+                role="menuitemradio"
+                aria-checked={active}
+                className={`ev-topbar__view-item${active ? " ev-topbar__view-item--active" : ""}`}
+                onClick={() => {
+                  setViewMode(opt.mode);
+                  writeScoresViewMode(opt.mode);
+                  setViewMenuOpen(false);
+                }}
+              >
+                <Icon size={16} />
+                <span>
+                  <span className="ev-topbar__view-item-label">{opt.label}</span>
+                  <span className="ev-topbar__view-item-hint">{opt.description}</span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  const themeSwitcher = (
+    <button
+      type="button"
+      className="ev-topbar__view-btn ev-topbar__theme-btn"
+      aria-label={`Тема: ${currentTheme.label}`}
+      title={currentTheme.label}
+      onClick={() => {
+        const index = THEME_OPTIONS.findIndex((option) => option.id === theme);
+        const next = THEME_OPTIONS[(index + 1) % THEME_OPTIONS.length];
+        onSelectTheme(next.id);
+      }}
+    >
+      <CurrentThemeIcon size={18} />
+    </button>
+  );
 
   return (
     <>
@@ -429,39 +550,24 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
           "--ev-topbar-menu-bg": dropdownBg,
         }}
       >
-        <div className="ev-topbar__brand">
-          <img
-            src="https://www.eurovision.com/static/images/70-heart-sm@2x.c3d0a545227c.webp"
-            alt="Eurovision"
-            className="ev-topbar__logo"
-          />
-          {!isMobile && (
-            <span
-              className="ev-topbar__title"
-              style={{
-                background: isLight
-                  ? "linear-gradient(135deg, #1f2937, #4b5563)"
-                  : "linear-gradient(135deg, #4f7cff, #a78bfa)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-              }}
-            >
-              EUROVISION
-            </span>
-          )}
+        <div className="ev-topbar__start">
+          <div className="ev-topbar__brand">
+            <img
+              src="https://www.eurovision.com/static/images/70-heart-sm@2x.c3d0a545227c.webp"
+              alt="Eurovision"
+              className="ev-topbar__logo"
+            />
+            {!isMobile && (
+              <span className={`ev-topbar__title${isLight ? " ev-topbar__title--light" : ""}`}>
+                EUROVISION
+              </span>
+            )}
+          </div>
+          {isMobile && viewSwitcher}
         </div>
 
         {isMobile && (
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              transform: "translateX(-50%)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
+          <div className="ev-topbar__menu-slot">
             <button
               type="button"
               className="ev-topbar__menu-btn"
@@ -593,6 +699,16 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                   </div>
                 </div>
                 <a
+                  href="/top"
+                  className={`ev-topbar__contest-game${
+                    isTopPage ? " ev-topbar__contest-game--active" : ""
+                  }`}
+                  onClick={() => setOpenYear(null)}
+                >
+                  <Crown size={16} />
+                  <span>Топ</span>
+                </a>
+                <a
                   href="/game"
                   className={`ev-topbar__contest-game${
                     isGamePage ? " ev-topbar__contest-game--active" : ""
@@ -608,35 +724,15 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
         )}
 
         <div className="ev-topbar__actions">
+          {!isMobile && viewSwitcher}
+          {themeSwitcher}
           {!token ? (
             <>
-              <a
-                href="/settings"
-                title="Настройки"
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  width: isMobile ? 40 : 42,
-                  height: isMobile ? 40 : 42,
-                  borderRadius: 14,
-                  border: `1px solid ${borderColor}`,
-                  background: window.location.pathname.startsWith("/settings")
-                    ? btnHoverBg
-                    : btnBg,
-                  color: window.location.pathname.startsWith("/settings")
-                    ? activeColor
-                    : subTextColor,
-                  textDecoration: "none",
-                }}
-              >
-                <Settings size={18} />
-              </a>
-
               <button
                 type="button"
+                className="ev-topbar__login"
                 style={{
-                  padding: isMobile ? "8px 16px" : "10px 24px",
+                  padding: isMobile ? "7px 10px" : "10px 24px",
                   borderRadius: 14,
                   border: "none",
                   background: isLight
@@ -715,10 +811,6 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                     if (userId) window.location.href = `/user/${userId}`;
                     setUserMenuOpen(false);
                   }}
-                  onSettings={() => {
-                    window.location.href = "/settings";
-                    setUserMenuOpen(false);
-                  }}
                   onLogout={() => {
                     logout();
                     setUserMenuOpen(false);
@@ -770,6 +862,26 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
             </div>
             <div style={{ padding: 16, display: "flex", flexDirection: "column", gap: 20 }}>
               <a
+                href="/top"
+                onClick={() => setMobileMenuOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                  padding: "14px 16px",
+                  borderRadius: 14,
+                  border: `1px solid ${isTopPage ? activeColor : borderColor}`,
+                  background: isTopPage ? btnHoverBg : btnBg,
+                  color: isTopPage ? activeColor : textColor,
+                  textDecoration: "none",
+                  fontSize: 15,
+                  fontWeight: 700,
+                }}
+              >
+                <Crown size={18} />
+                Топ
+              </a>
+              <a
                 href="/game"
                 onClick={() => setMobileMenuOpen(false)}
                 style={{
@@ -790,7 +902,7 @@ export function Topbar({ contests, onSelectContest, theme }: Props) {
                 Угадай песню
               </a>
               {Object.entries(contests)
-                .sort(([a], [b]) => Number(a) - Number(b))
+                .sort(([a], [b]) => Number(b) - Number(a))
                 .map(([year, items]) => (
                 <div key={year} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                   {items.length === 1 && items[0].type === "final" ? (

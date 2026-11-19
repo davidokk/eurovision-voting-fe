@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Copy,
-  Loader2,
   Music2,
   Pause,
   Play,
@@ -10,6 +9,7 @@ import {
   ListMusic,
   Zap,
 } from "lucide-react";
+import { EvLoader } from "../EvLoader";
 import type { Theme } from "../../types/contest";
 import type { GameCatalogItem, GameJudgement, GameJudgeOutcome, GamePlaylistEntryInput, GamePlaylistMode, GamePlayMode, GameRoomState, GameRoomView, GameRoundView } from "../../types/game";
 import {
@@ -772,18 +772,16 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
 
   if (loading && !room) {
     return (
-      <div className="gts-page" data-theme={theme} style={{ color: text, textAlign: "center", paddingTop: 80 }}>
-        <Loader2 size={32} className="gts-spin" color={accent} />
-        <p style={{ marginTop: 16, color: sub }}>Подключаемся…</p>
+      <div className="gts-page" data-theme={theme} style={{ color: text, display: "flex", justifyContent: "center", paddingTop: 80 }}>
+        <EvLoader size="lg" label="Выходим на сцену" />
       </div>
     );
   }
 
   if (!room) {
     return (
-      <div className="gts-page" data-theme={theme} style={{ color: text, textAlign: "center", paddingTop: 80 }}>
-        <Loader2 size={32} className="gts-spin" color={accent} />
-        <p style={{ marginTop: 16, color: sub }}>Загрузка комнаты…</p>
+      <div className="gts-page" data-theme={theme} style={{ color: text, display: "flex", justifyContent: "center", paddingTop: 80 }}>
+        <EvLoader size="lg" label="Загрузка комнаты" />
       </div>
     );
   }
@@ -936,12 +934,9 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
           )}
 
           {room.state === "lobby" && !isHost && (
-            <div style={{ textAlign: "center", padding: "40px 20px" }}>
-              <Loader2 size={28} className="gts-spin" color={accent} />
-              <p style={{ marginTop: 16, color: sub }}>
-                Ожидаем ведущего <strong style={{ color: text }}>{room.host_username}</strong>…
-              </p>
-              <p style={{ fontSize: 14, color: sub }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 12, padding: "40px 20px", color: sub, textAlign: "center" }}>
+              <EvLoader size="md" label={`Ждём ${room.host_username}`} />
+              <p style={{ margin: 0, fontSize: 14, color: sub }}>
                 Песни: {room.total_rounds || room.playlist_ids?.length || 0}
                 {room.playlist_mode === "auto" ? " (авто)" : ""}
                 {room.play_mode === "online" ? " · онлайн" : ""}
@@ -981,7 +976,9 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                       )}
 
                       {inRound && playerActive && !trackReady && !inCountdown && room.state !== "round_buzzed" && (
-                        <div className="gts-stage__loading">Загрузка трека…</div>
+                        <div className="gts-stage__loading">
+                          <EvLoader size="xs" label="Включаем трек" />
+                        </div>
                       )}
                     </div>
 
@@ -1201,8 +1198,7 @@ export function GuessTheSongPage({ theme, roomCode: roomCodeProp }: Props) {
                 </>
               ) : (
                 <div className="gts-stage__loading-screen">
-                  <Loader2 size={28} className="gts-spin" color={accent} />
-                  <p>Обновляем раунд…</p>
+                  <EvLoader size="md" label="Обновляем раунд" />
                 </div>
               )}
             </article>
