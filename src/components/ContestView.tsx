@@ -8,7 +8,7 @@ import { ScoresLeaderboardView } from "./ScoresLeaderboardView";
 import { ScoresHeatmapView } from "./ScoresHeatmapView";
 import { ScoresRunningOrderView } from "./ScoresRunningOrderView";
 import type { ScoresViewMode } from "./scores/scoresViewShared";
-import { readScoresViewMode, SCORES_VIEW_STORAGE_KEY } from "./scores/scoresViewShared";
+import { formatAvg, readScoresViewMode, SCORES_VIEW_STORAGE_KEY } from "./scores/scoresViewShared";
 import { YouTubeLiveSection } from "./YouTubeLiveSection";
 import { ContestHeaderHighlights } from "./ContestHeaderHighlights";
 import { UserAvatar } from "./UserAvatar";
@@ -18,8 +18,9 @@ import { isScoreSystemMessage } from "../utils/chatMessage";
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { GifPreview } from "./GifPreview";
 import { isScoreTwelve } from "../utils/scoreUtils";
-import { MessageCircle, X } from "lucide-react";
+import { Check, MessageCircle, Star, Users, X } from "lucide-react";
 import { EvLoader } from "./EvLoader";
+import "./contest-hero.css";
 
 type Props = {
     contest: ContestViewType | null;
@@ -453,6 +454,42 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         return items;
     }, [contest, myUsername, myUserId]);
 
+    const heroStats = useMemo(() => {
+        if (!contest) return null;
+        let votes = 0;
+        let scoreSum = 0;
+        const voters = new Set<string>();
+        for (const performance of contest.performances) {
+            for (const score of performance.scores) {
+                votes += 1;
+                scoreSum += score.score;
+                voters.add(score.user_id);
+            }
+        }
+        const qualified = contest.performances.filter((performance) => performance.qualified);
+        let guessed: { hits: number; total: number } | null = null;
+        if (contest.contest.type.includes("semifinal")) {
+            if (qualified.length === 0) {
+                guessed = { hits: 0, total: 0 };
+            } else {
+                const qualifiedIds = new Set(qualified.map((performance) => performance.performance_id));
+                const top = [...contest.performances]
+                    .sort((a, b) => b.total_score - a.total_score || a.number - b.number)
+                    .slice(0, qualified.length);
+                guessed = {
+                    hits: top.filter((performance) => qualifiedIds.has(performance.performance_id)).length,
+                    total: qualified.length,
+                };
+            }
+        }
+
+        return {
+            voters: voters.size,
+            avg: votes > 0 ? scoreSum / votes : null,
+            guessed,
+        };
+    }, [contest]);
+
     const isLight = theme === "light";
     const isGray = theme === "dark-gray";
 
@@ -469,9 +506,78 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
         : "radial-gradient(circle at top, rgba(79,124,255,0.08), transparent 35%)";
 
     const titleColor = isLight ? "#0f172a" : "#fff";
-    const yearHeroColor = isLight ? "#0f172a" : "#fff";
     const yearHeroMuted = isLight ? "#64748b" : "#94a3b8";
 
+    const factBg = isLight ? "rgba(15,26,42,0.04)" : "rgba(255,255,255,0.045)";
+    const factBorder = isLight ? "1px solid rgba(15,26,42,0.08)" : "1px solid rgba(255,255,255,0.08)";
+    const yearGrad = isLight
+        ? "linear-gradient(185deg, #0f172a 0%, #334155 70%, #64748b 100%)"
+        : isGray
+          ? "linear-gradient(185deg, #f9fafb 0%, #d1d5db 70%, #9ca3af 100%)"
+          : "linear-gradient(185deg, #ffffff 0%, #dbe4ff 58%, #a78bfa 100%)";
+    const heroFacts = heroStats ? (
+        <div className="contest-hero__facts">
+            <div
+                className="contest-hero__fact"
+                style={{
+                    background: factBg,
+                    border: factBorder,
+                    ["--fact-glow" as string]: isLight ? "rgba(13,115,119,0.28)" : "rgba(125,211,216,0.45)",
+                    ["--fact-icon" as string]: isLight ? "rgba(13,115,119,0.12)" : "rgba(125,211,216,0.14)",
+                }}
+            >
+                <span className="contest-hero__fact-icon" style={{ color: isLight ? "#0d7377" : "#7dd3d8" }}>
+                    <Users size={15} strokeWidth={2.4} />
+                </span>
+                <span className="contest-hero__fact-value" style={{ color: titleColor }}>
+                    {heroStats.voters}
+                </span>
+                <span className="contest-hero__fact-label" style={{ color: yearHeroMuted }}>
+                    Жюри
+                </span>
+            </div>
+            <div
+                className="contest-hero__fact"
+                style={{
+                    background: factBg,
+                    border: factBorder,
+                    ["--fact-glow" as string]: isLight ? "rgba(180,83,9,0.28)" : "rgba(232,185,49,0.5)",
+                    ["--fact-icon" as string]: isLight ? "rgba(180,83,9,0.12)" : "rgba(232,185,49,0.16)",
+                }}
+            >
+                <span className="contest-hero__fact-icon" style={{ color: isLight ? "#b45309" : "#e8b931" }}>
+                    <Star size={15} strokeWidth={2.4} />
+                </span>
+                <span className="contest-hero__fact-value" style={{ color: titleColor }}>
+                    {formatAvg(heroStats.avg)}
+                </span>
+                <span className="contest-hero__fact-label" style={{ color: yearHeroMuted }}>
+                    Средний балл
+                </span>
+            </div>
+            {heroStats.guessed && (
+                <div
+                    className="contest-hero__fact contest-hero__fact--guess"
+                    style={{
+                        background: factBg,
+                        border: factBorder,
+                        ["--fact-glow" as string]: isLight ? "rgba(21,128,61,0.28)" : "rgba(74,222,128,0.45)",
+                        ["--fact-icon" as string]: isLight ? "rgba(21,128,61,0.12)" : "rgba(74,222,128,0.14)",
+                    }}
+                >
+                    <span className="contest-hero__fact-icon" style={{ color: isLight ? "#15803d" : "#4ade80" }}>
+                        <Check size={15} strokeWidth={2.6} />
+                    </span>
+                    <span className="contest-hero__fact-value" style={{ color: titleColor }}>
+                        {heroStats.guessed.total === 0 ? "—" : `${heroStats.guessed.hits} из ${heroStats.guessed.total}`}
+                    </span>
+                    <span className="contest-hero__fact-label" style={{ color: yearHeroMuted }}>
+                        Угадано
+                    </span>
+                </div>
+            )}
+        </div>
+    ) : null;
     const timerBg = isLight ? "rgba(245, 158, 11, 0.1)" : "rgba(255, 209, 102, 0.1)";
     const timerBorder = isLight ? "1px solid rgba(245, 158, 11, 0.2)" : "1px solid rgba(255, 209, 102, 0.2)";
     const timerValColor = isLight ? "#d97706" : "#ffd166";
@@ -658,12 +764,13 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                 style={{ ...styles.wrapper, backgroundImage: wrapperBgImage }}
                 onClick={() => isMobile && chatOpen && setChatOpen(false)}
             >
+                <div className="contest-sheet">
                 <header
                     style={{
                         display: "flex",
                         flexDirection: "column",
                         alignItems: "stretch",
-                        padding: isMobile ? "32px 18px 24px" : "36px 32px 28px",
+                        padding: isMobile ? "32px 18px 24px" : "22px 26px",
                         background: isLight
                             ? "linear-gradient(165deg, rgba(255,255,255,0.95) 0%, rgba(238,242,247,0.9) 100%)"
                             : isGray
@@ -674,9 +781,9 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         boxShadow: isLight
                             ? "0 16px 40px rgba(15,26,42,0.08)"
                             : "0 20px 50px rgba(0,0,0,0.35)",
-                        maxWidth: 1200,
-                        margin: "0 auto 28px",
-                        gap: isMobile ? 20 : 22,
+                        width: "100%",
+                        margin: "0 0 28px",
+                        gap: isMobile ? 20 : 0,
                         position: "relative",
                         overflow: "hidden",
                     }}
@@ -696,193 +803,141 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                     />
 
                     {isMobile ? (
-                        <div
-                            style={{
-                                position: "relative",
-                                display: "flex",
-                                flexDirection: "column",
-                                alignItems: "center",
-                                textAlign: "center",
-                                gap: 6,
-                            }}
-                        >
-                            <div
-                                style={{
-                                    fontSize: 11,
-                                    fontWeight: 750,
-                                    letterSpacing: "0.22em",
-                                    textTransform: "uppercase",
-                                    color: yearHeroMuted,
-                                }}
-                            >
-                                Eurovision
-                            </div>
-                            <div
-                                style={{
-                                    fontFamily: '"Syne", sans-serif',
-                                    fontSize: "4.5rem",
-                                    fontWeight: 800,
-                                    lineHeight: 0.9,
-                                    letterSpacing: "-0.06em",
-                                    color: yearHeroColor,
-                                }}
-                            >
-                                {contest.contest.year}
-                            </div>
-                            <h1
-                                style={{
-                                    margin: "4px 0 0",
-                                    color: titleColor,
-                                    fontFamily: '"Syne", sans-serif',
-                                    fontSize: "1.35rem",
-                                    fontWeight: 700,
-                                    lineHeight: 1.15,
-                                    letterSpacing: "-0.02em",
-                                }}
-                            >
-                                {translateContestType(contest.contest.type)}
-                            </h1>
-
-                            <div
-                                style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                    marginTop: 10,
-                                    padding: "8px 16px",
-                                    background: timerBg,
-                                    border: timerBorder,
-                                    borderRadius: 12,
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: "50%",
-                                        background: timerValColor,
-                                        boxShadow: `0 0 10px ${timerValColor}`,
-                                        flexShrink: 0,
-                                    }}
-                                />
-                                {started && (
+                        <div className="contest-hero__phone">
+                            <div className="contest-hero__mast">
+                                <div className="contest-hero__kicker" style={{ color: yearHeroMuted }}>
+                                    Eurovision
+                                </div>
+                                <div className="contest-hero__year" style={{ ["--year-grad" as string]: yearGrad }}>
+                                    {contest.contest.year}
+                                </div>
+                                <h1 className="contest-hero__type" style={{ color: titleColor }}>
+                                    {translateContestType(contest.contest.type)}
+                                </h1>
+                                <div className="contest-hero__timer" style={{ background: timerBg, border: timerBorder }}>
                                     <span
                                         style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            textTransform: "uppercase",
-                                            color: yearHeroMuted,
-                                            letterSpacing: "0.06em",
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: "50%",
+                                            background: timerValColor,
+                                            boxShadow: `0 0 10px ${timerValColor}`,
+                                            flexShrink: 0,
                                         }}
-                                    >
-                                        До начала
-                                    </span>
-                                )}
-                                <span
-                                    style={{
-                                        fontSize: 14,
-                                        fontWeight: 800,
-                                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                                        color: timerValColor,
-                                        letterSpacing: "0.02em",
-                                    }}
-                                >
-                                    {timerText}
-                                    {ended && "Оценивание закрыто"}
-                                </span>
-                            </div>
-                        </div>
-                    ) : (
-                        <div
-                            style={{
-                                position: "relative",
-                                display: "flex",
-                                flexWrap: "wrap",
-                                alignItems: "center",
-                                justifyContent: "space-between",
-                                gap: 12,
-                            }}
-                        >
-                            <h1
-                                style={{
-                                    margin: 0,
-                                    color: titleColor,
-                                    fontFamily: '"Syne", sans-serif',
-                                    fontSize: "2.4rem",
-                                    fontWeight: 800,
-                                    lineHeight: 1.1,
-                                    letterSpacing: "-0.03em",
-                                }}
-                            >
-                                {translateContestType(contest.contest.type)}
-                            </h1>
-
-                            <div
-                                style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: 10,
-                                    padding: "8px 16px",
-                                    background: timerBg,
-                                    border: timerBorder,
-                                    borderRadius: 12,
-                                }}
-                            >
-                                <span
-                                    style={{
-                                        width: 8,
-                                        height: 8,
-                                        borderRadius: "50%",
-                                        background: timerValColor,
-                                        boxShadow: `0 0 10px ${timerValColor}`,
-                                        flexShrink: 0,
-                                    }}
-                                />
-                                {started && (
+                                    />
+                                    {started && (
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                textTransform: "uppercase",
+                                                color: yearHeroMuted,
+                                                letterSpacing: "0.06em",
+                                            }}
+                                        >
+                                            До начала
+                                        </span>
+                                    )}
                                     <span
                                         style={{
-                                            fontSize: 11,
-                                            fontWeight: 700,
-                                            textTransform: "uppercase",
-                                            color: yearHeroMuted,
-                                            letterSpacing: "0.06em",
+                                            fontSize: 14,
+                                            fontWeight: 800,
+                                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                                            color: timerValColor,
+                                            letterSpacing: "0.02em",
                                         }}
                                     >
-                                        До начала
+                                        {timerText}
+                                        {ended && "Оценивание закрыто"}
                                     </span>
-                                )}
-                                <span
-                                    style={{
-                                        fontSize: 14,
-                                        fontWeight: 800,
-                                        fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
-                                        color: timerValColor,
-                                        letterSpacing: "0.02em",
-                                    }}
-                                >
-                                    {timerText}
-                                    {ended && "Оценивание закрыто"}
-                                </span>
+                                </div>
                             </div>
-                        </div>
-                    )}
-
-                    {!contest.contest.type.includes("semifinal") && (
-                        <div style={{ position: "relative" }}>
+                            {heroFacts}
                             <ContestHeaderHighlights
                                 contest={contest}
                                 theme={theme}
-                                isMobile={isMobile}
+                                isMobile
                                 center={null}
                             />
                         </div>
+                    ) : (
+                        <div className="contest-hero__desk">
+                            <div className="contest-hero__mast">
+                                <div className="contest-hero__kicker" style={{ color: yearHeroMuted }}>
+                                    Eurovision
+                                </div>
+                                <div
+                                    className="contest-hero__year"
+                                    style={{ ["--year-grad" as string]: yearGrad }}
+                                >
+                                    {contest.contest.year}
+                                </div>
+                                <h1 className="contest-hero__type" style={{ color: titleColor }}>
+                                    {translateContestType(contest.contest.type)}
+                                </h1>
+                                <div
+                                    className="contest-hero__timer"
+                                    style={{ background: timerBg, border: timerBorder }}
+                                >
+                                    <span
+                                        style={{
+                                            width: 8,
+                                            height: 8,
+                                            borderRadius: "50%",
+                                            background: timerValColor,
+                                            boxShadow: `0 0 10px ${timerValColor}`,
+                                            flexShrink: 0,
+                                        }}
+                                    />
+                                    {started && (
+                                        <span
+                                            style={{
+                                                fontSize: 11,
+                                                fontWeight: 700,
+                                                textTransform: "uppercase",
+                                                color: yearHeroMuted,
+                                                letterSpacing: "0.06em",
+                                            }}
+                                        >
+                                            До начала
+                                        </span>
+                                    )}
+                                    <span
+                                        style={{
+                                            fontSize: 14,
+                                            fontWeight: 800,
+                                            fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace",
+                                            color: timerValColor,
+                                            letterSpacing: "0.02em",
+                                        }}
+                                    >
+                                        {timerText}
+                                        {ended && "Оценивание закрыто"}
+                                    </span>
+                                </div>
+                            </div>
+
+                            <div className="contest-hero__rule" aria-hidden />
+
+                            <div className="contest-hero__stage">
+                                {heroFacts}
+
+                                <ContestHeaderHighlights
+                                    contest={contest}
+                                    theme={theme}
+                                    isMobile={false}
+                                    center={null}
+                                />
+                            </div>
+                        </div>
                     )}
+
                 </header>
 
                 <YouTubeLiveSection theme={theme} />
 
                 {scoresViewMode === "cards" && (
-                    <div style={styles.grid}>
+                    <div className="contest-sheet__grid">
                         {sortedPerformances.map((p) => (
                             <PerformanceCard
                                 key={p.performance_id}
@@ -903,7 +958,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                 )}
 
                 {scoresViewMode === "cards-v2" && (
-                    <div style={styles.grid}>
+                    <div className="contest-sheet__grid">
                         {sortedPerformances.map((p) => (
                             <PerformanceCardV2
                                 key={p.performance_id}
@@ -970,6 +1025,7 @@ export function ContestView({ contest, chatOpen, setChatOpen, theme = "dark-blue
                         onRated={onRefreshContest}
                     />
                 )}
+                </div>
 
                 <button
                     onClick={(e) => {
@@ -1531,14 +1587,6 @@ const styles: Record<string, React.CSSProperties> = {
         fontWeight: 800,
         fontSize: 15,
         fontFamily: "monospace",
-    },
-
-    grid: {
-        display: "grid",
-        gap: 24,
-        maxWidth: 1200,
-        margin: "0 auto",
-        gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
     },
 
     empty: {

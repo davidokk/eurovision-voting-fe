@@ -16,6 +16,7 @@ import { useScoresMatrix } from "./scores/useScoresMatrix";
 import { useScoresViewAuth } from "./scores/useScoresViewAuth";
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { isScoreTwelve } from "../utils/scoreUtils";
+import { CONTEST_CONTENT_MAX_WIDTH } from "../utils/contestLayout";
 
 export function ScoresHeatmapView({
   performances,
@@ -58,7 +59,7 @@ export function ScoresHeatmapView({
   }
 
   const shellStyle: CSSProperties = {
-    maxWidth: 1200,
+    maxWidth: CONTEST_CONTENT_MAX_WIDTH,
     margin: "0 auto",
     borderRadius: 16,
     border: colors.wrapBorder,

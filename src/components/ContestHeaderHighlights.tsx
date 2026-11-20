@@ -20,26 +20,40 @@ function effectivePlace(p: PerformanceWithScores): number | null {
 
 export function useContestHighlights(contest: ContestView | null) {
   return useMemo(() => {
-    if (!contest) return { commission: null as PerformanceWithScores | null, official: null as PerformanceWithScores | null };
+    if (!contest) {
+      return {
+        commission: null as PerformanceWithScores | null,
+        official: null as PerformanceWithScores | null,
+        commissionTop: [] as PerformanceWithScores[],
+        officialTop: [] as PerformanceWithScores[],
+      };
+    }
 
-    const voted = contest.performances.filter((p) => p.scores.length > 0);
-    const commission =
-      voted.length > 0
-        ? [...voted].sort(
-            (a, b) => b.total_score - a.total_score || a.number - b.number
-          )[0]
-        : null;
+    const commissionTop = contest.performances
+      .filter((p) => p.scores.length > 0)
+      .sort((a, b) => b.total_score - a.total_score || a.number - b.number)
+      .slice(0, 3);
 
-    const official =
-      contest.performances.find((p) => effectivePlace(p) === 1) ?? null;
+    const officialTop = contest.performances
+      .filter((p) => {
+        const place = effectivePlace(p);
+        return place != null && place <= 3;
+      })
+      .sort((a, b) => (effectivePlace(a) ?? 99) - (effectivePlace(b) ?? 99))
+      .slice(0, 3);
 
-    return { commission, official };
+    return {
+      commission: commissionTop[0] ?? null,
+      official: officialTop[0] ?? null,
+      commissionTop,
+      officialTop,
+    };
   }, [contest]);
 }
 
 export function ContestHeaderHighlights({ contest, theme, isMobile, center }: Props) {
   const supportsEmoji = getDoesBrowserSupportFlagEmojis();
-  const { commission, official } = useContestHighlights(contest);
+  const { commission, official, commissionTop, officialTop } = useContestHighlights(contest);
 
   const isLight = theme === "light";
   const isGray = theme === "dark-gray";
@@ -48,80 +62,71 @@ export function ContestHeaderHighlights({ contest, theme, isMobile, center }: Pr
   const textColor = isLight ? "#0f1a2a" : "#eef2f7";
 
   if (isMobile) {
+    const line = isLight ? "rgba(15,26,42,0.08)" : "rgba(255,255,255,0.08)";
+    const semifinal = contest.contest.type.includes("semifinal");
     return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-          width: "100%",
-        }}
-      >
-        <HighlightCard
+      <div className="contest-hero__picks">
+        <Podium
           variant="commission"
           label="Фаворит жюри"
-          performance={commission}
+          items={commissionTop}
           emptyText="Нет оценок"
           supportsEmoji={supportsEmoji}
           isLight={isLight}
           isGray={isGray}
           subColor={subColor}
           textColor={textColor}
-          isMobile
+          line={line}
         />
-        <HighlightCard
-          variant="official"
-          label="Победитель"
-          performance={official}
-          emptyText="Нет мест"
-          supportsEmoji={supportsEmoji}
-          isLight={isLight}
-          isGray={isGray}
-          subColor={subColor}
-          textColor={textColor}
-          isMobile
-        />
+        {!semifinal && (
+          <Podium
+            variant="official"
+            label="Победитель"
+            items={officialTop}
+            emptyText="Нет мест"
+            supportsEmoji={supportsEmoji}
+            isLight={isLight}
+            isGray={isGray}
+            subColor={subColor}
+            textColor={textColor}
+            line={line}
+          />
+        )}
       </div>
     );
   }
 
   if (!center) {
+    const line = isLight ? "rgba(15,26,42,0.08)" : "rgba(255,255,255,0.08)";
+    const semifinal = contest.contest.type.includes("semifinal");
     return (
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 18,
-          width: "100%",
-          maxWidth: 720,
-          margin: "0 auto",
-          alignItems: "stretch",
-        }}
-      >
-        <HighlightCard
+      <div className="contest-hero__picks">
+        <Podium
           variant="commission"
           label="Фаворит жюри"
-          performance={commission}
+          items={commissionTop}
           emptyText="Пока нет оценок"
           supportsEmoji={supportsEmoji}
           isLight={isLight}
           isGray={isGray}
           subColor={subColor}
           textColor={textColor}
-          isMobile={false}
+          line={line}
         />
-        <HighlightCard
-          variant="official"
-          label="Победитель"
-          performance={official}
-          emptyText="Места ещё не объявлены"
-          supportsEmoji={supportsEmoji}
-          isLight={isLight}
-          isGray={isGray}
-          subColor={subColor}
-          textColor={textColor}
-          isMobile={false}
-        />
+        {!semifinal && (
+          <Podium
+            variant="official"
+            label="Победитель"
+            items={officialTop}
+            emptyText="Места ещё не объявлены"
+            supportsEmoji={supportsEmoji}
+            isLight={isLight}
+            isGray={isGray}
+            subColor={subColor}
+            textColor={textColor}
+            line={line}
+          />
+        )}
       </div>
     );
   }
@@ -162,6 +167,92 @@ export function ContestHeaderHighlights({ contest, theme, isMobile, center }: Pr
         isMobile={false}
       />
     </div>
+  );
+}
+
+function Podium({
+  variant,
+  label,
+  items,
+  emptyText,
+  supportsEmoji,
+  isLight,
+  isGray,
+  subColor,
+  textColor,
+  line,
+}: {
+  variant: "commission" | "official";
+  label: string;
+  items: PerformanceWithScores[];
+  emptyText: string;
+  supportsEmoji: boolean;
+  isLight: boolean;
+  isGray: boolean;
+  subColor: string;
+  textColor: string;
+  line: string;
+}) {
+  const isCommission = variant === "commission";
+  const accent = isCommission ? (isLight ? "#0d7377" : "#7dd3d8") : isLight ? "#b45309" : "#e8b931";
+  const Icon = isCommission ? Mic2 : Trophy;
+  const ink = isLight ? "#ffffff" : "#102018";
+
+  return (
+    <section
+      className={`contest-hero__podium contest-hero__podium--${variant}`}
+      style={{
+        background: isLight ? "rgba(255,255,255,0.72)" : isGray ? "rgba(255,255,255,0.04)" : "rgba(255,255,255,0.05)",
+        border: isLight ? "1px solid rgba(15,26,42,0.1)" : "1px solid rgba(255,255,255,0.1)",
+        ["--pick" as string]: accent,
+        ["--pick-ink" as string]: ink,
+        ["--line" as string]: line,
+      }}
+    >
+      <div className="contest-hero__podium-head" style={{ color: accent }}>
+        <Icon size={14} strokeWidth={2.4} />
+        <span>{label}</span>
+      </div>
+
+      {items.length === 0 ? (
+        <div className="contest-hero__podium-empty" style={{ color: subColor }}>
+          {emptyText}
+        </div>
+      ) : (
+        <ol className="contest-hero__podium-list">
+          {Array.from({ length: 3 }, (_, index) => items[index] ?? null).map((performance, index) => {
+            if (!performance) {
+              return (
+                <li key={`empty-${index}`} className="contest-hero__podium-row" aria-hidden>
+                  <span className="contest-hero__rank" style={{ visibility: "hidden" }} />
+                </li>
+              );
+            }
+            const place = effectivePlace(performance);
+            const rank = isCommission ? index + 1 : place ?? index + 1;
+            return (
+              <li key={performance.performance_id} className="contest-hero__podium-row">
+                <span className={`contest-hero__rank contest-hero__rank--${rank}`}>{rank}</span>
+                <div className="contest-hero__podium-who">
+                  <div className="contest-hero__podium-country" style={{ color: textColor }}>
+                    {supportsEmoji && <span className="contest-hero__pick-flag">{performance.country.flag_emoji}</span>}
+                    <span>{performance.country.name_ru}</span>
+                  </div>
+                  <div className="contest-hero__podium-artist" style={{ color: subColor }}>
+                    {performance.artist}
+                  </div>
+                </div>
+                {isCommission && (
+                  <span className="contest-hero__podium-score" style={{ color: accent }}>
+                    {formatTotal(performance.total_score)}
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+      )}
+    </section>
   );
 }
 
@@ -210,12 +301,59 @@ function HighlightCard({
 
   const Icon = isCommission ? Mic2 : Trophy;
 
+  const mark = performance ? (
+    isCommission ? (
+      <span
+        style={{
+          fontSize: 13,
+          fontWeight: 800,
+          color: accentColor,
+          padding: "6px 10px",
+          borderRadius: 10,
+          background: isLight ? "rgba(13,115,119,0.1)" : "rgba(125,211,216,0.12)",
+          display: "inline-block",
+        }}
+      >
+        {formatTotal(performance.total_score)}
+      </span>
+    ) : (
+      place != null && <span style={placeBadgeStyle(place, isLight, isGray)}>{placeLabel(place)}</span>
+    )
+  ) : null;
+
+  if (!isMobile) {
+    return (
+      <div className={`contest-hero__pick contest-hero__pick--${variant}`} style={{ ...cardStyle, ["--pick" as string]: accentColor }}>
+        <div className="contest-hero__pick-copy">
+          <div className="contest-hero__pick-label" style={{ color: accentColor }}>
+            <Icon size={14} strokeWidth={2.4} />
+            <span>{label}</span>
+          </div>
+          {performance ? (
+            <>
+              <div className="contest-hero__pick-country" style={{ color: textColor }}>
+                {supportsEmoji && <span className="contest-hero__pick-flag">{performance.country.flag_emoji}</span>}
+                <span>{performance.country.name_ru}</span>
+              </div>
+              <div className="contest-hero__pick-artist" style={{ color: subColor }}>
+                {performance.artist}
+              </div>
+            </>
+          ) : (
+            <div style={{ fontSize: 13, fontWeight: 600, color: subColor, fontStyle: "italic" }}>{emptyText}</div>
+          )}
+        </div>
+        {mark ? <div className="contest-hero__pick-mark">{mark}</div> : null}
+      </div>
+    );
+  }
+
   return (
     <div
       style={{
         ...cardStyle,
         borderRadius: 16,
-        padding: isMobile ? "12px 12px" : "16px 18px",
+        padding: "12px 12px",
         textAlign: "left",
         minWidth: 0,
         display: "flex",

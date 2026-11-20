@@ -5,6 +5,7 @@ import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { RatePerformanceModal } from "./RatePerformanceModal";
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { isScoreTwelve } from "../utils/scoreUtils";
+import { CONTEST_CONTENT_MAX_WIDTH } from "../utils/contestLayout";
 import { useNarrowScreen } from "./scores/useNarrowScreen";
 
 type Props = {

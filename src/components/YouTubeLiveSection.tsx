@@ -64,7 +64,7 @@ export function YouTubeLiveSection({ theme }: Props) {
         : "linear-gradient(135deg, #4f7cff 0%, #7c4dff 100%)";
 
     return (
-        <section style={{ maxWidth: 1200, margin: "0 auto 24px", padding: "0 4px" }}>
+        <section style={{ width: "100%", margin: "0 0 24px" }}>
             <div
                 style={{
                     background: cardBg,

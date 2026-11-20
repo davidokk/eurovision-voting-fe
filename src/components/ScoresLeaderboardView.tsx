@@ -13,6 +13,7 @@ import {
 } from "./scores/scoresViewShared";
 import { ScoreTwelveDisplay } from "./ScoreTwelveDisplay";
 import { isScoreTwelve } from "../utils/scoreUtils";
+import { CONTEST_CONTENT_MAX_WIDTH } from "../utils/contestLayout";
 import { useScoresViewAuth } from "./scores/useScoresViewAuth";
 
 type SortMode = "score" | "number";
@@ -69,7 +70,7 @@ export function ScoresLeaderboardView({
     <div
       style={{
         width: "100%",
-        maxWidth: 720,
+        maxWidth: CONTEST_CONTENT_MAX_WIDTH,
         margin: "0 auto",
         boxSizing: "border-box",
         borderRadius: 16,

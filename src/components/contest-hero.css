@@ -1,0 +1,439 @@
+/* Ширина колонки = ряд карточек.
+   До 1200px контента — как раньше: карточки от 320px, до трёх в ряд.
+   4 карточки по 384px появляются, когда влезает 1608px (viewport ≥ 1656 с полями 24px).
+   5 карточек — с 2016px контента (viewport ≥ 2064). */
+.contest-sheet {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+  container-type: inline-size;
+  container-name: contest;
+}
+
+.contest-sheet__grid {
+  display: grid;
+  gap: 24px;
+  width: 100%;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr));
+}
+
+@media (min-width: 1656px) {
+  .contest-sheet {
+    max-width: 1608px;
+  }
+
+  .contest-sheet__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 2064px) {
+  .contest-sheet {
+    max-width: 2016px;
+  }
+
+  .contest-sheet__grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.contest-hero__desk {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 28px;
+}
+
+.contest-hero__mast {
+  flex: 0 1 auto;
+  min-width: 210px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.contest-hero__kicker {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.contest-hero__year {
+  font-family: "Syne", sans-serif;
+  font-size: 3.35rem;
+  font-weight: 800;
+  line-height: 0.84;
+  letter-spacing: -0.055em;
+  background-image: var(--year-grad, linear-gradient(180deg, #fff, #c4d4ff));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+.contest-hero__type {
+  margin: 0;
+  font-family: "Syne", sans-serif;
+  font-size: 1.45rem;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
+}
+
+.contest-hero__timer {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
+  padding: 8px 14px;
+  border-radius: 999px;
+}
+
+.contest-hero__rule {
+  display: none;
+  height: 1px;
+  align-self: center;
+  min-width: 28px;
+  background: linear-gradient(90deg, transparent, rgba(148, 163, 184, 0.45), transparent);
+}
+
+.contest-hero__stage {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+.contest-hero__facts {
+  display: flex;
+  gap: 12px;
+  flex: 0 0 auto;
+  align-self: stretch;
+  align-items: stretch;
+}
+
+.contest-hero__fact {
+  width: 124px;
+  min-height: 118px;
+  height: auto;
+  box-sizing: border-box;
+  border-radius: 18px;
+  padding: 14px 12px 13px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  position: relative;
+  overflow: hidden;
+}
+
+.contest-hero__fact::after {
+  content: "";
+  position: absolute;
+  right: -18px;
+  top: -22px;
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--fact-glow, transparent), transparent 68%);
+  pointer-events: none;
+}
+
+.contest-hero__fact-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: var(--fact-icon, transparent);
+}
+
+.contest-hero__fact-value {
+  font-family: "Syne", sans-serif;
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.contest-hero__fact-label {
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 0.06em;
+  line-height: 1.25;
+  text-transform: uppercase;
+}
+
+.contest-hero__picks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  flex: 1 1 420px;
+  max-width: 760px;
+  min-width: 0;
+}
+
+.contest-hero__picks:has(> :only-child) {
+  grid-template-columns: minmax(0, 1fr);
+  flex: 1 1 360px;
+  max-width: 460px;
+}
+
+.contest-hero__podium {
+  min-width: 0;
+  height: 100%;
+  box-sizing: border-box;
+  border-radius: 18px;
+  padding: 12px 14px 8px;
+  display: flex;
+  flex-direction: column;
+}
+
+.contest-hero__podium-head {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-bottom: 4px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.contest-hero__podium-empty {
+  flex: 1;
+  min-height: 138px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  font-style: italic;
+}
+
+.contest-hero__fact--guess {
+  width: 156px;
+}
+
+.contest-hero__fact--guess .contest-hero__fact-value {
+  font-size: 1.35rem;
+  letter-spacing: -0.03em;
+}
+
+.contest-hero__phone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+}
+
+.contest-hero__phone .contest-hero__mast {
+  align-items: center;
+  width: 100%;
+  min-width: 0;
+}
+
+.contest-hero__phone .contest-hero__year {
+  font-size: 4.15rem;
+}
+
+.contest-hero__phone .contest-hero__type {
+  text-align: center;
+}
+
+.contest-hero__phone .contest-hero__facts {
+  width: 100%;
+  align-self: stretch;
+}
+
+.contest-hero__phone .contest-hero__fact,
+.contest-hero__phone .contest-hero__fact--guess {
+  flex: 1 1 0;
+  width: auto;
+  min-width: 0;
+  min-height: 102px;
+}
+
+.contest-hero__phone .contest-hero__fact-value {
+  font-size: 1.35rem;
+}
+
+.contest-hero__phone .contest-hero__fact--guess {
+  flex-grow: 1.35;
+}
+
+.contest-hero__phone .contest-hero__fact--guess .contest-hero__fact-value {
+  font-size: 1.05rem;
+  white-space: nowrap;
+}
+
+.contest-hero__phone .contest-hero__picks {
+  width: 100%;
+  max-width: none;
+  flex: none;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.contest-hero__podium-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.contest-hero__podium-row {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 8px 10px;
+  align-items: center;
+  min-height: 46px;
+  flex: 1 0 46px;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+
+.contest-hero__podium-row + .contest-hero__podium-row {
+  border-top: 1px solid var(--line, rgba(255, 255, 255, 0.08));
+}
+
+.contest-hero__rank {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.contest-hero__podium--official .contest-hero__rank--1 {
+  background: #facc15;
+  color: #1a1400;
+}
+
+.contest-hero__podium--official .contest-hero__rank--2 {
+  background: #cbd5e1;
+  color: #1e293b;
+}
+
+.contest-hero__podium--official .contest-hero__rank--3 {
+  background: #d97706;
+  color: #fff;
+}
+
+.contest-hero__podium--commission .contest-hero__rank {
+  color: var(--pick);
+  box-shadow: inset 0 0 0 1.5px var(--pick);
+}
+
+.contest-hero__podium--commission .contest-hero__rank--1 {
+  background: var(--pick);
+  color: var(--pick-ink, #fff);
+  box-shadow: none;
+}
+
+.contest-hero__podium-who {
+  min-width: 0;
+}
+
+.contest-hero__podium-country {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-family: "Syne", sans-serif;
+  font-size: 14px;
+  font-weight: 800;
+  line-height: 1.2;
+}
+
+.contest-hero__podium-country span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-hero__pick-flag {
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.contest-hero__podium-artist {
+  margin-top: 1px;
+  font-size: 12px;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.contest-hero__podium-score {
+  font-family: "Syne", sans-serif;
+  font-size: 15px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+}
+
+@container contest (max-width: 1080px) {
+  .contest-hero__desk {
+    flex-wrap: wrap;
+    gap: 18px;
+  }
+
+  .contest-hero__stage {
+    flex-basis: 100%;
+    justify-content: stretch;
+  }
+
+  .contest-hero__picks {
+    max-width: none;
+  }
+}
+
+@container contest (min-width: 1500px) {
+  .contest-hero__year {
+    font-size: 4.4rem;
+  }
+
+  .contest-hero__rule {
+    display: block;
+    flex: 1 1 36px;
+  }
+
+  .contest-hero__stage {
+    flex: 0 1 auto;
+  }
+
+  .contest-hero__picks {
+    flex: 0 0 920px;
+    width: 920px;
+    max-width: 920px;
+  }
+
+  .contest-hero__picks:has(> :only-child) {
+    flex: 0 1 460px;
+    width: auto;
+    max-width: 460px;
+  }
+
+  .contest-hero__fact {
+    width: 136px;
+    min-height: 128px;
+  }
+
+  .contest-hero__fact--guess {
+    width: 168px;
+  }
+}

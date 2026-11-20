@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { getDoesBrowserSupportFlagEmojis } from "../utils/emojiSupport";
 import { PerformanceCardV2 } from "./PerformanceCardV2";
 import { formatTotal, getScoresViewColors, type ScoresViewProps } from "./scores/scoresViewShared";
+import { CONTEST_CONTENT_MAX_WIDTH } from "../utils/contestLayout";
 import { readScoresAuth } from "./scores/scoresViewShared";
 
 export function ScoresRunningOrderView({
@@ -61,7 +62,7 @@ export function ScoresRunningOrderView({
   }
 
   return (
-    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
+    <div style={{ maxWidth: CONTEST_CONTENT_MAX_WIDTH, margin: "0 auto" }}>
       <div
         ref={chipScrollRef}
         style={{
